@@ -20,10 +20,9 @@ function CallToAction() {
         Book a Meeting with our experts today!
       </p>
       <div className="mt-6">
-        <Button className="w-full sm:w-auto" href="#">
+        <Button className="w-full sm:w-auto" href="https://calendar.app.google/xJNUPr3weESwkqSA6">
           Get started
         </Button>
-        {/* TODO: add call to action  */}
       </div>
     </div>
   )

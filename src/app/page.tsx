@@ -25,7 +25,7 @@ function Hero() {
             profitability advanced AI solutions.
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
-            <Button href="#">Contact Us</Button>
+            <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">Contact Us</Button>
           </div>
         </div>
       </Container>
