@@ -4,17 +4,13 @@ import { Container } from '@/components/container'
 import { Footer } from '@/components/footer'
 import { Gradient } from '@/components/gradient'
 import { Keyboard } from '@/components/keyboard'
-import { Link } from '@/components/link'
 import { LinkedAvatars } from '@/components/linked-avatars'
-import { LogoCloud } from '@/components/logo-cloud'
 import { LogoCluster } from '@/components/logo-cluster'
 import { LogoTimeline } from '@/components/logo-timeline'
 import { Map } from '@/components/map'
 import { Navbar } from '@/components/navbar'
 import { Screenshot } from '@/components/screenshot'
-import { Testimonials } from '@/components/testimonials'
 import { Heading, Subheading } from '@/components/text'
-import { ChevronRightIcon } from '@heroicons/react/16/solid'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -27,16 +23,17 @@ function Hero() {
     <div className="relative">
       <Gradient className="absolute inset-2 bottom-0 rounded-4xl ring-1 ring-black/5 ring-inset" />
       <Container className="relative">
-        <Navbar/>
+        <Navbar />
         <div className="pt-16 pb-24 sm:pt-24 sm:pb-32 md:pt-32 md:pb-48">
           <h1 className="font-display text-6xl/[0.9] font-medium tracking-tight text-balance text-gray-950 sm:text-8xl/[0.8] md:text-9xl/[0.8]">
-          Increase Sales and Reduce Waste. 
+            Increase Sales and Reduce Waste.
           </h1>
           <p className="mt-8 max-w-lg text-xl/7 font-medium text-gray-950/75 sm:text-2xl/8">
-          Optimize your inventory, enhance customer satisfaction, and boost profitability advanced AI solutions.
+            Optimize your inventory, enhance customer satisfaction, and boost
+            profitability advanced AI solutions.
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
-            <Button href="#">Contact Us</Button> 
+            <Button href="#">Contact Us</Button>
             {/* TODO: update with google link */}
             {/* <Button variant="secondary" href="/pricing">
               See pricing
@@ -184,26 +181,21 @@ import { InboxIcon, TrashIcon, UsersIcon } from '@heroicons/react/24/outline'
 
 const features = [
   {
-    name: 'Unlimited inboxes',
-    description:
-      'Non quo aperiam repellendus quas est est. Eos aut dolore aut ut sit nesciunt. Ex tempora quia. Sit nobis consequatur dolores incidunt.',
-    href: '#',
+    name: 'Revenue Loss Due to Stockouts',
+    description: 'Missed Sales Opportunities & Damaged Brand Reputation',
     icon: InboxIcon,
   },
   {
-    name: 'Manage team members',
-    description:
-      'Vero eum voluptatem aliquid nostrum voluptatem. Vitae esse natus. Earum nihil deserunt eos quasi cupiditate. A inventore et molestiae natus.',
-    href: '#',
+    name: 'Poor Customer Experience & Churn',
+    description: "Frustrated Customers Don't Return",
     icon: UsersIcon,
   },
-  // {
-  //   name: 'Spam report',
-  //   description:
-  //     'Et quod quaerat dolorem quaerat architecto aliquam accusantium. Ex adipisci et doloremque autem quia quam. Quis eos molestiae at iure impedit.',
-  //   href: '#',
-  //   icon: TrashIcon,
-  // },
+  {
+    name: 'Excess Inventory Drains Cash Flow',
+    description: 'Locked Capital & Increased Holding Costs',
+    href: '#',
+    icon: TrashIcon,
+  },
 ]
 
 export function SectionOne() {
@@ -212,11 +204,11 @@ export function SectionOne() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:mx-0">
           <h2 className="text-4xl font-semibold tracking-tight text-pretty text-gray-900 sm:text-5xl">
-            Stay on top of customer support
+            The Hidden Costs of Poor Inventory Management{' '}
           </h2>
           <p className="mt-6 text-lg/8 text-gray-600">
-            Lorem ipsum dolor sit amet consect adipisicing elit. Possimus magnam voluptatum cupiditate veritatis in
-            accusamus quisquam.
+            Poor demand forecasting can severely impact your business, leading
+            to lost revenue, unhappy customers, and unnecessary expenses.
           </p>
         </div>
         <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
@@ -225,17 +217,20 @@ export function SectionOne() {
               <div key={feature.name} className="flex flex-col">
                 <dt className="text-base/7 font-semibold text-gray-900">
                   <div className="mb-6 flex size-10 items-center justify-center rounded-lg bg-indigo-600">
-                    <feature.icon aria-hidden="true" className="size-6 text-white" />
+                    <feature.icon
+                      aria-hidden="true"
+                      className="size-6 text-white"
+                    />
                   </div>
                   {feature.name}
                 </dt>
                 <dd className="mt-1 flex flex-auto flex-col text-base/7 text-gray-600">
                   <p className="flex-auto">{feature.description}</p>
-                  <p className="mt-6">
+                  {/* <p className="mt-6">
                     <a href={feature.href} className="text-sm/6 font-semibold text-indigo-600">
                       Learn more <span aria-hidden="true">→</span>
                     </a>
-                  </p>
+                  </p>  */}
                 </dd>
               </div>
             ))}
@@ -255,7 +250,7 @@ export default function Home() {
           <LogoCloud />
         </Container> */}
         <div className="bg-linear-to-b from-white from-50% to-gray-100 py-32">
-          <SectionOne/>
+          <SectionOne />
           {/* <FeatureSection /> */}
           <BentoSection />
         </div>
