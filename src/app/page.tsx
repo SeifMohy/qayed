@@ -3,11 +3,11 @@ import { Container } from '@/components/container'
 import { Footer } from '@/components/footer'
 import { Gradient } from '@/components/gradient'
 import { Navbar } from '@/components/navbar'
-import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
+export const metadata = {
+  title: 'AI Demand Planning',
   description:
-    'Radiant helps you sell more by revealing sensitive information about your customers.',
+    "Optimize inventory, boost profitability, and reduce waste with SKU's AI-powered solutions.",
 }
 
 function Hero() {
@@ -25,7 +25,9 @@ function Hero() {
             profitability advanced AI solutions.
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
-            <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">Contact Us</Button>
+            <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">
+              Contact Us
+            </Button>
           </div>
         </div>
       </Container>
@@ -69,7 +71,7 @@ const solutions = [
   },
 ]
 
-export function SectionOne() {
+function SectionOne() {
   return (
     <div className="bg-white pt-12 pb-6">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -100,9 +102,9 @@ export function SectionOne() {
   )
 }
 
-export function SectionTwo() {
+function SectionTwo() {
   return (
-    <div className="bg-white pb-12 pt-6">
+    <div className="bg-white pt-6 pb-12">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:text-center">
           <h2 className="text-base/7 font-semibold text-[#595CFF]">
