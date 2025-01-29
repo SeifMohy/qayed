@@ -1,4 +1,4 @@
-import { PlusGrid, PlusGridItem, PlusGridRow } from '@/components/plus-grid'
+import { PlusGridItem, PlusGridRow } from '@/components/plus-grid'
 import { Button } from './button'
 import { Container } from './container'
 import { Gradient } from './gradient'
@@ -12,12 +12,12 @@ function CallToAction() {
       <hgroup>
         <Subheading>Get started</Subheading>
         <p className="mt-6 text-3xl font-medium tracking-tight text-gray-950 sm:text-5xl">
-        Ready to Streamline Your Inventory?
+          Ready to revolutionize your demand planning?
           <br />
         </p>
       </hgroup>
       <p className="mx-auto mt-6 max-w-xs text-sm/6 text-gray-500">
-      Book a Meeting with our experts today.
+        Book a Meeting with our experts today!
       </p>
       <div className="mt-6">
         <Button className="w-full sm:w-auto" href="#">
@@ -160,19 +160,19 @@ export function Footer() {
         <Container>
           <CallToAction />
           {/* <PlusGrid className="pb-16"> */}
-            <PlusGridRow>
-              <div className="grid grid-cols-2 gap-y-10 pb-6 lg:grid-cols-6 lg:gap-8">
-                <div className="col-span-2 flex">
-                  <PlusGridItem className="pt-6 lg:pb-6">
-                    <Logo className="h-9" />
-                  </PlusGridItem>
-                </div>
-                <div className="col-span-2 grid grid-cols-2 gap-x-8 gap-y-12 lg:col-span-4 lg:grid-cols-subgrid lg:pt-6">
-                  {/* <Sitemap /> */}
-                </div>
+          <PlusGridRow>
+            <div className="grid grid-cols-2 gap-y-10 pb-6 lg:grid-cols-6 lg:gap-8">
+              <div className="col-span-2 flex">
+                <PlusGridItem className="pt-6 lg:pb-6">
+                  <Logo className="h-9" />
+                </PlusGridItem>
               </div>
-            </PlusGridRow>
-            {/* <PlusGridRow className="flex justify-between">
+              <div className="col-span-2 grid grid-cols-2 gap-x-8 gap-y-12 lg:col-span-4 lg:grid-cols-subgrid lg:pt-6">
+                {/* <Sitemap /> */}
+              </div>
+            </div>
+          </PlusGridRow>
+          {/* <PlusGridRow className="flex justify-between">
               <div>
                 <PlusGridItem className="py-3">
                   <Copyright />
