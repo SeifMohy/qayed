@@ -21,7 +21,7 @@ function CallToAction() {
       </p>
       <div className="mt-6">
         <Button className="w-full sm:w-auto" href="https://calendar.app.google/xJNUPr3weESwkqSA6">
-          Get started
+          Book a Demo
         </Button>
       </div>
     </div>

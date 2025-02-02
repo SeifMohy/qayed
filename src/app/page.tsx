@@ -16,7 +16,7 @@ function Hero() {
       <Gradient className="absolute inset-2 bottom-0 rounded-4xl ring-1 ring-black/5 ring-inset" />
       <Container className="relative">
         <Navbar />
-        <div className="pt-16 pb-24 sm:pt-24 sm:pb-32 md:pt-32 md:pb-48">
+        <div className="pt-16 pb-24 sm:pt-24 sm:pb-32 md:pt-24 md:pb-24">
           <h1 className="font-display text-6xl/[0.9] font-medium tracking-tight text-balance text-gray-950 sm:text-8xl/[0.8] md:text-9xl/[0.8]">
             Increase Sales and Reduce Waste.
           </h1>
@@ -26,7 +26,7 @@ function Hero() {
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
             <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">
-              Contact Us
+              Book a Demo
             </Button>
           </div>
         </div>

@@ -15,7 +15,7 @@ function DesktopNav() {
   return (
     <nav className="relative hidden lg:flex">
       <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">
-        Contact Us
+        Book a Demo
       </Button>
     </nav>
   )
@@ -37,7 +37,7 @@ function MobileNav() {
     <DisclosurePanel className="lg:hidden">
       <div className="flex flex-col gap-6 py-4">
         <Button href="https://calendar.app.google/xJNUPr3weESwkqSA6">
-          Contact Us
+          Book a Demo
         </Button>
       </div>
       <div className="absolute left-1/2 w-screen -translate-x-1/2">
@@ -65,11 +65,11 @@ export function Navbar({ banner }: { banner?: React.ReactNode }) {
               </div>
             )}
           </div>
-          <DesktopNav />
-          <MobileNavButton />
+          {/* <DesktopNav /> */}
+          {/* <MobileNavButton /> */}
         </PlusGridRow>
       </PlusGrid>
-      <MobileNav />
+      {/* <MobileNav /> */}
     </Disclosure>
   )
 }
