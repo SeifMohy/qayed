@@ -30,7 +30,9 @@ export function Logo({ className }: { className?: string }) {
         xmlns="http://www.w3.org/2000/svg"
       >
         <style>
+          {`
           url('https://fonts.googleapis.com/css2?family=Kanit&display=swap');
+          `}
         </style>
 
         <text
@@ -39,8 +41,7 @@ export function Logo({ className }: { className?: string }) {
           dominant-baseline="middle"
           text-anchor="middle"
           fill="#333"
-          font-family="'Kanit', 500"
-          // font-family="Arial, sans-serif"
+          font-family="Kanit, 500"
           font-size="32"
           font-weight="bold"
         >
