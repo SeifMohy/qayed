@@ -10,18 +10,21 @@ function CallToAction() {
   return (
     <div className="relative pt-20 pb-16 text-center sm:py-24">
       <hgroup>
-        <Subheading>Get started</Subheading>
+        <Subheading>Ready to get started?</Subheading>
         <p className="mt-6 text-3xl font-medium tracking-tight text-gray-950 sm:text-5xl">
-          Ready to revolutionize your demand planning?
+          Transform Your Cashflow Management
           <br />
         </p>
       </hgroup>
-      <p className="mx-auto mt-6 max-w-xs text-sm/6 text-gray-500">
-        Book a Meeting with our experts today!
+      <p className="mx-auto mt-6 max-w-md text-sm/6 text-gray-500">
+        Sign up now to move from reactive to proactive financial planning.
       </p>
-      <div className="mt-6">
-        <Button className="w-full sm:w-auto" href="https://calendar.app.google/xJNUPr3weESwkqSA6">
-          Book a Demo
+      <div className="mt-6 flex flex-col gap-x-6 gap-y-4 sm:flex-row justify-center">
+        <Button className="w-full sm:w-auto" href="/login">
+          Sign Up
+        </Button>
+        <Button className="w-full sm:w-auto" variant="outline" href="/login">
+          Sign In
         </Button>
       </div>
     </div>
@@ -54,7 +57,7 @@ function Sitemap() {
         <SitemapHeading>Product</SitemapHeading>
         <SitemapLinks>
           <SitemapLink href="/pricing">Pricing</SitemapLink>
-          <SitemapLink href="#">Analysis</SitemapLink>
+          <SitemapLink href="#">Features</SitemapLink>
           <SitemapLink href="#">API</SitemapLink>
         </SitemapLinks>
       </div>
@@ -74,7 +77,7 @@ function Sitemap() {
         </SitemapLinks>
       </div>
       <div>
-        <SitemapHeading>Company</SitemapHeading>
+        <SitemapHeading>Legal</SitemapHeading>
         <SitemapLinks>
           <SitemapLink href="#">Terms of service</SitemapLink>
           <SitemapLink href="#">Privacy policy</SitemapLink>
@@ -158,7 +161,6 @@ export function Footer() {
         <div className="absolute inset-2 rounded-4xl bg-white/80" />
         <Container>
           <CallToAction />
-          {/* <PlusGrid className="pb-16"> */}
           <PlusGridRow>
             <div className="grid grid-cols-2 gap-y-10 pb-6 lg:grid-cols-6 lg:gap-8">
               <div className="col-span-2 flex">
@@ -167,25 +169,25 @@ export function Footer() {
                 </PlusGridItem>
               </div>
               <div className="col-span-2 grid grid-cols-2 gap-x-8 gap-y-12 lg:col-span-4 lg:grid-cols-subgrid lg:pt-6">
-                {/* <Sitemap /> */}
+                <Sitemap />
               </div>
             </div>
           </PlusGridRow>
-          {/* <PlusGridRow className="flex justify-between">
-              <div>
-                <PlusGridItem className="py-3">
-                  <Copyright />
-                </PlusGridItem>
-              </div>
-              <div className="flex">
-                <PlusGridItem className="flex items-center gap-8 py-3">
-                  <SocialLinks />
-                </PlusGridItem>
-              </div>
-            </PlusGridRow> */}
-          {/* </PlusGrid> */}
+          <PlusGridRow className="flex justify-between">
+            <div>
+              <PlusGridItem className="py-3">
+                <Copyright />
+              </PlusGridItem>
+            </div>
+            <div className="flex">
+              <PlusGridItem className="flex items-center gap-8 py-3">
+                <SocialLinks />
+              </PlusGridItem>
+            </div>
+          </PlusGridRow>
         </Container>
       </Gradient>
     </footer>
   )
 }
+

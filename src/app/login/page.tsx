@@ -1,3 +1,5 @@
+'use client'
+
 import { Button } from '@/components/button'
 import { GradientBackground } from '@/components/gradient'
 import { Link } from '@/components/link'
@@ -5,12 +7,6 @@ import { Link } from '@/components/link'
 import { Checkbox, Field, Input, Label } from '@headlessui/react'
 import { CheckIcon } from '@heroicons/react/16/solid'
 import { clsx } from 'clsx'
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: 'Login',
-  description: 'Sign in to your account to continue.',
-}
 
 export default function Login() {
   return (
@@ -18,7 +14,7 @@ export default function Login() {
       <GradientBackground />
       <div className="isolate flex min-h-dvh items-center justify-center p-6 lg:p-8">
         <div className="w-full max-w-md rounded-xl bg-white ring-1 shadow-md ring-black/5">
-          <form action="#" method="POST" className="p-7 sm:p-11">
+          <div className="p-7 sm:p-11">
             <div className="flex items-start">
               <Link href="/" title="Home">
                 {/* <Mark className="h-9 fill-black" /> */}
@@ -74,14 +70,16 @@ export default function Login() {
               </Link>
             </div>
             <div className="mt-8">
-              <Button type="submit" className="w-full">
-                Sign in
-              </Button>
+              <Link href="/dashboard">
+                <Button className="w-full">
+                  Sign in
+                </Button>
+              </Link>
             </div>
-          </form>
+          </div>
           <div className="m-1.5 rounded-lg bg-gray-50 py-4 text-center text-sm/5 ring-1 ring-black/5">
             Not a member?{' '}
-            <Link href="#" className="font-medium hover:text-gray-600">
+            <Link href="/signup" className="font-medium hover:text-gray-600">
               Create an account
             </Link>
           </div>
