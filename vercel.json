@@ -6,8 +6,12 @@
       "use": "@vercel/next",
       "config": {
         "installCommand": "npm install",
-        "buildCommand": "npm run build"
+        "buildCommand": "npm run build",
+        "nodeVersion": "16.x"
       }
     }
-  ]
+  ],
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
 } 
