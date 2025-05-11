@@ -3,6 +3,7 @@
 import { ArrowPathIcon, PlusIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
+import KeyFigureCard from '@/components/key-figure-card'
 
 const bankAccounts = [
   {
@@ -119,70 +120,43 @@ export default function BanksPage() {
 
       {/* Summary Stats */}
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-gray-500">Total Cash on Hand</dt>
-                  <dd>
-                    <div className="text-lg font-medium text-gray-900">$1,423,982.09</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        <KeyFigureCard
+          title="Total Cash on Hand"
+          value="$1,423,982.09"
+          icon={() => (
+            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+          iconColor="bg-blue-500"
+        />
 
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-gray-500">Total Credit Available</dt>
-                  <dd>
-                    <div className="text-lg font-medium text-gray-900">$650,000.00</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        <KeyFigureCard
+          title="Total Credit Available"
+          value="$650,000.00"
+          icon={() => (
+            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          )}
+          iconColor="bg-green-500"
+        />
 
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                  />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="truncate text-sm font-medium text-gray-500">Upcoming Bank Obligations (30 days)</dt>
-                  <dd>
-                    <div className="text-lg font-medium text-gray-900">$60,950.00</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
+        <KeyFigureCard
+          title="Upcoming Bank Obligations (30 days)"
+          value="$60,950.00"
+          icon={() => (
+            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+              />
+            </svg>
+          )}
+          iconColor="bg-red-500"
+        />
       </div>
 
       {/* Bank Accounts */}

@@ -1,39 +1,42 @@
 import { ArrowPathIcon, ArrowTopRightOnSquareIcon, PlusIcon } from '@heroicons/react/20/solid'
 import { CreditCardIcon, CurrencyDollarIcon, TruckIcon, CalendarIcon } from '@heroicons/react/24/outline'
-import { clsx } from 'clsx'
+import KeyFigureCard from '@/components/key-figure-card'
+import type { ChangeType } from '@/components/key-figure-card'
 
 const stats = [
   {
-    name: 'Total Received Orders',
+    title: 'Total Received Orders',
     value: '$850,000',
     icon: CreditCardIcon,
     iconColor: 'bg-blue-500',
     change: '+3.8% from last quarter',
-    changeType: 'increase',
+    changeType: 'increase' as ChangeType,
   },
   {
-    name: 'Upcoming Payments',
+    title: 'Upcoming Payments',
     value: '$131,550',
     icon: CurrencyDollarIcon,
     iconColor: 'bg-red-500',
     change: '+7.2% from last month',
-    changeType: 'increase',
+    changeType: 'increase' as ChangeType,
+    interpretation: 'negative' as const, // Increase in upcoming payments is negative
   },
   {
-    name: 'Ratio of Purchases to Orders',
+    title: 'Ratio of Purchases to Orders',
     value: '3.2x',
     icon: CalendarIcon,
     iconColor: 'bg-purple-500',
     change: '+0.1x from last quarter',
-    changeType: 'increase',
+    changeType: 'increase' as ChangeType,
   },
   {
-    name: 'Average Payment Time',
+    title: 'Average Payment Time',
     value: '28 days',
     icon: TruckIcon,
     iconColor: 'bg-green-500',
     change: '+2 days from last quarter',
-    changeType: 'increase',
+    changeType: 'increase' as ChangeType,
+    interpretation: 'negative' as const, // Increase in payment time is negative
   },
 ]
 
@@ -115,33 +118,17 @@ export default function Suppliers() {
 
       {/* KPIs */}
       <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div
-            key={stat.name}
-            className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6 sm:pt-6"
-          >
-            <dt>
-              <div className={clsx('absolute rounded-md p-3', stat.iconColor)}>
-                <stat.icon className="h-6 w-6 text-white" aria-hidden="true" />
-              </div>
-              <p className="ml-16 truncate text-sm font-medium text-gray-500">{stat.name}</p>
-            </dt>
-            <dd className="ml-16 flex items-baseline">
-              <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-              <p
-                className={clsx(
-                  'ml-2 flex items-baseline text-sm font-semibold',
-                  stat.changeType === 'increase' 
-                    ? (stat.name === 'Upcoming Payments' || stat.name === 'Average Payment Time' ? 'text-red-600' : 'text-green-600')
-                    : stat.changeType === 'decrease' 
-                      ? (stat.name === 'Upcoming Payments' || stat.name === 'Average Payment Time' ? 'text-green-600' : 'text-red-600')
-                      : 'text-gray-500'
-                )}
-              >
-                {stat.change}
-              </p>
-            </dd>
-          </div>
+        {stats.map((item) => (
+          <KeyFigureCard
+            key={item.title}
+            title={item.title}
+            value={item.value}
+            icon={item.icon}
+            iconColor={item.iconColor}
+            change={item.change}
+            changeType={item.changeType}
+            interpretation={item.interpretation}
+          />
         ))}
       </div>
 

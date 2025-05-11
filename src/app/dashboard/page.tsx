@@ -15,6 +15,8 @@ import {
     Legend,
     Filler
 } from 'chart.js'
+import KeyFigureCard from '@/components/key-figure-card'
+import type { ChangeType } from '@/components/key-figure-card'
 
 // Register Chart.js components
 ChartJS.register(
@@ -30,36 +32,38 @@ ChartJS.register(
 
 const stats = [
     {
-        name: 'Total Cash On Hand',
-        stat: '$1,423,982',
+        title: 'Total Cash On Hand',
+        value: '$1,423,982',
         change: '3.2%',
-        changeType: 'increase',
+        changeType: 'increase' as ChangeType,
         icon: CurrencyDollarIcon,
         iconColor: 'bg-green-500',
     },
     {
-        name: 'Outstanding Payables (30 days)',
-        stat: '$459,871',
+        title: 'Outstanding Payables (30 days)',
+        value: '$459,871',
         change: '1.8%',
-        changeType: 'decrease',
+        changeType: 'decrease' as ChangeType,
         icon: BanknotesIcon,
         iconColor: 'bg-red-500',
+        interpretation: 'positive' as const,
     },
     {
-        name: 'Outstanding Receivables (30 days)',
-        stat: '$681,120',
+        title: 'Outstanding Receivables (30 days)',
+        value: '$681,120',
         change: '5.2%',
-        changeType: 'increase',
+        changeType: 'increase' as ChangeType,
         icon: CreditCardIcon,
         iconColor: 'bg-blue-500',
     },
     {
-        name: 'Outstanding Bank Payments',
-        stat: '$181,000',
+        title: 'Outstanding Bank Payments',
+        value: '$181,000',
         change: '2.3%',
-        changeType: 'increase',
+        changeType: 'increase' as ChangeType,
         icon: ArrowTrendingUpIcon,
         iconColor: 'bg-purple-500',
+        interpretation: 'negative' as const,
     },
 ]
 
@@ -113,34 +117,16 @@ export default function Dashboard() {
             {/* KPI Cards */}
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 {stats.map((item) => (
-                    <div
-                        key={item.name}
-                        className="relative overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:px-6 sm:pt-6"
-                    >
-                        <dt>
-                            <div className={clsx('absolute rounded-md p-3', item.iconColor)}>
-                                <item.icon className="h-6 w-6 text-white" aria-hidden="true" />
-                            </div>
-                            <p className="ml-16 truncate text-sm font-medium text-gray-500">{item.name}</p>
-                        </dt>
-                        <dd className="ml-16 flex items-baseline">
-                            <p className="text-2xl font-semibold text-gray-900">{item.stat}</p>
-                            <p
-                                className={clsx(
-                                    item.changeType === 'increase' ? 'text-green-600' : 'text-red-600',
-                                    'ml-2 flex items-baseline text-sm font-semibold'
-                                )}
-                            >
-                                {item.changeType === 'increase' ? (
-                                    <ArrowUpIcon className="h-5 w-5 flex-shrink-0 self-center text-green-500" aria-hidden="true" />
-                                ) : (
-                                    <ArrowDownIcon className="h-5 w-5 flex-shrink-0 self-center text-red-500" aria-hidden="true" />
-                                )}
-                                <span className="sr-only"> {item.changeType === 'increase' ? 'Increased' : 'Decreased'} by </span>
-                                {item.change}
-                            </p>
-                        </dd>
-                    </div>
+                    <KeyFigureCard
+                        key={item.title}
+                        title={item.title}
+                        value={item.value}
+                        icon={item.icon}
+                        iconColor={item.iconColor}
+                        change={item.change}
+                        changeType={item.changeType}
+                        interpretation={item.interpretation}
+                    />
                 ))}
             </div>
 
