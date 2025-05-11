@@ -1,30 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
-import { Bar } from 'react-chartjs-2'
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-} from 'chart.js'
+import dynamic from 'next/dynamic'
 
-// Register Chart.js components
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-)
+// Dynamically import Chart.js components
+const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
 
 // Mock bank data - in a real app this would come from an API
 const banks = [
@@ -168,6 +152,35 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const bankId = parseInt(params.id)
     const bank = banks.find(b => b.id === bankId) || banks[0]
     const [activeTab, setActiveTab] = useState('overview')
+    const [chartLoaded, setChartLoaded] = useState(false)
+    
+    // Load chart.js when component mounts
+    useEffect(() => {
+      const loadChartJs = async () => {
+        const { 
+          Chart, 
+          CategoryScale, 
+          LinearScale, 
+          BarElement, 
+          Title, 
+          Tooltip, 
+          Legend
+        } = await import('chart.js');
+        
+        Chart.register(
+          CategoryScale, 
+          LinearScale, 
+          BarElement, 
+          Title, 
+          Tooltip, 
+          Legend
+        );
+        
+        setChartLoaded(true);
+      };
+      
+      loadChartJs();
+    }, []);
 
     // Calculate metrics
     const totalBalance = bank.accounts.reduce((sum, account) => {

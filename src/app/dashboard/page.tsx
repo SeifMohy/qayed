@@ -1,36 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowDownIcon, ArrowUpIcon, ArrowPathIcon } from '@heroicons/react/20/solid'
 import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
-import { Line } from 'react-chartjs-2'
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-} from 'chart.js'
+import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/key-figure-card'
 import type { ChangeType } from '@/components/key-figure-card'
 import { useUploadedSources } from './layout'
 
-// Register Chart.js components
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    Title,
-    Tooltip,
-    Legend,
-    Filler
-)
+// Dynamically import Chart.js components
+const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
 
 // Data sources and their uploaded state
 const dataSources = [
@@ -115,6 +95,39 @@ export default function Dashboard() {
     const [isUploading, setIsUploading] = useState<string | null>(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File | null }>({});
+    const [chartLoaded, setChartLoaded] = useState(false);
+    
+    // Load chart.js when component mounts
+    useEffect(() => {
+      const loadChartJs = async () => {
+        const { 
+          Chart, 
+          CategoryScale, 
+          LinearScale, 
+          PointElement, 
+          LineElement, 
+          Title, 
+          Tooltip, 
+          Legend, 
+          Filler 
+        } = await import('chart.js');
+        
+        Chart.register(
+          CategoryScale, 
+          LinearScale, 
+          PointElement, 
+          LineElement, 
+          Title, 
+          Tooltip, 
+          Legend, 
+          Filler
+        );
+        
+        setChartLoaded(true);
+      };
+      
+      loadChartJs();
+    }, []);
     
     const handleFileSelect = (sourceId: string, file: File) => {
         setSelectedFiles(prev => ({
@@ -151,7 +164,7 @@ export default function Dashboard() {
     const areAllSourcesUploaded = dataSources.every(source => isDataSourceUploaded(source.id));
     
     // Only require bank statements for the chart
-    const isChartVisible = isDataSourceUploaded('bankStatements');
+    const isChartVisible = isDataSourceUploaded('bankStatements') && chartLoaded;
                          
     const isSupplierPaymentsVisible = isDataSourceUploaded('accountsPayable');
     const isCustomerPaymentsVisible = isDataSourceUploaded('accountsReceivable');

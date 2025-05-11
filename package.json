@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "next start",
     "lint": "next lint",
     "typegen": "sanity schema extract --path=src/sanity/extract.json && sanity typegen generate && rm ./src/sanity/extract.json"
@@ -14,6 +14,7 @@
     "@heroicons/react": "^2.1.4",
     "@sanity/image-url": "^1.0.2",
     "@sanity/vision": "^3.52.2",
+    "chart.js": "^4.4.9",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.12",
     "feed": "^4.2.2",
@@ -21,6 +22,7 @@
     "next": "14.2.11",
     "next-sanity": "^9.4.7",
     "react": "^18",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "^18",
     "react-use-measure": "^2.1.1",
     "sanity": "^3.55.0"
