@@ -9,14 +9,14 @@ This document outlines the step-by-step approach for implementing the Cashflow M
 
 The goal of this phase is to create a complete UI demonstration with working navigation, interactive components, and realistic mock data. This will allow for showcasing the potential of the MVP without backend integration.
 
-### A1: Project Setup and Mock Authentication (Week 1)
+### A1: Project Setup and Mock Authentication (Week 1) ✅
 
-#### Initial Project Configuration
+#### Initial Project Configuration ✅
 - Review and update existing Next.js project structure
 - Set up proper TypeScript types for the application
 - Configure mock authentication flow with client-side state
 
-#### Landing Page Enhancement
+#### Landing Page Enhancement ✅
 - Update hero section with product tagline and value proposition "Empowering Enterprises with CFO-Level Cashflow Management" 
 - Add problem statement and solution overview sections "Gaining clear visibility into cashflow is challenging and time-consuming. Finance teams spend countless hours manually combining data from multiple disconnected sources—banks, ERPs, electronic invoices—leading to:
 
@@ -47,21 +47,21 @@ Sign up now to move from reactive to proactive financial planning.
 
 [Sign Up] | [Sign In]
 
-### A2: Core Layout and Navigation (Week 1)
+### A2: Core Layout and Navigation (Week 1) ✅
 
-#### App Layout Structure
+#### App Layout Structure ✅
 - Develop client-side protected route structure for authenticated pages
 - Create responsive app shell with consistent styling
 - Implement navigation bar with required links
 
-#### Dashboard Page Framework
+#### Dashboard Page Framework ✅
 - Create dashboard layout with placeholder components for KPIs
 - Add chart container for cash position visualization
 - Create summary card components for upcoming payments
 
-### A3: Mock Data Structure (Week 1-2)
+### A3: Mock Data Structure (Week 1-2) ✅
 
-#### Mock Data Creation
+#### Mock Data Creation ✅
 - Create comprehensive mock data sets for all entities:
   - Users
   - Banks and bank accounts
@@ -69,89 +69,106 @@ Sign up now to move from reactive to proactive financial planning.
   - Suppliers and payables
   - Transactions and forecasts
 
-#### State Management (Frontend)
+#### State Management (Frontend) ✅
 - Set up client-side state management for app-wide data
 - Implement frontend data fetching simulation
 - Create realistic delay/loading states for user experience
 
-### A4: Dashboard Implementation (Week 2)
+### A4: Dashboard Implementation (Week 2) ✅
 
-#### KPI Components with Mock Data
+#### KPI Components with Mock Data ✅
 - Implement Total Cash On Hand metric using mock data
 - Create Outstanding Payables calculation with simulated figures
 - Add Outstanding Receivables calculation based on mock data
 - Develop Net Projected Cash Flow forecast visualization
 
-#### Interactive Chart
+#### Interactive Chart ✅
 - Implement chart for cash position visualization with mock data
 - Add forecast visualization for 90-day rolling period
 - Enable date range selection and filtering functionality
 
-#### Summary Cards
+#### Summary Cards ✅
 - Create summary card for upcoming supplier payments
 - Implement customer payments summary card
 - Add banking obligations summary card
 
-### A5: Banks Module UI (Week 2)
+### A5: Banks Module UI (Week 2) ✅
 
-#### Banks Overview Page
+#### Banks Overview Page ✅
 - Implement key figures and summaries section with mock data
 - Create banks overview table with sorting and filtering
 - Add navigation to individual bank profile pages
 
-#### Bank Profile Page
+#### Bank Profile Page ✅
 - Develop bank detail view with mock account information
 - Create accounts table with simulated balance information
 - Implement limits table showing mock facility utilization
 - Add upcoming obligations table with fictional payment schedule
 
-### A6: Customers Module UI (Week 3)
+### A6: Customers Module UI (Week 3) ✅
 
-#### Customers Overview Page
+#### Customers Overview Page ✅
 - Implement key metrics with mock customer relationship data
 - Create customers table with simulated payment history indicators
 - Add navigation to individual customer profile pages
 
-#### Customer Profile Page
+#### Customer Profile Page ✅
 - Develop customer detail view with mock metrics
 - Create order history table with simulated payment tracking
 - Implement visualization of payment patterns using mock data
 
-### A7: Suppliers Module UI (Week 3)
+### A7: Suppliers Module UI (Week 3) ✅
 
-#### Suppliers Overview Page
+#### Suppliers Overview Page ✅
 - Implement key metrics with mock supplier relationship data
 - Create suppliers table with simulated payment terms and history
 - Add navigation to individual supplier profile pages
 
-#### Supplier Profile Page
+#### Supplier Profile Page ✅
 - Develop supplier detail view with mock metrics
 - Create order history table with simulated payment tracking
 - Implement visualization of payment patterns using mock data
 
-### A8: UI Upload & Refresh Components (Week 3)
+### A8: UI Upload & Refresh Components (Week 3) ✅
 
-#### Mock Data Import UI
+#### Mock Data Import UI ✅
 - Implement file upload components for Excel imports (UI only)
 - Create simulated data validation feedback
 - Develop error handling UI for data imports
 
-#### Refresh UI Components
+#### Refresh UI Components ✅
 - Add refresh buttons with loading animations for bank statements
 - Implement refresh UI for AR data
 - Create refresh functionality UI for AP data
 
-### A9: Frontend Polish and Demo Preparation (Week 3)
+### A9: Frontend Polish and Demo Preparation (Week 3) ✅
 
-#### UI/UX Refinement
+#### UI/UX Refinement ✅
 - Conduct internal usability testing and gather feedback
 - Refine responsive design across device sizes
 - Optimize performance and loading states
 
-#### Demo Configuration
+#### Demo Configuration ✅
 - Create predefined demo scenarios
 - Set up demonstration user accounts with varied mock data
 - Prepare guided tour through key features
+
+### A10: Data Sources & User Journey Implementation (Week 3) ✅
+
+#### Data Sources Mapping ✅
+- Map data sources and their expected data points throughout the app:
+  - Bank Statements (Excel Format) - Cashflow for the previous period
+  - Bank Position (Excel Format) - Scheduled obligations, Limits / Interest
+  - Accounts Receivable (ERP / Electronic Invoices) - Scheduled incoming money for the period
+  - Accounts Payable (ERP / Electronic Invoices) - Scheduled procurement payments
+  - Facility Approvals / Limit Position - Rates, Limits / Covenants
+
+#### User Journey Implementation ✅
+- Modify interface to hide figures/numbers until corresponding documents are uploaded
+- Add upload buttons/sections for each data source throughout the app
+- Implement data upload modal with clear descriptions of each data source
+- Create loading/processing states during data upload
+- Ensure conditional visibility of components based on uploaded data
 
 ## Phase A2: This includes things that are not neccessary for Phase A but are good to have
 
