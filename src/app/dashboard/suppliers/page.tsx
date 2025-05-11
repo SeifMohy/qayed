@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 
 const stats = [
   {
-    name: 'Total Granted Facilities',
+    name: 'Total Received Orders',
     value: '$850,000',
     icon: CreditCardIcon,
     iconColor: 'bg-blue-500',
@@ -20,7 +20,7 @@ const stats = [
     changeType: 'increase',
   },
   {
-    name: 'Ratio of Purchases to Facilities',
+    name: 'Ratio of Purchases to Orders',
     value: '3.2x',
     icon: CalendarIcon,
     iconColor: 'bg-purple-500',
@@ -42,46 +42,51 @@ const suppliers = [
     id: 1,
     name: 'Tech Innovations Ltd',
     purchasesPastYear: '$950,000',
-    grantedFacilities: '$250,000',
-    paymentTerms: 'Net 30',
-    percentOfTotalPurchases: '32%',
-    paymentStatus: 'On Time',
+    receivedOrders: '$750,000',
+    ordersInTransit: '$200,000',
+    outstandingPayments: '$180,000',
+    percentPaidOrders: '76%',
+    numberOfOrders: 32,
   },
   {
     id: 2,
     name: 'Global Shipping Co.',
     purchasesPastYear: '$650,000',
-    grantedFacilities: '$120,000',
-    paymentTerms: 'Net 45',
-    percentOfTotalPurchases: '22%',
-    paymentStatus: 'Early (-5 days)',
+    receivedOrders: '$590,000',
+    ordersInTransit: '$60,000',
+    outstandingPayments: '$120,000',
+    percentPaidOrders: '80%',
+    numberOfOrders: 24,
   },
   {
     id: 3,
     name: 'Office Supplies Inc.',
     purchasesPastYear: '$350,000',
-    grantedFacilities: '$80,000',
-    paymentTerms: 'Net 15',
-    percentOfTotalPurchases: '12%',
-    paymentStatus: 'On Time',
+    receivedOrders: '$320,000',
+    ordersInTransit: '$30,000',
+    outstandingPayments: '$50,000',
+    percentPaidOrders: '84%',
+    numberOfOrders: 18,
   },
   {
     id: 4,
     name: 'Manufacturing Partners',
     purchasesPastYear: '$720,000',
-    grantedFacilities: '$200,000',
-    paymentTerms: 'Net 60',
-    percentOfTotalPurchases: '24%',
-    paymentStatus: 'Late (10 days)',
+    receivedOrders: '$580,000',
+    ordersInTransit: '$140,000',
+    outstandingPayments: '$220,000',
+    percentPaidOrders: '62%',
+    numberOfOrders: 27,
   },
   {
     id: 5,
     name: 'Industrial Materials Corp',
     purchasesPastYear: '$290,000',
-    grantedFacilities: '$60,000',
-    paymentTerms: 'Net 30',
-    percentOfTotalPurchases: '10%',
-    paymentStatus: 'On Time',
+    receivedOrders: '$250,000',
+    ordersInTransit: '$40,000',
+    outstandingPayments: '$75,000',
+    percentPaidOrders: '70%',
+    numberOfOrders: 15,
   },
 ]
 
@@ -168,25 +173,31 @@ export default function Suppliers() {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Granted Facilities
+                  Received Orders
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Payment Terms
+                  Orders in Transit
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  % of Total Purchases
+                  Outstanding Payments
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Payment Status
+                  % Paid Orders
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Number of Orders
                 </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">View Details</span>
@@ -207,23 +218,11 @@ export default function Suppliers() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.purchasesPastYear}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.grantedFacilities}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.paymentTerms}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.percentOfTotalPurchases}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={clsx(
-                        'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                        supplier.paymentStatus.includes('On Time')
-                          ? 'bg-green-100 text-green-800'
-                          : supplier.paymentStatus.includes('Early')
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                      )}
-                    >
-                      {supplier.paymentStatus}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.receivedOrders}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.ordersInTransit}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.outstandingPayments}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.percentPaidOrders}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{supplier.numberOfOrders}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <a 
                       href={`/dashboard/suppliers/${supplier.id}`} 

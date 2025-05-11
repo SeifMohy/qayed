@@ -54,9 +54,9 @@ const stats = [
         iconColor: 'bg-blue-500',
     },
     {
-        name: 'Net Projected Cash Flow (30 days)',
-        stat: '$221,249',
-        change: '8.7%',
+        name: 'Outstanding Bank Payments',
+        stat: '$181,000',
+        change: '2.3%',
         changeType: 'increase',
         icon: ArrowTrendingUpIcon,
         iconColor: 'bg-purple-500',
@@ -88,6 +88,7 @@ const bankingObligations = [
 const cashFlowData = {
     labels: ['Current', 'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8', 'Week 9', 'Week 10', 'Week 11', 'Week 12'],
     current: 1423982,
+    historicalValues: [1380000, 1395000, 1410000, 1423982],
     projectedValues: [1423982, 1452000, 1478000, 1510000, 1545000, 1598000, 1635000, 1693000, 1724000, 1768000, 1825000, 1862000, 1892560]
 }
 
@@ -152,8 +153,20 @@ export default function Dashboard() {
                             labels: cashFlowData.labels,
                             datasets: [
                                 {
+                                    label: 'Historical Cash Position',
+                                    data: [...cashFlowData.historicalValues, ...Array(9).fill(null)],
+                                    borderColor: 'rgb(75, 192, 192)',
+                                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                    borderWidth: 2,
+                                    pointBackgroundColor: 'rgb(75, 192, 192)',
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6,
+                                    tension: 0.3,
+                                    fill: false
+                                },
+                                {
                                     label: 'Projected Cash Position',
-                                    data: cashFlowData.projectedValues,
+                                    data: [...Array(4).fill(null), ...cashFlowData.projectedValues],
                                     borderColor: 'rgb(89, 92, 255)',
                                     backgroundColor: 'rgba(89, 92, 255, 0.1)',
                                     borderWidth: 2,
@@ -178,7 +191,7 @@ export default function Dashboard() {
                                     callbacks: {
                                         label: function(context) {
                                             let value = context.parsed.y;
-                                            return `Cash: $${value.toLocaleString()}`;
+                                            return `Cash: $${value?.toLocaleString() || '0'}`;
                                         }
                                     }
                                 }
@@ -204,20 +217,6 @@ export default function Dashboard() {
                             },
                         }}
                     />
-                </div>
-                <div className="grid grid-cols-3 gap-4 mt-6 border-t border-gray-100 pt-4">
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Current Cash:</span>
-                        <span className="text-sm font-medium">${cashFlowData.projectedValues[0].toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">90-Day Projection:</span>
-                        <span className="text-sm font-medium">${cashFlowData.projectedValues[cashFlowData.projectedValues.length - 1].toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Net Change:</span>
-                        <span className="text-sm font-medium text-green-600">+${(cashFlowData.projectedValues[cashFlowData.projectedValues.length - 1] - cashFlowData.projectedValues[0]).toLocaleString()}</span>
-                    </div>
                 </div>
             </div>
 

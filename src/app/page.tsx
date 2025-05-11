@@ -18,10 +18,10 @@ function Hero() {
         <Navbar />
         <div className="pt-16 pb-24 sm:pt-24 sm:pb-32 md:pt-24 md:pb-24">
           <h1 className="font-display text-6xl/[0.9] font-medium tracking-tight text-balance text-gray-950 sm:text-8xl/[0.8] md:text-9xl/[0.8]">
-            Empowering Enterprises with CFO-Level Cashflow Management
+            Instant Cashflow Visibility
           </h1>
           <p className="mt-8 max-w-lg text-xl/7 font-medium text-gray-950/75 sm:text-2xl/8">
-            Visualize your cash positions, forecast upcoming obligations, and optimize financial operations through actionable insights.
+            Forecast upcoming obligations and optimize financial operations.
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
             <Button href="/login">

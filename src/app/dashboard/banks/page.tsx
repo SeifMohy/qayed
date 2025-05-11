@@ -8,25 +8,22 @@ const bankAccounts = [
   {
     id: 1,
     name: 'First National Bank',
-    accountNumber: 'xxxx-xxxx-8475',
-    balance: '$758,492.32',
-    type: 'Operating Account',
+    cashBalance: '$758,492.32',
+    bankPayments: '$42,000.00',
     lastUpdate: 'Today at 9:41 AM',
   },
   {
     id: 2,
     name: 'Central Finance',
-    accountNumber: 'xxxx-xxxx-3829',
-    balance: '$245,872.12',
-    type: 'Savings Account',
+    cashBalance: '$245,872.12',
+    bankPayments: '$18,750.00',
     lastUpdate: 'Today at 9:41 AM',
   },
   {
     id: 3,
     name: 'International Banking',
-    accountNumber: 'xxxx-xxxx-9231',
-    balance: '$419,617.65',
-    type: 'Foreign Currency Account (EUR)',
+    cashBalance: '$419,617.65',
+    bankPayments: '$0.00',
     lastUpdate: 'Today at 9:41 AM',
   },
 ]
@@ -189,22 +186,19 @@ export default function BanksPage() {
       </div>
 
       {/* Bank Accounts */}
-      <h2 className="mt-8 text-lg font-medium text-gray-900">Bank Accounts</h2>
+      <h2 className="mt-8 text-lg font-medium text-gray-900">Banks</h2>
       <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
         <table className="min-w-full divide-y divide-gray-300">
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                Bank
+                Bank Name
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Account Number
+                Cash Balance
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Type
-              </th>
-              <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Balance
+                Bank Obligations
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Last Updated
@@ -220,9 +214,8 @@ export default function BanksPage() {
                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                   {account.name}
                 </td>
-                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{account.accountNumber}</td>
-                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{account.type}</td>
-                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">{account.balance}</td>
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">{account.cashBalance}</td>
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{account.bankPayments}</td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{account.lastUpdate}</td>
                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                   <Link 
@@ -294,7 +287,7 @@ export default function BanksPage() {
       </div>
 
       {/* Recent Transactions */}
-      <h2 className="mt-8 text-lg font-medium text-gray-900">Recent Transactions</h2>
+      <h2 className="mt-8 text-lg font-medium text-gray-900">Important Transactions</h2>
       <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
         <table className="min-w-full divide-y divide-gray-300">
           <thead className="bg-gray-50">

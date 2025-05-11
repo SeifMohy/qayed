@@ -48,9 +48,9 @@ After login, users have access to a navbar with links:
   - Total Cash On Hand (across all banks/currencies)
   - Total Outstanding Payables (30 days)
   - Total Outstanding Receivables (30 days)
-  - Net Projected Cash Flow (30-day forecast)
+  - Outstanding Bank Payments
 - **Interactive Chart**:
-  - Visualize cash position and forecasted cashflow over time (rolling 90 days)
+  - Visualize historical cash position and forecasted cashflow over time in different colors (rolling 90 days)
 - **Summary Cards (below the chart)**:
   - Upcoming supplier payments (total value, due dates)
   - Upcoming customer payments (total value, due dates)
@@ -66,8 +66,8 @@ After login, users have access to a navbar with links:
     - Upcoming Bank Obligations
     - Total Facilities
     - Facility Utilization Rate
-  - **Banks Overview Table**:
-    - Bank Name | Total Cash | Total Obligations | Total Limits
+  - **Banks Table**:
+    - Bank Name | Cash Balance | Bank Payments | Last Updated
 
 - **Bank Profile Page**:
   - Bank Name as Title
@@ -75,26 +75,26 @@ After login, users have access to a navbar with links:
     - Account Number | Currency | Account Balance | Interest Rate
   - **Limits Table**:
     - Limit Account Number | Total Limit | Utilized Portion | Interest Rate
-  - **Upcoming Obligations Table**:
-    - Obligation Amount | Linked Limit Number | Interest | Disbursement Date | Payment Date
+  - **Important Transactions Table**:
+    - Amount | Linked Limit Number | Interest | Disbursement Date | Payment Date
 
 ## 👥 Page 3: Customers
-**Objective**: Provide visibility into customers' payment habits, outstanding balances, and granted facilities.
+**Objective**: Provide visibility into customers' payment habits, outstanding balances, and delivered sales.
 
 **Components**:
 - **Customers Overview Page**:
   - **Key figures and summaries (top)**:
-    - Total Granted Facilities
+    - Total Delivered Sales
     - Upcoming Incoming Payments
-    - Ratio of Sales to Facilities
+    - Ratio of Sales to Delivered
   - **Customers Table**:
-    - Customer Name | Sales Past Year | Granted Facilities | Payment Terms | % of Total Sales
+    - Customer Name | Sales Past Year | Delivered Sales | Non-Delivered Sales Orders | Amount Paid of Delivered Sales | Pending Payments | % Paid of Sales | Number of Orders
 
 - **Customer Profile Page**:
   - Customer Name as Title
   - **Summary Figures**:
     - Total Sales
-    - Payment Terms
+    - Delivered Sales
     - Current Held Cash
     - Payment Rate (e.g., days to pay)
   - **Order History Table**:
@@ -106,17 +106,17 @@ After login, users have access to a navbar with links:
 **Components**:
 - **Suppliers Overview Page**:
   - **Key figures and summaries (top)**:
-    - Total Granted Facilities
+    - Total Received Orders
     - Upcoming Payments
-    - Ratio of Purchases to Facilities
+    - Ratio of Purchases to Orders
   - **Suppliers Table**:
-    - Supplier Name | Purchases Past Year | Granted Facilities | Payment Terms | % of Total Purchases
+    - Supplier Name | Purchases Past Year | Received Orders | Orders in Transit | Outstanding Payments | % Paid Orders | Number of Orders
 
 - **Supplier Profile Page**:
   - Supplier Name as Title
   - **Summary Figures**:
     - Total Purchases
-    - Payment Terms
+    - Received Orders
     - Current Required Payments
     - Payment Rate (days overdue or early)
   - **Order History Table**:

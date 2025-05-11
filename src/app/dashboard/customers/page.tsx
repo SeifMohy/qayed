@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 
 const stats = [
   {
-    name: 'Total Granted Facilities',
+    name: 'Total Delivered Sales',
     value: '$1,250,000',
     icon: CreditCardIcon,
     iconColor: 'bg-blue-500',
@@ -20,7 +20,7 @@ const stats = [
     changeType: 'increase',
   },
   {
-    name: 'Ratio of Sales to Facilities',
+    name: 'Ratio of Sales to Delivered',
     value: '2.8x',
     icon: CalendarIcon,
     iconColor: 'bg-purple-500',
@@ -42,46 +42,56 @@ const customers = [
     id: 1,
     name: 'Enterprise Solutions',
     salesPastYear: '$1,250,000',
-    grantedFacilities: '$250,000',
-    paymentTerms: 'Net 30',
-    percentOfTotalSales: '35%',
-    paymentStatus: 'On Time',
+    deliveredSales: '$850,000',
+    nonDeliveredSalesOrders: '$400,000',
+    amountPaid: '$750,000',
+    pendingPayments: '$100,000',
+    percentPaid: '88%',
+    numberOfOrders: 25,
   },
   {
     id: 2,
     name: 'Retail Chain Corp',
     salesPastYear: '$850,000',
-    grantedFacilities: '$150,000',
-    paymentTerms: 'Net 45',
-    percentOfTotalSales: '24%',
-    paymentStatus: 'Late (15 days)',
+    deliveredSales: '$700,000',
+    nonDeliveredSalesOrders: '$150,000',
+    amountPaid: '$550,000',
+    pendingPayments: '$150,000',
+    percentPaid: '79%',
+    numberOfOrders: 18,
   },
   {
     id: 3,
     name: 'Digital Services LLC',
     salesPastYear: '$720,000',
-    grantedFacilities: '$120,000',
-    paymentTerms: 'Net 30',
-    percentOfTotalSales: '20%',
-    paymentStatus: 'On Time',
+    deliveredSales: '$600,000',
+    nonDeliveredSalesOrders: '$120,000',
+    amountPaid: '$580,000',
+    pendingPayments: '$20,000',
+    percentPaid: '97%',
+    numberOfOrders: 14,
   },
   {
     id: 4,
     name: 'Financial Partners',
     salesPastYear: '$450,000',
-    grantedFacilities: '$80,000',
-    paymentTerms: 'Net 60',
-    percentOfTotalSales: '13%',
-    paymentStatus: 'Late (7 days)',
+    deliveredSales: '$380,000',
+    nonDeliveredSalesOrders: '$70,000',
+    amountPaid: '$320,000',
+    pendingPayments: '$60,000',
+    percentPaid: '84%',
+    numberOfOrders: 9,
   },
   {
     id: 5,
     name: 'Tech Innovations Inc',
     salesPastYear: '$280,000',
-    grantedFacilities: '$50,000',
-    paymentTerms: 'Net 15',
-    percentOfTotalSales: '8%',
-    paymentStatus: 'On Time',
+    deliveredSales: '$230,000',
+    nonDeliveredSalesOrders: '$50,000',
+    amountPaid: '$210,000',
+    pendingPayments: '$20,000',
+    percentPaid: '91%',
+    numberOfOrders: 6,
   },
 ]
 
@@ -168,25 +178,37 @@ export default function Customers() {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Granted Facilities
+                  Delivered Sales
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Payment Terms
+                  Non-Delivered Sales Orders
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  % of Total Sales
+                  Amount Paid
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Payment Status
+                  Pending Payments
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  % Paid of Sales
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Number of Orders
                 </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">View Details</span>
@@ -207,21 +229,12 @@ export default function Customers() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.salesPastYear}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.grantedFacilities}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.paymentTerms}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.percentOfTotalSales}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={clsx(
-                        'px-2 inline-flex text-xs leading-5 font-semibold rounded-full',
-                        customer.paymentStatus.includes('On Time')
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      )}
-                    >
-                      {customer.paymentStatus}
-                    </span>
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.deliveredSales}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.nonDeliveredSalesOrders}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.amountPaid}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.pendingPayments}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.percentPaid}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{customer.numberOfOrders}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <a 
                       href={`/dashboard/customers/${customer.id}`} 
