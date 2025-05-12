@@ -8,17 +8,12 @@ import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/key-figure-card'
 import type { ChangeType } from '@/components/key-figure-card'
 import { useUploadedSources } from './layout'
+import MultiFileUpload from '@/components/multi-file-upload'
+import UploadModal from '@/components/upload-modal'
+import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/utils/data-sources'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
-
-// Data sources and their uploaded state
-const dataSources = [
-    { id: 'bankStatements', name: 'Bank Statements', format: 'Excel', description: 'Cashflow for the previous period', uploaded: false },
-    { id: 'bankPosition', name: 'Bank Position', format: 'Excel', description: 'Scheduled obligations, Limits / Interest, Credit Facilities', uploaded: false },
-    { id: 'accountsReceivable', name: 'Accounts Receivable', format: 'ERP / Electronic Invoices', description: 'Scheduled incoming money for the period', uploaded: false },
-    { id: 'accountsPayable', name: 'Accounts Payable', format: 'ERP / Electronic Invoices', description: 'Scheduled procurement payments', uploaded: false }
-]
 
 const stats = [
     {
@@ -94,8 +89,9 @@ export default function Dashboard() {
     const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
     const [isUploading, setIsUploading] = useState<string | null>(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File | null }>({});
+    const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
     const [chartLoaded, setChartLoaded] = useState(false);
+    const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
     
     // Load chart.js when component mounts
     useEffect(() => {
@@ -129,16 +125,16 @@ export default function Dashboard() {
       loadChartJs();
     }, []);
     
-    const handleFileSelect = (sourceId: string, file: File) => {
-        setSelectedFiles(prev => ({
+    const handleFilesChange = (sourceId: string, files: File[]) => {
+        setSourceFiles(prev => ({
             ...prev,
-            [sourceId]: file
+            [sourceId]: files
         }));
     };
     
     const handleSubmitFiles = () => {
         // Get all source IDs that have files selected
-        const sourceIds = Object.keys(selectedFiles).filter(id => selectedFiles[id] !== null);
+        const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
         
         if (sourceIds.length === 0) return;
         
@@ -148,20 +144,26 @@ export default function Dashboard() {
         // Simulate processing delay
         setTimeout(() => {
             const newUploadedSources = { ...uploadedSources };
+            const newSourceFiles = { ...sourceFiles };
             
             // Mark all sources with selected files as uploaded
             sourceIds.forEach(id => {
                 newUploadedSources[id] = true;
+                // Only clear the source files that were successfully uploaded
+                delete newSourceFiles[id];
             });
             
             setUploadedSources(newUploadedSources);
+            setSourceFiles(newSourceFiles);
             setIsUploading(null);
-            setSelectedFiles({});
-            setIsUploadModalOpen(false);
+            // Keep modal open to allow for more uploads
+            if (Object.keys(newSourceFiles).length === 0) {
+                setIsUploadModalOpen(false);
+            }
         }, 2000);
     };
     
-    const areAllSourcesUploaded = dataSources.every(source => isDataSourceUploaded(source.id));
+    const areAllSourcesUploaded = PAGE_DATA_SOURCES.dashboard.every(source => isDataSourceUploaded(source.id));
     
     // Only require bank statements for the chart
     const isChartVisible = isDataSourceUploaded('bankStatements') && chartLoaded;
@@ -169,6 +171,68 @@ export default function Dashboard() {
     const isSupplierPaymentsVisible = isDataSourceUploaded('accountsPayable');
     const isCustomerPaymentsVisible = isDataSourceUploaded('accountsReceivable');
     const isBankObligationsVisible = isDataSourceUploaded('bankPosition');
+
+    const renderSourceContent = (source: { id: string, name: string }) => {
+        const hasUploadedFiles = isDataSourceUploaded(source.id);
+        const hasSelectedFiles = sourceFiles[source.id]?.length > 0;
+        
+        return (
+            <div className="mt-3">
+                {hasUploadedFiles && (
+                    <div className="mb-2 flex items-center">
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800 mr-3">
+                            Uploaded
+                        </span>
+                        <span className="text-sm text-gray-500">You can upload additional files if needed</span>
+                    </div>
+                )}
+                
+                <MultiFileUpload
+                    onFilesChange={(files) => handleFilesChange(source.id, files)}
+                    maxFiles={5}
+                    maxSize={10}
+                    accept=".xlsx,.xls,.csv"
+                    label=""
+                    buttonText={hasUploadedFiles ? "Upload More Files" : "Select Files"}
+                    disabled={isUploading === 'processing'}
+                    compact={hasUploadedFiles} // Use compact mode if already uploaded
+                />
+                
+                {hasSelectedFiles && (
+                    <div className="mt-2">
+                        <p className="text-sm text-gray-500">
+                            {sourceFiles[source.id].length} {sourceFiles[source.id].length === 1 ? 'file' : 'files'} selected
+                        </p>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    // Function to open modal with specific data sources
+    const openUploadModal = (componentId?: string) => {
+        if (componentId) {
+            // Get only the data sources required for this component
+            setActiveDataSources(getSourcesForComponent(componentId));
+        } else {
+            // Show all data sources when opening from the main "Upload Data Sources" button
+            setActiveDataSources([]);
+        }
+        // Keep the sourceFiles state intact when opening the modal
+        setIsUploadModalOpen(true);
+    };
+    
+    // Get the filtered data sources to display in the modal
+    const getFilteredDataSources = () => {
+        if (activeDataSources.length === 0) {
+            // Show all data sources if none specifically selected
+            return PAGE_DATA_SOURCES.dashboard;
+        }
+        // Filter to show only the active data sources
+        return ALL_DATA_SOURCES.filter(source => 
+            activeDataSources.includes(source.id)
+        );
+    };
 
     return (
         <div>
@@ -179,7 +243,7 @@ export default function Dashboard() {
                 <button
                     type="button"
                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#595CFF]"
-                    onClick={() => setIsUploadModalOpen(true)}
+                    onClick={() => openUploadModal()}
                 >
                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
                     Upload Data Sources
@@ -194,87 +258,21 @@ export default function Dashboard() {
                 </button>
             </div>
 
-            {/* Upload Modal */}
-            {isUploadModalOpen && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Data Sources</h3>
-                        <p className="text-sm text-gray-500 mb-4">
-                            Upload your data sources to view the dashboard. Each source provides different insights.
-                        </p>
-                        
-                        <div className="space-y-4 mt-4">
-                            {dataSources.map(source => (
-                                <div key={source.id} className="border border-gray-200 rounded-md p-4">
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <h4 className="font-medium text-gray-900">{source.name}</h4>
-                                            <p className="text-sm text-gray-500">{source.format}</p>
-                                            <p className="text-xs text-gray-400 mt-1">{source.description}</p>
-                                        </div>
-                                        <div>
-                                            {isDataSourceUploaded(source.id) ? (
-                                                <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
-                                                    Uploaded
-                                                </span>
-                                            ) : selectedFiles[source.id] ? (
-                                                <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800">
-                                                    Selected
-                                                </span>
-                                            ) : (
-                                                <label className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer">
-                                                    <span>Select File</span>
-                                                    <input 
-                                                        type="file" 
-                                                        className="hidden" 
-                                                        accept=".xlsx,.xls,.csv" 
-                                                        onChange={(e) => {
-                                                            if (e.target.files && e.target.files[0]) {
-                                                                handleFileSelect(source.id, e.target.files[0])
-                                                            }
-                                                        }}
-                                                    />
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        
-                        <div className="mt-6 flex justify-end space-x-3">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsUploadModalOpen(false);
-                                    setSelectedFiles({});
-                                }}
-                                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSubmitFiles}
-                                disabled={Object.keys(selectedFiles).length === 0 || isUploading === 'processing'}
-                                className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#595CFF] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isUploading === 'processing' ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Processing...
-                                    </>
-                                ) : (
-                                    <>Upload Files</>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Upload Data Modal using the shared component */}
+            <UploadModal
+                isOpen={isUploadModalOpen}
+                onClose={() => {
+                    setIsUploadModalOpen(false);
+                    // Don't reset sourceFiles to keep state between modal opens
+                }}
+                title="Upload Data Sources"
+                description="Please upload your financial data sources below. You can upload multiple files for each data source."
+                dataSources={getFilteredDataSources()}
+                isUploading={isUploading}
+                onSubmit={handleSubmitFiles}
+                isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
+                renderSourceContent={renderSourceContent}
+            />
 
             {/* KPI Cards */}
             <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -284,11 +282,18 @@ export default function Dashboard() {
                             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(true)}
+                                    onClick={() => {
+                                        // Map dataSource to component ID
+                                        const componentId = item.dataSource === 'bankStatements' ? 'cashOnHandKPI' :
+                                                          item.dataSource === 'accountsPayable' ? 'outstandingPayablesKPI' :
+                                                          item.dataSource === 'accountsReceivable' ? 'outstandingReceivablesKPI' :
+                                                          item.dataSource === 'bankPosition' ? 'outstandingBankPaymentsKPI' : '';
+                                        openUploadModal(componentId);
+                                    }}
                                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
                                 >
                                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload {dataSources.find(s => s.id === item.dataSource)?.name}
+                                    Upload {PAGE_DATA_SOURCES.dashboard.find(s => s.id === item.dataSource)?.name}
                                 </button>
                             </div>
                         )}
@@ -318,7 +323,7 @@ export default function Dashboard() {
                             <div className="mt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(true)}
+                                    onClick={() => openUploadModal('cashPositionChart')}
                                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
                                 >
                                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -421,7 +426,7 @@ export default function Dashboard() {
                             <div className="mt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(true)}
+                                    onClick={() => openUploadModal('supplierPayments')}
                                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
                                 >
                                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -487,7 +492,7 @@ export default function Dashboard() {
                             <div className="mt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(true)}
+                                    onClick={() => openUploadModal('customerPayments')}
                                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
                                 >
                                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -553,7 +558,7 @@ export default function Dashboard() {
                             <div className="mt-6">
                                 <button
                                     type="button"
-                                    onClick={() => setIsUploadModalOpen(true)}
+                                    onClick={() => openUploadModal('bankingObligations')}
                                     className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
                                 >
                                     <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />

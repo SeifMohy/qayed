@@ -6,11 +6,9 @@ import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/key-figure-card'
 import { useUploadedSources } from '../layout'
-
-// Define the required data sources for this page
-const dataSources = [
-  { id: 'accountsPayable', name: 'Accounts Payable', format: 'ERP / Electronic Invoices', description: 'Scheduled procurement payments', uploaded: false }
-]
+import MultiFileUpload from '@/components/multi-file-upload'
+import UploadModal from '@/components/upload-modal'
+import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/utils/data-sources'
 
 const suppliers = [
   {
@@ -63,18 +61,19 @@ export default function SuppliersPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<{ [key: string]: File | null }>({});
+  const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
+  const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
 
-  const handleFileSelect = (sourceId: string, file: File) => {
-    setSelectedFiles(prev => ({
+  const handleFilesChange = (sourceId: string, files: File[]) => {
+    setSourceFiles(prev => ({
       ...prev,
-      [sourceId]: file
+      [sourceId]: files
     }));
   };
   
   const handleSubmitFiles = () => {
     // Get all source IDs that have files selected
-    const sourceIds = Object.keys(selectedFiles).filter(id => selectedFiles[id] !== null);
+    const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
     
     if (sourceIds.length === 0) return;
     
@@ -92,13 +91,63 @@ export default function SuppliersPage() {
       
       setUploadedSources(newUploadedSources);
       setIsUploading(null);
-      setSelectedFiles({});
+      setSourceFiles({});
       setIsUploadModalOpen(false);
     }, 2000);
   };
   
+  // Function to open modal with specific data sources
+  const openUploadModal = (componentId?: string) => {
+    if (componentId) {
+      // Get only the data sources required for this component
+      setActiveDataSources(getSourcesForComponent(componentId));
+    } else {
+      // Show all data sources when opening from the main button
+      setActiveDataSources([]);
+    }
+    setIsUploadModalOpen(true);
+  };
+  
+  // Get the filtered data sources to display in the modal
+  const getFilteredDataSources = () => {
+    if (activeDataSources.length === 0) {
+      // Show all supplier page data sources if none specifically selected
+      return PAGE_DATA_SOURCES.suppliers;
+    }
+    // Filter to show only the active data sources
+    return ALL_DATA_SOURCES.filter(source => 
+      activeDataSources.includes(source.id)
+    );
+  };
+  
   const isSuppliersDataVisible = isDataSourceUploaded('accountsPayable');
   
+  const renderSourceContent = (source: { id: string, name: string }) => {
+    if (isDataSourceUploaded(source.id)) {
+      return (
+        <div className="mt-3">
+          <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
+            Uploaded
+          </span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="mt-3">
+        <MultiFileUpload
+          onFilesChange={(files) => handleFilesChange(source.id, files)}
+          maxFiles={5}
+          maxSize={10}
+          accept=".xlsx,.xls,.csv"
+          label=""
+          buttonText="Select Files"
+          disabled={isUploading === 'processing'}
+        />
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="pb-5 border-b border-gray-200 sm:flex sm:items-center sm:justify-between">
@@ -114,7 +163,7 @@ export default function SuppliersPage() {
           </button>
           <button
             type="button"
-            onClick={() => setIsUploadModalOpen(true)}
+            onClick={() => openUploadModal()}
             className="ml-3 inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#595CFF]"
           >
             <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -123,87 +172,22 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      {/* Upload Modal */}
-      {isUploadModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Supplier Data</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Upload your accounts payable data to view supplier information.
-            </p>
-            
-            <div className="space-y-4 mt-4">
-              {dataSources.map(source => (
-                <div key={source.id} className="border border-gray-200 rounded-md p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{source.name}</h4>
-                      <p className="text-sm text-gray-500">{source.format}</p>
-                      <p className="text-xs text-gray-400 mt-1">{source.description}</p>
-                    </div>
-                    <div>
-                      {isDataSourceUploaded(source.id) ? (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
-                          Uploaded
-                        </span>
-                      ) : selectedFiles[source.id] ? (
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800">
-                          Selected
-                        </span>
-                      ) : (
-                        <label className="inline-flex items-center rounded-md bg-white px-2.5 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 cursor-pointer">
-                          <span>Select File</span>
-                          <input 
-                            type="file" 
-                            className="hidden" 
-                            accept=".xlsx,.xls,.csv" 
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                handleFileSelect(source.id, e.target.files[0])
-                              }
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsUploadModalOpen(false);
-                  setSelectedFiles({});
-                }}
-                className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmitFiles}
-                disabled={Object.keys(selectedFiles).length === 0 || isUploading === 'processing'}
-                className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#595CFF] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUploading === 'processing' ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  <>Upload Files</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Upload Modal using the shared component */}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => {
+          setIsUploadModalOpen(false);
+          setSourceFiles({});
+          setActiveDataSources([]);
+        }}
+        title="Upload Supplier Data"
+        description="Please upload your supplier data files below. You can upload multiple files for each data source."
+        dataSources={getFilteredDataSources()}
+        isUploading={isUploading}
+        onSubmit={handleSubmitFiles}
+        isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
+        renderSourceContent={renderSourceContent}
+      />
 
       {/* Summary Stats */}
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -212,7 +196,7 @@ export default function SuppliersPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => openUploadModal('supplierList')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -237,7 +221,7 @@ export default function SuppliersPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => openUploadModal('supplierList')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -262,7 +246,7 @@ export default function SuppliersPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => openUploadModal('supplierList')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -294,7 +278,7 @@ export default function SuppliersPage() {
             <div className="mt-6">
               <button
                 type="button"
-                onClick={() => setIsUploadModalOpen(true)}
+                onClick={() => openUploadModal('supplierList')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
