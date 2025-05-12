@@ -31,6 +31,12 @@ export const ALL_DATA_SOURCES: DataSource[] = [
     name: 'Accounts Payable', 
     format: 'ERP / Electronic Invoices', 
     description: 'Scheduled procurement payments'
+  },
+  { 
+    id: 'expenses', 
+    name: 'General Expenses', 
+    format: 'Excel / CSV', 
+    description: 'Operating costs such as salaries, rent, utilities, etc.'
   }
 ]
 
@@ -45,6 +51,9 @@ export const PAGE_DATA_SOURCES = {
   ),
   customers: ALL_DATA_SOURCES.filter(source => 
     ['accountsReceivable'].includes(source.id)
+  ),
+  expenses: ALL_DATA_SOURCES.filter(source => 
+    ['expenses'].includes(source.id)
   )
 }
 
@@ -84,6 +93,14 @@ export function getSourcesForComponent(componentId: string): string[] {
     // Supplier page components
     case 'supplierList':
       return ['accountsPayable']
+      
+    // Expense page components
+    case 'expenseSummary':
+      return ['expenses']
+    case 'expenseBreakdown':
+      return ['expenses']
+    case 'expenseCategories':
+      return ['expenses']
       
     default:
       return []
