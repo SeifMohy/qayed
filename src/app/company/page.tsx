@@ -1,16 +1,16 @@
-import { AnimatedNumber } from '@/components/animated-number'
-import { Button } from '@/components/button'
-import { Container } from '@/components/container'
-import { Footer } from '@/components/footer'
-import { GradientBackground } from '@/components/gradient'
-import { Navbar } from '@/components/navbar'
-import { Heading, Lead, Subheading } from '@/components/text'
+import { AnimatedNumber } from '@/components/shared/ui/animations/animated-number'
+import { Button } from '@/components/shared/ui/button'
+import { Container } from '@/components/shared/ui/container'
+import { Footer } from '@/components/layout/footer'
+import { GradientBackground } from '@/components/shared/ui/gradient'
+import { Navbar } from '@/components/layout/navbar'
+import { Heading, Lead, Subheading } from '@/components/shared/ui/text'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Company',
   description:
-    'We’re on a mission to transform revenue organizations by harnessing vast amounts of illegally acquired customer data.',
+    "We're on a mission to transform revenue organizations by harnessing vast amounts of illegally acquired customer data.",
 }
 
 function Header() {
@@ -18,7 +18,7 @@ function Header() {
     <Container className="mt-16">
       <Heading as="h1">Helping companies generate revenue.</Heading>
       <Lead className="mt-6 max-w-3xl">
-        We’re on a mission to transform revenue organizations by harnessing vast
+        We're on a mission to transform revenue organizations by harnessing vast
         amounts of illegally acquired customer data.
       </Lead>
       <section className="mt-16 grid grid-cols-1 lg:grid-cols-2 lg:gap-12">
@@ -28,15 +28,15 @@ function Header() {
             At Radiant, we are dedicated to transforming the way revenue
             organizations source and close deals. Our mission is to provide our
             customers with an unfair advantage over both their competitors and
-            potential customers through insight and analysis. We’ll stop at
+            potential customers through insight and analysis. We'll stop at
             nothing to get you the data you need to close a deal.
           </p>
           <p className="mt-8 text-sm/6 text-gray-600">
-            We’re customer-obsessed — putting the time in to build a detailed
+            We're customer-obsessed — putting the time in to build a detailed
             financial picture of every one of our customers so that we know more
             about your business than you do. We are in this together, mostly
             because we are all implicated in large-scale financial crime. In our
-            history as a company, we’ve never lost a customer, because if any
+            history as a company, we've never lost a customer, because if any
             one of us talks, we all go down.
           </p>
         </div>
@@ -143,9 +143,9 @@ function Team() {
           <p className="text-sm/6 text-gray-600">
             Years ago, while working as sales associates at rival companies,
             Thomas, Ben, and Natalie were discussing a big client they had all
-            been competing for. Joking about seeing the terms of each other’s
+            been competing for. Joking about seeing the terms of each other's
             offers, they had an idea: what if they shared data to win deals and
-            split the commission behind their companies’ backs? It turned out to
+            split the commission behind their companies' backs? It turned out to
             be an incredible success, and that idea became the kernel for
             Radiant.
           </p>
@@ -268,9 +268,9 @@ function Investors() {
           <p className="mt-6 max-w-lg text-sm/6 text-gray-500">
             Deccel has been at the forefront of innovation, investing in
             pioneering companies across various sectors, including technology,
-            consumer goods, and healthcare. Their philosophy of ‘plausible
-            deniability’ and dedication to looking the other way have helped
-            produce some of the world’s most controversial companies.
+            consumer goods, and healthcare. Their philosophy of 'plausible
+            deniability' and dedication to looking the other way have helped
+            produce some of the world's most controversial companies.
           </p>
         </li>
       </ul>
@@ -331,7 +331,7 @@ function Testimonial() {
       />
       <figure className="relative p-10">
         <blockquote>
-          <p className="relative text-xl/7 text-white before:absolute before:-translate-x-full before:content-['“'] after:absolute after:content-['”']">
+          <p className="relative text-xl/7 text-white before:absolute before:-translate-x-full before:content-['\u201C'] after:absolute after:content-['\u201D']">
             We&apos;ve managed to put two of our main competitors out of
             business in 6 months.
           </p>

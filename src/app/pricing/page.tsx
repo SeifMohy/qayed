@@ -1,11 +1,11 @@
-import { Button } from '@/components/button'
-import { Container } from '@/components/container'
-import { Footer } from '@/components/footer'
-import { Gradient, GradientBackground } from '@/components/gradient'
-import { Link } from '@/components/link'
-import { LogoCloud } from '@/components/logo-cloud'
-import { Navbar } from '@/components/navbar'
-import { Heading, Lead, Subheading } from '@/components/text'
+import { Button } from '@/components/shared/ui/button'
+import { Container } from '@/components/shared/ui/container'
+import { Footer } from '@/components/layout/footer'
+import { Gradient, GradientBackground } from '@/components/shared/ui/gradient'
+import { Link } from '@/components/shared/ui/link'
+import { LogoCloud } from '@/components/dashboard/logo-cloud'
+import { Navbar } from '@/components/layout/navbar'
+import { Heading, Lead, Subheading } from '@/components/shared/ui/text'
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import {
   CheckIcon,
@@ -386,7 +386,7 @@ function Testimonial() {
           <div className="flex max-lg:mt-16 lg:col-span-2 lg:px-16">
             <figure className="mx-auto flex max-w-xl flex-col gap-16 max-lg:text-center">
               <blockquote>
-                <p className="relative text-3xl tracking-tight text-white before:absolute before:-translate-x-full before:content-['“'] after:absolute after:content-['”'] lg:text-4xl">
+                <p className="relative text-3xl tracking-tight text-white before:absolute before:-translate-x-full before:content-['\u201C'] after:absolute after:content-['\u201D'] lg:text-4xl">
                   Thanks to Radiant, we&apos;re finding new leads that we never
                   would have found with legal methods.
                 </p>
@@ -447,7 +447,7 @@ function FrequentlyAskedQuestions() {
           </dl>
           <dl>
             <dt className="text-sm font-semibold">
-              Can I customize the workflow to match our company’s deal process?
+              Can I customize the workflow to match our company's deal process?
             </dt>
             <dd className="mt-4 text-sm/6 text-gray-600">
               Yes, our platform is highly customizable, although there should be
@@ -467,7 +467,7 @@ function FrequentlyAskedQuestions() {
               We offer comprehensive support through multiple channels,
               including 24/7 live chat, email, and phone support. However, since
               we have full access to your internal network, we will know if
-              you’re having issues before you do.
+              you're having issues before you do.
             </dd>
           </dl>
           <dl>

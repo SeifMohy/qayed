@@ -1,8 +1,10 @@
-import { Button } from '@/components/button'
-import { Container } from '@/components/container'
-import { Footer } from '@/components/footer'
-import { Gradient } from '@/components/gradient'
-import { Navbar } from '@/components/navbar'
+import { Button } from '@/components/shared/ui/button'
+import { Container } from '@/components/shared/ui/container'
+import { Footer } from '@/components/layout/footer'
+import { Gradient } from '@/components/shared/ui/gradient'
+import { Navbar } from '@/components/layout/navbar'
+
+// All imports have been updated to match the new project structure
 
 export const metadata = {
   title: 'Cashflow Management',

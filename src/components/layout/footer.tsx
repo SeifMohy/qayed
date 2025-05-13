@@ -1,10 +1,10 @@
-import { PlusGridItem, PlusGridRow } from '@/components/plus-grid'
-import { Button } from './button'
-import { Container } from './container'
-import { Gradient } from './gradient'
-import { Link } from './link'
-import { Logo } from './logo'
-import { Subheading } from './text'
+import { PlusGridItem, PlusGridRow } from '@/components/dashboard/plus-grid'
+import { Button } from '@/components/shared/ui/button'
+import { Container } from '@/components/shared/ui/container'
+import { Gradient } from '@/components/shared/ui/gradient'
+import { Link } from '@/components/shared/ui/link'
+import { Logo } from '@/components/shared/logo'
+import { Subheading } from '@/components/shared/ui/text'
 
 function CallToAction() {
   return (

@@ -1,8 +1,8 @@
 'use client'
 
-import { Button } from '@/components/button'
-import { GradientBackground } from '@/components/gradient'
-import { Link } from '@/components/link'
+import { Button } from '@/components/shared/ui/button'
+import { GradientBackground } from '@/components/shared/ui/gradient'
+import { Link } from '@/components/shared/ui/link'
 import { Checkbox, Field, Input, Label } from '@headlessui/react'
 import { CheckIcon } from '@heroicons/react/16/solid'
 import { clsx } from 'clsx'

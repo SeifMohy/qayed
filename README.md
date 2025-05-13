@@ -1,52 +1,72 @@
-# Radiant
+# Radiant Project
 
-Radiant is a [Tailwind UI](https://tailwindui.com) site template built using [Tailwind CSS](https://tailwindcss.com) and [Next.js](https://nextjs.org), with a blog powered by [Sanity](https://www.sanity.io).
+A Next.js application with TypeScript, Tailwind CSS, and best practices for modern web development.
 
-## Getting started
+## Project Structure
 
-To get started with this template, first install the npm dependencies:
+```
+radiant-ts/
+├── public/             # Static files
+├── src/
+│   ├── app/            # Next.js app router pages
+│   ├── components/     # React components
+│   │   ├── shared/     # Shared components
+│   │   │   └── ui/     # Basic UI elements
+│   │   ├── layout/     # Layout components
+│   │   ├── upload/     # File upload components
+│   │   ├── dashboard/  # Dashboard components
+│   │   └── visualization/ # Data visualization components
+│   ├── contexts/       # React context providers
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Utility functions
+│   ├── styles/         # Global styles
+│   └── types/          # TypeScript type definitions
+├── tailwind.config.js  # Tailwind CSS configuration
+└── tsconfig.json       # TypeScript configuration
+```
+
+## Key Features
+
+- Next.js App Router for routing
+- TypeScript for type safety
+- Tailwind CSS for styling
+- React Context for state management
+- Custom hooks for reusable logic
+- Modular component structure
+- Type-safe API routes
+
+## Getting Started
+
+First, install dependencies:
 
 ```bash
 npm install
+# or
+yarn
 ```
 
-Next, create a new Sanity project to power the blog within this template:
-
-```bash
-npm create sanity@latest -- --env=.env.local --create-project "Radiant Blog" --dataset production
-```
-
-This will prompt you to create a new Sanity account if you don't have one already. When asked "Would you like to add configuration files for a Sanity project in this Next.js folder?", choose "n".
-
-Next, optionally import the demo seed data for the blog:
-
-```bash
-npx sanity@latest dataset import seed.tar.gz
-```
-
-Next, run the development server:
+Then, run the development server:
 
 ```bash
 npm run dev
+# or
+yarn dev
 ```
 
-Finally, open [http://localhost:3000](http://localhost:3000) in your browser to view the website.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-To manage your blog content, visit the embedded Sanity Studio at [http://localhost:3000/studio](http://localhost:3000/studio).
+## Styling with Tailwind CSS
 
-## Customizing
+This project uses Tailwind CSS for styling. The configuration is available in `tailwind.config.js`.
 
-You can start editing this template by modifying the files in the `/src` folder. The site will auto-update as you edit these files.
+## State Management
+
+React Context is used for global state management. Context providers are located in the `src/contexts` directory.
+
+## TypeScript
+
+TypeScript is used for type safety. Custom types are defined in the `src/types` directory.
 
 ## License
 
-This site template is a commercial product and is licensed under the [Tailwind UI license](https://tailwindui.com/license).
-
-## Learn more
-
-To learn more about the technologies used in this site template, see the following resources:
-
-- [Tailwind CSS](https://tailwindcss.com/docs) - the official Tailwind CSS documentation
-- [Next.js](https://nextjs.org/docs) - the official Next.js documentation
-- [Headless UI](https://headlessui.dev) - the official Headless UI documentation
-- [Sanity](https://www.sanity.io) - the Sanity website
+See the LICENSE.md file for details.

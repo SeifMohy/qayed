@@ -7,9 +7,9 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useUploadedSources } from '../../layout'
 import { useParams } from 'next/navigation'
-import UploadModal from '@/components/upload-modal'
-import MultiFileUpload from '@/components/multi-file-upload'
-import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/utils/data-sources'
+import UploadModal from '@/components/upload/upload-modal'
+import MultiFileUpload from '@/components/upload/multi-file-upload'
+import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })

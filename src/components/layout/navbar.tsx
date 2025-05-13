@@ -6,10 +6,10 @@ import {
   DisclosurePanel,
 } from '@headlessui/react'
 import { Bars2Icon } from '@heroicons/react/24/solid'
-import { Button } from './button'
-import { Link } from './link'
-import { Logo } from './logo'
-import { PlusGrid, PlusGridItem, PlusGridRow } from './plus-grid'
+import { Button } from '@/components/shared/ui/button'
+import { Link } from '@/components/shared/ui/link'
+import { Logo } from '@/components/shared/logo'
+import { PlusGrid, PlusGridItem, PlusGridRow } from '@/components/dashboard/plus-grid'
 
 function DesktopNav() {
   return (

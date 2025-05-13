@@ -5,12 +5,12 @@ import { ArrowDownIcon, ArrowUpIcon, ArrowPathIcon } from '@heroicons/react/20/s
 import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import dynamic from 'next/dynamic'
-import KeyFigureCard from '@/components/key-figure-card'
-import type { ChangeType } from '@/components/key-figure-card'
+import KeyFigureCard from '@/components/visualization/key-figure-card'
+import type { ChangeType } from '@/components/visualization/key-figure-card'
 import { useUploadedSources } from './layout'
-import MultiFileUpload from '@/components/multi-file-upload'
-import UploadModal from '@/components/upload-modal'
-import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/utils/data-sources'
+import MultiFileUpload from '@/components/upload/multi-file-upload'
+import UploadModal from '@/components/upload/upload-modal'
+import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })

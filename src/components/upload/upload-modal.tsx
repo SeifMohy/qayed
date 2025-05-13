@@ -4,7 +4,7 @@ import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { DocumentArrowUpIcon } from '@heroicons/react/24/outline'
-import type { DataSource } from '@/utils/data-sources'
+import type { DataSource } from '@/lib/data-sources'
 
 export type UploadModalProps = {
   isOpen: boolean
