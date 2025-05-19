@@ -1,17 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
-}
-
-model User {
+model Invoice {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
-  email     String   @unique
-  name      String?
+  updatedAt DateTime
+
+  invoiceDate   DateTime // dateTimeIssues at json level
+  invoiceNumber String   @unique // Internal Id for the invoice at json level 
+  issuerName    String // issuerName at json level 
+  receiverName  String // receiverName at json level 
+  totalSales    Decimal // totalSales at json level
+  totalDiscount Decimal // totalDiscount at json level
+  netAmount     Decimal // netAmount at json level
+  total         Decimal // total at json level
+
+  invoiceStatus String // validationResults => Status 
+
+  currency        String  @default("EGP") // document => invoice lines => object [0] => unit value => currencySold
+  exchangeRate    Decimal // document => invoice lines => object [0] => unit value => exchangeRate
+  taxAmount       Decimal // document => invoice lines => Tax totals => run through object and add "Amount"
+  issuerCountry   String // document => issuer => address => country
+  receiverCountry String // document => receiver => address => country
+
+  customerId Int?
+  supplierId Int?
+  Customer   Customer? @relation(fields: [customerId], references: [id])
+  Supplier   Supplier? @relation(fields: [supplierId], references: [id])
+}
+
+// A customer is when out client is the issuer
+// A supplier is when out client is the receiver
+model Customer {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  name         String // receiverName from invoice
+  country      String? // receiverCountry from invoice
+  paymentTerms Int?
+  Invoice      Invoice[]
+}
+
+model Supplier {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  name         String // issuerName from invoice
+  country      String? // issuerCountry from invoice
+  paymentTerms Int?
+  Invoice      Invoice[]
 }
