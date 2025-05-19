@@ -4,171 +4,150 @@ import { PrismaClient } from '../../../generated/prisma';
 // Initialize Prisma client directly in this file to ensure we use the correct client
 // with all the models properly generated
 const prisma = new PrismaClient();
-const CURRENT_CUSTOMER_NAME = 'شركهكانلصناعهوتعبئهالعلب';
+const CURRENT_CUSTOMER_NAMES = ['شركهكانلصناعهوتعبئهالعلب', 'شركةكان', 'شركةكانلصناعةوتعبئةالعلب', 'كانلصناعةوتعبئةالعلب', "شركهكانلصناعهوتعبيئهالعلب"];
 
 export async function POST(request: NextRequest) {
+  let processedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+  const errors: { invoiceNumber?: string; error: string }[] = [];
+  const createdInvoices: any[] = [];
+  let invoicesToProcess: any[] = [];
+
   try {
-    console.log('🔵 Starting invoice processing...');
-    
-    const json = await request.json();
-    console.log('📄 Received JSON payload:', {
-      internalId: json.internalId,
-      dateTimeIssued: json.dateTimeIssued,
-      issuerName: json.issuerName,
-      receiverName: json.receiverName,
-    });
-    
-    // Parse the embedded document JSON
-    const document = typeof json.document === 'string' ? JSON.parse(json.document) : json.document;
-    console.log('📋 Parsed document structure:', {
-      hasInvoiceLines: Array.isArray(document.invoiceLines),
-      hasTaxTotals: Array.isArray(document.taxTotals),
-      issuerInfo: document.issuer?.address,
-      receiverInfo: document.receiver?.address,
-    });
+    const requestBody = await request.json();
+    invoicesToProcess = Array.isArray(requestBody) ? requestBody : [requestBody];
 
-    // Extract taxAmount: sum of all taxTotals[].amount
-    const taxAmount = Array.isArray(document.taxTotals)
-      ? document.taxTotals.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
-      : 0;
+    console.log(`🔵 Starting bulk invoice processing for ${invoicesToProcess.length} invoices...`);
 
-    // Extract currency and exchangeRate from first invoice line
-    const firstLine = Array.isArray(document.invoiceLines) && document.invoiceLines.length > 0
-      ? document.invoiceLines[0]
-      : null;
-    const currency = firstLine?.unitValue?.currencySold || 'EGP';
-    const exchangeRate = firstLine?.unitValue?.exchangeRate || 1;
+    for (const rawInvoice of invoicesToProcess) {
+      const internalId = rawInvoice.internalId || 'N/A'; // Use a default if internalId is missing
+      try {
+        const document = typeof rawInvoice.document === 'string' ? JSON.parse(rawInvoice.document) : rawInvoice.document;
 
-    console.log('💰 Extracted financial details:', {
-      taxAmount,
-      currency,
-      exchangeRate,
-      firstLineInfo: firstLine ? {
-        hasUnitValue: !!firstLine.unitValue,
-        currencySold: firstLine.unitValue?.currencySold,
-        exchangeRate: firstLine.unitValue?.exchangeRate,
-      } : null
-    });
+        const taxAmount = Array.isArray(document.taxTotals)
+          ? document.taxTotals.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
+          : 0;
 
-    // Extract issuer/receiver country
-    const issuerCountry = document.issuer?.address?.country || '';
-    const receiverCountry = document.receiver?.address?.country || '';
+        const firstLine = Array.isArray(document.invoiceLines) && document.invoiceLines.length > 0
+          ? document.invoiceLines[0]
+          : null;
+        const currency = firstLine?.unitValue?.currencySold || 'EGP';
+        const exchangeRate = firstLine?.unitValue?.currencyExchangeRate || 1; // Updated field name
 
-    // Extract totalDiscount and total
-    const totalDiscount = json.totalDiscount ?? document.totalDiscountAmount ?? 0;
-    const total = json.total ?? document.totalAmount ?? 0;
+        const issuerCountry = document.issuer?.address?.country || '';
+        const receiverCountry = document.receiver?.address?.country || '';
 
-    const invoiceData = {
-      invoiceDate: new Date(json.dateTimeIssued),
-      invoiceNumber: json.internalId,
-      issuerName: json.issuerName,
-      receiverName: json.receiverName,
-      totalSales: json.totalSales,
-      totalDiscount,
-      netAmount: json.netAmount,
-      total,
-      invoiceStatus: json.status,
-      currency,
-      exchangeRate,
-      taxAmount,
-      issuerCountry,
-      receiverCountry,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+        const totalDiscount = rawInvoice.totalDiscount ?? document.totalDiscountAmount ?? 0;
+        const total = rawInvoice.total ?? document.totalAmount ?? 0;
 
-    console.log('📝 Prepared invoice data:', invoiceData);
-    console.log('🔍 Checking invoice type...', {
-      receiverName: json.receiverName,
-      issuerName: json.issuerName,
-      currentCustomer: CURRENT_CUSTOMER_NAME,
-      isCustomerInvoice: json.issuerName === CURRENT_CUSTOMER_NAME,
-      isSupplierInvoice: json.receiverName === CURRENT_CUSTOMER_NAME,
-    });
+        const invoiceData = {
+          invoiceDate: new Date(rawInvoice.dateTimeIssued),
+          invoiceNumber: rawInvoice.internalId,
+          issuerName: rawInvoice.issuerName,
+          receiverName: rawInvoice.receiverName,
+          totalSales: rawInvoice.totalSales,
+          totalDiscount,
+          netAmount: rawInvoice.netAmount,
+          total,
+          invoiceStatus: rawInvoice.status,
+          currency,
+          exchangeRate,
+          taxAmount,
+          issuerCountry,
+          receiverCountry,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
-    // Determine if this is a customer or supplier invoice
-    let customerId: number | null = null;
-    let supplierId: number | null = null;
-
-    if (json.issuerName === CURRENT_CUSTOMER_NAME) {
-      // Our client is the issuer, so this is a customer invoice
-      console.log('👥 Processing as customer invoice...');
-      let customer = await prisma.customer.findFirst({ where: { name: json.receiverName } });
-      console.log('🔍 Customer lookup result:', { found: !!customer, name: json.receiverName });
-      
-      if (!customer) {
-        console.log('➕ Creating new customer record...');
-        customer = await prisma.customer.create({
-          data: {
-            name: json.receiverName,
-            country: receiverCountry,
-            paymentTerms: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+        // Check for existing invoice
+        const existingInvoice = await prisma.invoice.findFirst({
+          where: {
+            invoiceNumber: invoiceData.invoiceNumber,
+            total: invoiceData.total, // Using total amount for duplication check
           },
         });
-        console.log('✅ New customer created:', { id: customer.id, name: customer.name });
-      }
-      customerId = customer.id;
-    } else if (json.receiverName === CURRENT_CUSTOMER_NAME) {
-      // Our client is the receiver, so this is a supplier invoice
-      console.log('🏢 Processing as supplier invoice...');
-      let supplier = await prisma.supplier.findFirst({ where: { name: json.issuerName } });
-      console.log('🔍 Supplier lookup result:', { found: !!supplier, name: json.issuerName });
-      
-      if (!supplier) {
-        console.log('➕ Creating new supplier record...');
-        supplier = await prisma.supplier.create({
-          data: {
-            name: json.issuerName,
-            country: issuerCountry,
-            paymentTerms: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
+
+        if (existingInvoice) {
+          console.log(`⏭️ Invoice ${invoiceData.invoiceNumber} already exists. Skipping.`);
+          skippedCount++;
+          continue;
+        }
+
+        console.log('📝 Prepared invoice data for:', invoiceData.invoiceNumber);
+        console.log('🔍 Checking invoice type for:', invoiceData.invoiceNumber, {
+          receiverName: rawInvoice.receiverName,
+          issuerName: rawInvoice.issuerName,
+          isCustomerInvoice: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName),
+          isSupplierInvoice: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName),
         });
-        console.log('✅ New supplier created:', { id: supplier.id, name: supplier.name });
+
+        let customerId: number | null = null;
+        let supplierId: number | null = null;
+
+        if (CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName)) {
+          console.log(`👥 Processing as customer invoice for: ${invoiceData.invoiceNumber}` );
+          let customer = await prisma.customer.findFirst({ where: { name: rawInvoice.receiverName } });
+          if (!customer) {
+            customer = await prisma.customer.create({
+              data: {
+                name: rawInvoice.receiverName,
+                country: receiverCountry,
+                paymentTerms: null, createdAt: new Date(), updatedAt: new Date(),
+              },
+            });
+          }
+          customerId = customer.id;
+        } else if (CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName)) {
+          console.log(`🏢 Processing as supplier invoice for: ${invoiceData.invoiceNumber}`);
+          let supplier = await prisma.supplier.findFirst({ where: { name: rawInvoice.issuerName } });
+          if (!supplier) {
+            supplier = await prisma.supplier.create({
+              data: {
+                name: rawInvoice.issuerName,
+                country: issuerCountry,
+                paymentTerms: null, createdAt: new Date(), updatedAt: new Date(),
+              },
+            });
+          }
+          supplierId = supplier.id;
+        } else {
+          throw new Error('Invoice does not match any current customer name as issuer or receiver.');
+        }
+
+        const newInvoice = await prisma.invoice.create({
+          data: { ...invoiceData, customerId, supplierId },
+        });
+        createdInvoices.push(newInvoice);
+        processedCount++;
+        console.log(`✅ Invoice ${newInvoice.invoiceNumber} saved successfully.`);
+
+      } catch (error: any) {
+        console.error(`❌ Error processing invoice ${internalId}:`, error.message);
+        errors.push({ invoiceNumber: internalId, error: error.message });
+        errorCount++;
       }
-      supplierId = supplier.id;
-    } else {
-      console.error('❌ Invoice validation failed:', {
-        reason: 'No match for current customer',
-        issuerName: json.issuerName,
-        receiverName: json.receiverName,
-        currentCustomer: CURRENT_CUSTOMER_NAME,
-      });
-      throw new Error('Invoice does not match current customer as issuer or receiver.');
     }
 
-    // Save the invoice with the correct field names
-    console.log('💾 Saving invoice to database...', {
-      customerId,
-      supplierId,
-      invoiceNumber: invoiceData.invoiceNumber,
-    });
-    
-    const invoice = await prisma.invoice.create({
-      data: {
-        ...invoiceData,
-        customerId,
-        supplierId,
-      },
-    });
+    console.log('🏁 Bulk processing finished.');
+    return NextResponse.json({
+      message: 'Bulk invoice processing complete.',
+      processed: processedCount,
+      skipped: skippedCount,
+      errors: errorCount,
+      errorDetails: errors,
+      createdInvoices: createdInvoices.map(inv => inv.id) // Return IDs of created invoices
+    }, { status: 201 });
 
-    console.log('✅ Invoice saved successfully:', {
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      type: customerId ? 'customer' : 'supplier',
-    });
-
-    return NextResponse.json(invoice, { status: 201 });
   } catch (error: any) {
-    console.error('❌ Error processing invoice:', {
-      message: error.message,
-      code: error.code,
-      meta: error.meta,
-      stack: error.stack,
-    });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error('❌ Major error during bulk processing:', error.message);
+    return NextResponse.json({
+      message: 'Failed to process bulk invoices.',
+      error: error.message,
+      processed: processedCount,
+      skipped: skippedCount,
+      errors: errorCount + (invoicesToProcess.length > 0 ? invoicesToProcess.length - processedCount - skippedCount - errorCount : 0),
+      errorDetails: errors.length > 0 ? errors : [{ invoiceNumber: 'N/A', error: error.message }],
+    }, { status: 400 });
   }
 } 

@@ -71,29 +71,68 @@ export default function SuppliersPage() {
     }));
   };
   
-  const handleSubmitFiles = () => {
-    // Get all source IDs that have files selected
+  const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
-    
     if (sourceIds.length === 0) return;
-    
-    // Start uploading process
     setIsUploading('processing');
     
-    // Simulate processing delay
-    setTimeout(() => {
+    const allInvoices: any[] = []; // Array to hold all invoice objects
+
+    try {
+      for (const id of sourceIds) {
+        const files = sourceFiles[id];
+        for (const file of files) {
+          if (file.name.endsWith('.json')) {
+            const text = await file.text();
+            try {
+              const json = JSON.parse(text);
+              // If the JSON is an array of invoices, add them all
+              if (Array.isArray(json)) {
+                allInvoices.push(...json);
+              } else {
+                // Otherwise, assume it's a single invoice object
+                allInvoices.push(json);
+              }
+            } catch (parseError) {
+              console.error(`Error parsing JSON from file ${file.name}:`, parseError);
+              // Optionally, inform the user about the specific file error
+              alert(`Error parsing JSON from file ${file.name}. Please check its format.`);
+              // Continue to next file or stop? For now, continue.
+            }
+          }
+        }
+      }
+
+      if (allInvoices.length > 0) {
+        console.log(`Uploading ${allInvoices.length} invoices in bulk.`);
+        const response = await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allInvoices), // Send the array of invoices
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Server responded with ${response.status}`);
+        }
+        // Handle successful bulk upload response if needed
+        // const result = await response.json(); 
+        // console.log('Bulk upload successful:', result);
+      }
+
       const newUploadedSources = { ...uploadedSources };
-      
-      // Mark all sources with selected files as uploaded
       sourceIds.forEach(id => {
         newUploadedSources[id] = true;
       });
-      
       setUploadedSources(newUploadedSources);
       setIsUploading(null);
       setSourceFiles({});
       setIsUploadModalOpen(false);
-    }, 2000);
+    } catch (error) {
+      setIsUploading(null);
+      // Optionally show error to user
+      alert('Error uploading file(s): ' + (error as Error).message);
+    }
   };
   
   // Function to open modal with specific data sources
@@ -123,24 +162,16 @@ export default function SuppliersPage() {
   const isSuppliersDataVisible = isDataSourceUploaded('accountsPayable');
   
   const renderSourceContent = (source: { id: string, name: string }) => {
-    if (isDataSourceUploaded(source.id)) {
-      return (
-        <div className="mt-3">
-          <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800">
-            Uploaded
-          </span>
-        </div>
-      );
-    }
-    
+    // Always render the MultiFileUpload component inside the modal
+    // The isDataSourceUploaded state is for the main page, not for the modal's active session.
     return (
       <div className="mt-3">
         <MultiFileUpload
           onFilesChange={(files) => handleFilesChange(source.id, files)}
-          maxFiles={5}
-          maxSize={10}
-          accept=".xlsx,.xls,.csv"
-          label=""
+          maxFiles={50} // Or your desired config
+          maxSize={10} // Or your desired config
+          accept=".xlsx,.xls,.csv,.json"
+          label="" // No redundant label needed if source.name is displayed by UploadModal
           buttonText="Select Files"
           disabled={isUploading === 'processing'}
         />
