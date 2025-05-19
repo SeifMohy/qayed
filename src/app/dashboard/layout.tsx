@@ -55,25 +55,35 @@ export default function DashboardLayout({
   
   // Load data from localStorage on first render
   useEffect(() => {
+    console.log('🔍 Loading data sources from localStorage...');
     const storedData = localStorage.getItem(STORAGE_KEY);
     if (storedData) {
       try {
         const parsedData = JSON.parse(storedData);
+        console.log('✅ Loaded data sources:', parsedData);
         setUploadedSources(parsedData);
       } catch (e) {
-        console.error('Failed to parse stored data:', e);
+        console.error('❌ Failed to parse stored data:', e);
+        // Initialize with empty state if parsing fails
+        setUploadedSources({});
       }
+    } else {
+      console.log('ℹ️ No stored data sources found, initializing empty state');
+      setUploadedSources({});
     }
   }, []);
   
   // Save to localStorage whenever uploadedSources changes
   useEffect(() => {
+    console.log('💾 Saving data sources to localStorage:', uploadedSources);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadedSources));
   }, [uploadedSources]);
   
   // Helper function to check if a data source is uploaded
   const isDataSourceUploaded = (sourceId: string) => {
-    return !!uploadedSources[sourceId];
+    const isUploaded = !!uploadedSources[sourceId];
+    console.log(`🔍 Checking data source '${sourceId}':`, isUploaded);
+    return isUploaded;
   };
   
   const navigation = navigationItems.map(item => ({

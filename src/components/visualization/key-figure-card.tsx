@@ -7,6 +7,7 @@ export type ChangeType = 'increase' | 'decrease' | 'neutral';
 export interface KeyFigureCardProps {
   title: string;
   value: string;
+  subtitle?: string;
   icon?: React.ElementType;
   iconColor?: string;
   change?: string;
@@ -20,6 +21,7 @@ export interface KeyFigureCardProps {
  * 
  * @param title - The title/label of the key figure
  * @param value - The main value/statistic to display
+ * @param subtitle - Optional smaller text to display below the value
  * @param icon - Optional icon component to display (from Heroicons or similar)
  * @param iconColor - Background color class for the icon (e.g., 'bg-blue-500')
  * @param change - Optional text showing the change (e.g., '+3.2%')
@@ -31,6 +33,7 @@ export interface KeyFigureCardProps {
 export default function KeyFigureCard({
   title,
   value,
+  subtitle,
   icon: Icon,
   iconColor = 'bg-blue-500',
   change,
@@ -74,6 +77,10 @@ export default function KeyFigureCard({
       </dt>
       <dd className={clsx('flex flex-col', Icon ? 'ml-16' : '')}>
         <p className="text-2xl font-semibold text-gray-900">{value}</p>
+        
+        {subtitle && (
+          <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
+        )}
         
         {change && (
           <p className={clsx('mt-1 flex items-center text-sm font-medium', getChangeColor())}>
