@@ -5,6 +5,7 @@ import { PrismaClient } from '../../../generated/prisma';
 // with all the models properly generated
 const prisma = new PrismaClient();
 const CURRENT_CUSTOMER_NAMES = ['شركهكانلصناعهوتعبئهالعلب', 'شركةكان', 'شركةكانلصناعةوتعبئةالعلب', 'كانلصناعةوتعبئةالعلب', "شركهكانلصناعهوتعبيئهالعلب"];
+const CURRENT_CUSTOMER_ETAID = "204942527";
 
 export async function POST(request: NextRequest) {
   let processedCount = 0;
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
 
         const issuerCountry = document.issuer?.address?.country || '';
         const receiverCountry = document.receiver?.address?.country || '';
+        const issuerEtaId = document.issuer?.id || '';
+        const receiverEtaId = document.receiver?.id || '';
 
         const totalDiscount = rawInvoice.totalDiscount ?? document.totalDiscountAmount ?? 0;
         const total = rawInvoice.total ?? document.totalAmount ?? 0;
@@ -56,6 +59,8 @@ export async function POST(request: NextRequest) {
           taxAmount,
           issuerCountry,
           receiverCountry,
+          issuerEtaId: (issuerEtaId && issuerEtaId !== "0") ? issuerEtaId : '',
+          receiverEtaId: (receiverEtaId && receiverEtaId !== "0") ? receiverEtaId : '',
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -78,41 +83,80 @@ export async function POST(request: NextRequest) {
         console.log('🔍 Checking invoice type for:', invoiceData.invoiceNumber, {
           receiverName: rawInvoice.receiverName,
           issuerName: rawInvoice.issuerName,
-          isCustomerInvoice: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName),
-          isSupplierInvoice: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName),
+          issuerEtaId: invoiceData.issuerEtaId, // Use sanitized Id
+          receiverEtaId: invoiceData.receiverEtaId, // Use sanitized Id
+          isCustomerByEtaId: invoiceData.issuerEtaId === CURRENT_CUSTOMER_ETAID,
+          isSupplierByEtaId: invoiceData.receiverEtaId === CURRENT_CUSTOMER_ETAID,
+          isCustomerByName: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName),
+          isSupplierByName: CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName),
         });
 
         let customerId: number | null = null;
         let supplierId: number | null = null;
 
-        if (CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName)) {
-          console.log(`👥 Processing as customer invoice for: ${invoiceData.invoiceNumber}` );
-          let customer = await prisma.customer.findFirst({ where: { name: rawInvoice.receiverName } });
+        // First check by ETA ID (if valid and not "0"), then fall back to name matching
+        if ((invoiceData.issuerEtaId && invoiceData.issuerEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(rawInvoice.issuerName)) {
+          console.log(`👥 Processing as customer invoice for: ${invoiceData.invoiceNumber}`);
+          
+          let customer = null;
+          // Find customer by ETA ID first if available and not "0", then by name
+          if (invoiceData.receiverEtaId) {
+            customer = await prisma.customer.findFirst({ 
+              where: { etaId: invoiceData.receiverEtaId } 
+            });
+          }
+          
+          if (!customer) {
+            customer = await prisma.customer.findFirst({ 
+              where: { name: rawInvoice.receiverName } 
+            });
+          }
+          
           if (!customer) {
             customer = await prisma.customer.create({
               data: {
                 name: rawInvoice.receiverName,
                 country: receiverCountry,
-                paymentTerms: null, createdAt: new Date(), updatedAt: new Date(),
+                etaId: invoiceData.receiverEtaId || null, // Store sanitized etaId or null
+                paymentTerms: null, 
+                createdAt: new Date(), 
+                updatedAt: new Date(),
               },
             });
           }
           customerId = customer.id;
-        } else if (CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName)) {
+        } else if ((invoiceData.receiverEtaId && invoiceData.receiverEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(rawInvoice.receiverName)) {
           console.log(`🏢 Processing as supplier invoice for: ${invoiceData.invoiceNumber}`);
-          let supplier = await prisma.supplier.findFirst({ where: { name: rawInvoice.issuerName } });
+          
+          let supplier = null;
+          // Find supplier by ETA ID first if available and not "0", then by name
+          if (invoiceData.issuerEtaId) {
+            supplier = await prisma.supplier.findFirst({ 
+              where: { etaId: invoiceData.issuerEtaId } 
+            });
+          }
+          
+          if (!supplier) {
+            supplier = await prisma.supplier.findFirst({ 
+              where: { name: rawInvoice.issuerName } 
+            });
+          }
+          
           if (!supplier) {
             supplier = await prisma.supplier.create({
               data: {
                 name: rawInvoice.issuerName,
                 country: issuerCountry,
-                paymentTerms: null, createdAt: new Date(), updatedAt: new Date(),
+                etaId: invoiceData.issuerEtaId || null, // Store sanitized etaId or null
+                paymentTerms: null, 
+                createdAt: new Date(), 
+                updatedAt: new Date(),
               },
             });
           }
           supplierId = supplier.id;
         } else {
-          throw new Error('Invoice does not match any current customer name as issuer or receiver.');
+          throw new Error('Invoice does not match any current customer ETA ID (excluding "0") or name as issuer or receiver.');
         }
 
         const newInvoice = await prisma.invoice.create({

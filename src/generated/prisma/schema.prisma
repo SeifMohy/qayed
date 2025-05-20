@@ -30,6 +30,8 @@ model Invoice {
   taxAmount       Decimal // document => invoice lines => Tax totals => run through object and add "Amount"
   issuerCountry   String // document => issuer => address => country
   receiverCountry String // document => receiver => address => country
+  issuerEtaId     String // document => receiver => issuerId => id
+  receiverEtaId   String // document => issuer => receiverId => id
 
   customerId Int?
   supplierId Int?
@@ -46,6 +48,7 @@ model Customer {
 
   name         String // receiverName from invoice
   country      String? // receiverCountry from invoice
+  etaId        String? // issuerEtaId or receiverEtaId from invoice
   paymentTerms Int?
   Invoice      Invoice[]
 }
@@ -57,6 +60,7 @@ model Supplier {
 
   name         String // issuerName from invoice
   country      String? // issuerCountry from invoice
+  etaId        String? // issuerEtaId or receiverEtaId  from invoice
   paymentTerms Int?
   Invoice      Invoice[]
 }

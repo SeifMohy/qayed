@@ -138,6 +138,8 @@ exports.Prisma.InvoiceScalarFieldEnum = {
   taxAmount: 'taxAmount',
   issuerCountry: 'issuerCountry',
   receiverCountry: 'receiverCountry',
+  issuerEtaId: 'issuerEtaId',
+  receiverEtaId: 'receiverEtaId',
   customerId: 'customerId',
   supplierId: 'supplierId'
 };
@@ -148,6 +150,7 @@ exports.Prisma.CustomerScalarFieldEnum = {
   updatedAt: 'updatedAt',
   name: 'name',
   country: 'country',
+  etaId: 'etaId',
   paymentTerms: 'paymentTerms'
 };
 
@@ -157,6 +160,7 @@ exports.Prisma.SupplierScalarFieldEnum = {
   updatedAt: 'updatedAt',
   name: 'name',
   country: 'country',
+  etaId: 'etaId',
   paymentTerms: 'paymentTerms'
 };
 

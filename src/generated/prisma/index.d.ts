@@ -1166,6 +1166,8 @@ export namespace Prisma {
     taxAmount: Decimal | null
     issuerCountry: string | null
     receiverCountry: string | null
+    issuerEtaId: string | null
+    receiverEtaId: string | null
     customerId: number | null
     supplierId: number | null
   }
@@ -1188,6 +1190,8 @@ export namespace Prisma {
     taxAmount: Decimal | null
     issuerCountry: string | null
     receiverCountry: string | null
+    issuerEtaId: string | null
+    receiverEtaId: string | null
     customerId: number | null
     supplierId: number | null
   }
@@ -1210,6 +1214,8 @@ export namespace Prisma {
     taxAmount: number
     issuerCountry: number
     receiverCountry: number
+    issuerEtaId: number
+    receiverEtaId: number
     customerId: number
     supplierId: number
     _all: number
@@ -1258,6 +1264,8 @@ export namespace Prisma {
     taxAmount?: true
     issuerCountry?: true
     receiverCountry?: true
+    issuerEtaId?: true
+    receiverEtaId?: true
     customerId?: true
     supplierId?: true
   }
@@ -1280,6 +1288,8 @@ export namespace Prisma {
     taxAmount?: true
     issuerCountry?: true
     receiverCountry?: true
+    issuerEtaId?: true
+    receiverEtaId?: true
     customerId?: true
     supplierId?: true
   }
@@ -1302,6 +1312,8 @@ export namespace Prisma {
     taxAmount?: true
     issuerCountry?: true
     receiverCountry?: true
+    issuerEtaId?: true
+    receiverEtaId?: true
     customerId?: true
     supplierId?: true
     _all?: true
@@ -1411,6 +1423,8 @@ export namespace Prisma {
     taxAmount: Decimal
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     customerId: number | null
     supplierId: number | null
     _count: InvoiceCountAggregateOutputType | null
@@ -1452,6 +1466,8 @@ export namespace Prisma {
     taxAmount?: boolean
     issuerCountry?: boolean
     receiverCountry?: boolean
+    issuerEtaId?: boolean
+    receiverEtaId?: boolean
     customerId?: boolean
     supplierId?: boolean
     Customer?: boolean | Invoice$CustomerArgs<ExtArgs>
@@ -1476,6 +1492,8 @@ export namespace Prisma {
     taxAmount?: boolean
     issuerCountry?: boolean
     receiverCountry?: boolean
+    issuerEtaId?: boolean
+    receiverEtaId?: boolean
     customerId?: boolean
     supplierId?: boolean
     Customer?: boolean | Invoice$CustomerArgs<ExtArgs>
@@ -1500,6 +1518,8 @@ export namespace Prisma {
     taxAmount?: boolean
     issuerCountry?: boolean
     receiverCountry?: boolean
+    issuerEtaId?: boolean
+    receiverEtaId?: boolean
     customerId?: boolean
     supplierId?: boolean
     Customer?: boolean | Invoice$CustomerArgs<ExtArgs>
@@ -1524,11 +1544,13 @@ export namespace Prisma {
     taxAmount?: boolean
     issuerCountry?: boolean
     receiverCountry?: boolean
+    issuerEtaId?: boolean
+    receiverEtaId?: boolean
     customerId?: boolean
     supplierId?: boolean
   }
 
-  export type InvoiceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "invoiceDate" | "invoiceNumber" | "issuerName" | "receiverName" | "totalSales" | "totalDiscount" | "netAmount" | "total" | "invoiceStatus" | "currency" | "exchangeRate" | "taxAmount" | "issuerCountry" | "receiverCountry" | "customerId" | "supplierId", ExtArgs["result"]["invoice"]>
+  export type InvoiceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "invoiceDate" | "invoiceNumber" | "issuerName" | "receiverName" | "totalSales" | "totalDiscount" | "netAmount" | "total" | "invoiceStatus" | "currency" | "exchangeRate" | "taxAmount" | "issuerCountry" | "receiverCountry" | "issuerEtaId" | "receiverEtaId" | "customerId" | "supplierId", ExtArgs["result"]["invoice"]>
   export type InvoiceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Customer?: boolean | Invoice$CustomerArgs<ExtArgs>
     Supplier?: boolean | Invoice$SupplierArgs<ExtArgs>
@@ -1566,6 +1588,8 @@ export namespace Prisma {
       taxAmount: Prisma.Decimal
       issuerCountry: string
       receiverCountry: string
+      issuerEtaId: string
+      receiverEtaId: string
       customerId: number | null
       supplierId: number | null
     }, ExtArgs["result"]["invoice"]>
@@ -2010,6 +2034,8 @@ export namespace Prisma {
     readonly taxAmount: FieldRef<"Invoice", 'Decimal'>
     readonly issuerCountry: FieldRef<"Invoice", 'String'>
     readonly receiverCountry: FieldRef<"Invoice", 'String'>
+    readonly issuerEtaId: FieldRef<"Invoice", 'String'>
+    readonly receiverEtaId: FieldRef<"Invoice", 'String'>
     readonly customerId: FieldRef<"Invoice", 'Int'>
     readonly supplierId: FieldRef<"Invoice", 'Int'>
   }
@@ -2492,6 +2518,7 @@ export namespace Prisma {
     updatedAt: Date | null
     name: string | null
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
   }
 
@@ -2501,6 +2528,7 @@ export namespace Prisma {
     updatedAt: Date | null
     name: string | null
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
   }
 
@@ -2510,6 +2538,7 @@ export namespace Prisma {
     updatedAt: number
     name: number
     country: number
+    etaId: number
     paymentTerms: number
     _all: number
   }
@@ -2531,6 +2560,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
   }
 
@@ -2540,6 +2570,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
   }
 
@@ -2549,6 +2580,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
     _all?: true
   }
@@ -2645,6 +2677,7 @@ export namespace Prisma {
     updatedAt: Date
     name: string
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
     _count: CustomerCountAggregateOutputType | null
     _avg: CustomerAvgAggregateOutputType | null
@@ -2673,6 +2706,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
     Invoice?: boolean | Customer$InvoiceArgs<ExtArgs>
     _count?: boolean | CustomerCountOutputTypeDefaultArgs<ExtArgs>
@@ -2684,6 +2718,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }, ExtArgs["result"]["customer"]>
 
@@ -2693,6 +2728,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }, ExtArgs["result"]["customer"]>
 
@@ -2702,10 +2738,11 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }
 
-  export type CustomerOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "paymentTerms", ExtArgs["result"]["customer"]>
+  export type CustomerOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "etaId" | "paymentTerms", ExtArgs["result"]["customer"]>
   export type CustomerInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | Customer$InvoiceArgs<ExtArgs>
     _count?: boolean | CustomerCountOutputTypeDefaultArgs<ExtArgs>
@@ -2724,6 +2761,7 @@ export namespace Prisma {
       updatedAt: Date
       name: string
       country: string | null
+      etaId: string | null
       paymentTerms: number | null
     }, ExtArgs["result"]["customer"]>
     composites: {}
@@ -3154,6 +3192,7 @@ export namespace Prisma {
     readonly updatedAt: FieldRef<"Customer", 'DateTime'>
     readonly name: FieldRef<"Customer", 'String'>
     readonly country: FieldRef<"Customer", 'String'>
+    readonly etaId: FieldRef<"Customer", 'String'>
     readonly paymentTerms: FieldRef<"Customer", 'Int'>
   }
     
@@ -3613,6 +3652,7 @@ export namespace Prisma {
     updatedAt: Date | null
     name: string | null
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
   }
 
@@ -3622,6 +3662,7 @@ export namespace Prisma {
     updatedAt: Date | null
     name: string | null
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
   }
 
@@ -3631,6 +3672,7 @@ export namespace Prisma {
     updatedAt: number
     name: number
     country: number
+    etaId: number
     paymentTerms: number
     _all: number
   }
@@ -3652,6 +3694,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
   }
 
@@ -3661,6 +3704,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
   }
 
@@ -3670,6 +3714,7 @@ export namespace Prisma {
     updatedAt?: true
     name?: true
     country?: true
+    etaId?: true
     paymentTerms?: true
     _all?: true
   }
@@ -3766,6 +3811,7 @@ export namespace Prisma {
     updatedAt: Date
     name: string
     country: string | null
+    etaId: string | null
     paymentTerms: number | null
     _count: SupplierCountAggregateOutputType | null
     _avg: SupplierAvgAggregateOutputType | null
@@ -3794,6 +3840,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
     Invoice?: boolean | Supplier$InvoiceArgs<ExtArgs>
     _count?: boolean | SupplierCountOutputTypeDefaultArgs<ExtArgs>
@@ -3805,6 +3852,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }, ExtArgs["result"]["supplier"]>
 
@@ -3814,6 +3862,7 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }, ExtArgs["result"]["supplier"]>
 
@@ -3823,10 +3872,11 @@ export namespace Prisma {
     updatedAt?: boolean
     name?: boolean
     country?: boolean
+    etaId?: boolean
     paymentTerms?: boolean
   }
 
-  export type SupplierOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "paymentTerms", ExtArgs["result"]["supplier"]>
+  export type SupplierOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "etaId" | "paymentTerms", ExtArgs["result"]["supplier"]>
   export type SupplierInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | Supplier$InvoiceArgs<ExtArgs>
     _count?: boolean | SupplierCountOutputTypeDefaultArgs<ExtArgs>
@@ -3845,6 +3895,7 @@ export namespace Prisma {
       updatedAt: Date
       name: string
       country: string | null
+      etaId: string | null
       paymentTerms: number | null
     }, ExtArgs["result"]["supplier"]>
     composites: {}
@@ -4275,6 +4326,7 @@ export namespace Prisma {
     readonly updatedAt: FieldRef<"Supplier", 'DateTime'>
     readonly name: FieldRef<"Supplier", 'String'>
     readonly country: FieldRef<"Supplier", 'String'>
+    readonly etaId: FieldRef<"Supplier", 'String'>
     readonly paymentTerms: FieldRef<"Supplier", 'Int'>
   }
     
@@ -4738,6 +4790,8 @@ export namespace Prisma {
     taxAmount: 'taxAmount',
     issuerCountry: 'issuerCountry',
     receiverCountry: 'receiverCountry',
+    issuerEtaId: 'issuerEtaId',
+    receiverEtaId: 'receiverEtaId',
     customerId: 'customerId',
     supplierId: 'supplierId'
   };
@@ -4751,6 +4805,7 @@ export namespace Prisma {
     updatedAt: 'updatedAt',
     name: 'name',
     country: 'country',
+    etaId: 'etaId',
     paymentTerms: 'paymentTerms'
   };
 
@@ -4763,6 +4818,7 @@ export namespace Prisma {
     updatedAt: 'updatedAt',
     name: 'name',
     country: 'country',
+    etaId: 'etaId',
     paymentTerms: 'paymentTerms'
   };
 
@@ -4892,6 +4948,8 @@ export namespace Prisma {
     taxAmount?: DecimalFilter<"Invoice"> | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFilter<"Invoice"> | string
     receiverCountry?: StringFilter<"Invoice"> | string
+    issuerEtaId?: StringFilter<"Invoice"> | string
+    receiverEtaId?: StringFilter<"Invoice"> | string
     customerId?: IntNullableFilter<"Invoice"> | number | null
     supplierId?: IntNullableFilter<"Invoice"> | number | null
     Customer?: XOR<CustomerNullableScalarRelationFilter, CustomerWhereInput> | null
@@ -4916,6 +4974,8 @@ export namespace Prisma {
     taxAmount?: SortOrder
     issuerCountry?: SortOrder
     receiverCountry?: SortOrder
+    issuerEtaId?: SortOrder
+    receiverEtaId?: SortOrder
     customerId?: SortOrderInput | SortOrder
     supplierId?: SortOrderInput | SortOrder
     Customer?: CustomerOrderByWithRelationInput
@@ -4943,6 +5003,8 @@ export namespace Prisma {
     taxAmount?: DecimalFilter<"Invoice"> | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFilter<"Invoice"> | string
     receiverCountry?: StringFilter<"Invoice"> | string
+    issuerEtaId?: StringFilter<"Invoice"> | string
+    receiverEtaId?: StringFilter<"Invoice"> | string
     customerId?: IntNullableFilter<"Invoice"> | number | null
     supplierId?: IntNullableFilter<"Invoice"> | number | null
     Customer?: XOR<CustomerNullableScalarRelationFilter, CustomerWhereInput> | null
@@ -4967,6 +5029,8 @@ export namespace Prisma {
     taxAmount?: SortOrder
     issuerCountry?: SortOrder
     receiverCountry?: SortOrder
+    issuerEtaId?: SortOrder
+    receiverEtaId?: SortOrder
     customerId?: SortOrderInput | SortOrder
     supplierId?: SortOrderInput | SortOrder
     _count?: InvoiceCountOrderByAggregateInput
@@ -4997,6 +5061,8 @@ export namespace Prisma {
     taxAmount?: DecimalWithAggregatesFilter<"Invoice"> | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringWithAggregatesFilter<"Invoice"> | string
     receiverCountry?: StringWithAggregatesFilter<"Invoice"> | string
+    issuerEtaId?: StringWithAggregatesFilter<"Invoice"> | string
+    receiverEtaId?: StringWithAggregatesFilter<"Invoice"> | string
     customerId?: IntNullableWithAggregatesFilter<"Invoice"> | number | null
     supplierId?: IntNullableWithAggregatesFilter<"Invoice"> | number | null
   }
@@ -5010,6 +5076,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Customer"> | Date | string
     name?: StringFilter<"Customer"> | string
     country?: StringNullableFilter<"Customer"> | string | null
+    etaId?: StringNullableFilter<"Customer"> | string | null
     paymentTerms?: IntNullableFilter<"Customer"> | number | null
     Invoice?: InvoiceListRelationFilter
   }
@@ -5020,6 +5087,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrderInput | SortOrder
+    etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     Invoice?: InvoiceOrderByRelationAggregateInput
   }
@@ -5033,6 +5101,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Customer"> | Date | string
     name?: StringFilter<"Customer"> | string
     country?: StringNullableFilter<"Customer"> | string | null
+    etaId?: StringNullableFilter<"Customer"> | string | null
     paymentTerms?: IntNullableFilter<"Customer"> | number | null
     Invoice?: InvoiceListRelationFilter
   }, "id">
@@ -5043,6 +5112,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrderInput | SortOrder
+    etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     _count?: CustomerCountOrderByAggregateInput
     _avg?: CustomerAvgOrderByAggregateInput
@@ -5060,6 +5130,7 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"Customer"> | Date | string
     name?: StringWithAggregatesFilter<"Customer"> | string
     country?: StringNullableWithAggregatesFilter<"Customer"> | string | null
+    etaId?: StringNullableWithAggregatesFilter<"Customer"> | string | null
     paymentTerms?: IntNullableWithAggregatesFilter<"Customer"> | number | null
   }
 
@@ -5072,6 +5143,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Supplier"> | Date | string
     name?: StringFilter<"Supplier"> | string
     country?: StringNullableFilter<"Supplier"> | string | null
+    etaId?: StringNullableFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableFilter<"Supplier"> | number | null
     Invoice?: InvoiceListRelationFilter
   }
@@ -5082,6 +5154,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrderInput | SortOrder
+    etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     Invoice?: InvoiceOrderByRelationAggregateInput
   }
@@ -5095,6 +5168,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Supplier"> | Date | string
     name?: StringFilter<"Supplier"> | string
     country?: StringNullableFilter<"Supplier"> | string | null
+    etaId?: StringNullableFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableFilter<"Supplier"> | number | null
     Invoice?: InvoiceListRelationFilter
   }, "id">
@@ -5105,6 +5179,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrderInput | SortOrder
+    etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     _count?: SupplierCountOrderByAggregateInput
     _avg?: SupplierAvgOrderByAggregateInput
@@ -5122,6 +5197,7 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"Supplier"> | Date | string
     name?: StringWithAggregatesFilter<"Supplier"> | string
     country?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
+    etaId?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableWithAggregatesFilter<"Supplier"> | number | null
   }
 
@@ -5142,6 +5218,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     Customer?: CustomerCreateNestedOneWithoutInvoiceInput
     Supplier?: SupplierCreateNestedOneWithoutInvoiceInput
   }
@@ -5164,6 +5242,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     customerId?: number | null
     supplierId?: number | null
   }
@@ -5185,6 +5265,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     Customer?: CustomerUpdateOneWithoutInvoiceNestedInput
     Supplier?: SupplierUpdateOneWithoutInvoiceNestedInput
   }
@@ -5207,6 +5289,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     customerId?: NullableIntFieldUpdateOperationsInput | number | null
     supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
@@ -5229,6 +5313,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     customerId?: number | null
     supplierId?: number | null
   }
@@ -5250,6 +5336,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
   }
 
   export type InvoiceUncheckedUpdateManyInput = {
@@ -5270,6 +5358,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     customerId?: NullableIntFieldUpdateOperationsInput | number | null
     supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
@@ -5279,6 +5369,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceCreateNestedManyWithoutCustomerInput
   }
@@ -5289,6 +5380,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceUncheckedCreateNestedManyWithoutCustomerInput
   }
@@ -5298,6 +5390,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUpdateManyWithoutCustomerNestedInput
   }
@@ -5308,6 +5401,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
   }
@@ -5318,6 +5412,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -5326,6 +5421,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -5335,6 +5431,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -5343,6 +5440,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceCreateNestedManyWithoutSupplierInput
   }
@@ -5353,6 +5451,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceUncheckedCreateNestedManyWithoutSupplierInput
   }
@@ -5362,6 +5461,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUpdateManyWithoutSupplierNestedInput
   }
@@ -5372,6 +5472,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUncheckedUpdateManyWithoutSupplierNestedInput
   }
@@ -5382,6 +5483,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -5390,6 +5492,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -5399,6 +5502,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -5494,6 +5598,8 @@ export namespace Prisma {
     taxAmount?: SortOrder
     issuerCountry?: SortOrder
     receiverCountry?: SortOrder
+    issuerEtaId?: SortOrder
+    receiverEtaId?: SortOrder
     customerId?: SortOrder
     supplierId?: SortOrder
   }
@@ -5528,6 +5634,8 @@ export namespace Prisma {
     taxAmount?: SortOrder
     issuerCountry?: SortOrder
     receiverCountry?: SortOrder
+    issuerEtaId?: SortOrder
+    receiverEtaId?: SortOrder
     customerId?: SortOrder
     supplierId?: SortOrder
   }
@@ -5550,6 +5658,8 @@ export namespace Prisma {
     taxAmount?: SortOrder
     issuerCountry?: SortOrder
     receiverCountry?: SortOrder
+    issuerEtaId?: SortOrder
+    receiverEtaId?: SortOrder
     customerId?: SortOrder
     supplierId?: SortOrder
   }
@@ -5677,6 +5787,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -5691,6 +5802,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -5700,6 +5812,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -5732,6 +5845,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -5746,6 +5860,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -5755,6 +5870,7 @@ export namespace Prisma {
     updatedAt?: SortOrder
     name?: SortOrder
     country?: SortOrder
+    etaId?: SortOrder
     paymentTerms?: SortOrder
   }
 
@@ -6110,6 +6226,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -6119,6 +6236,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -6132,6 +6250,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -6141,6 +6260,7 @@ export namespace Prisma {
     updatedAt: Date | string
     name: string
     country?: string | null
+    etaId?: string | null
     paymentTerms?: number | null
   }
 
@@ -6165,6 +6285,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6174,6 +6295,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6193,6 +6315,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6202,6 +6325,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     name?: StringFieldUpdateOperationsInput | string
     country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6222,6 +6346,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     Supplier?: SupplierCreateNestedOneWithoutInvoiceInput
   }
 
@@ -6243,6 +6369,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     supplierId?: number | null
   }
 
@@ -6293,6 +6421,8 @@ export namespace Prisma {
     taxAmount?: DecimalFilter<"Invoice"> | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFilter<"Invoice"> | string
     receiverCountry?: StringFilter<"Invoice"> | string
+    issuerEtaId?: StringFilter<"Invoice"> | string
+    receiverEtaId?: StringFilter<"Invoice"> | string
     customerId?: IntNullableFilter<"Invoice"> | number | null
     supplierId?: IntNullableFilter<"Invoice"> | number | null
   }
@@ -6314,6 +6444,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     Customer?: CustomerCreateNestedOneWithoutInvoiceInput
   }
 
@@ -6335,6 +6467,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     customerId?: number | null
   }
 
@@ -6382,6 +6516,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     supplierId?: number | null
   }
 
@@ -6402,6 +6538,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     Supplier?: SupplierUpdateOneWithoutInvoiceNestedInput
   }
 
@@ -6423,6 +6561,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6444,6 +6584,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6465,6 +6607,8 @@ export namespace Prisma {
     taxAmount: Decimal | DecimalJsLike | number | string
     issuerCountry: string
     receiverCountry: string
+    issuerEtaId: string
+    receiverEtaId: string
     customerId?: number | null
   }
 
@@ -6485,6 +6629,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     Customer?: CustomerUpdateOneWithoutInvoiceNestedInput
   }
 
@@ -6506,6 +6652,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     customerId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
@@ -6527,6 +6675,8 @@ export namespace Prisma {
     taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     issuerCountry?: StringFieldUpdateOperationsInput | string
     receiverCountry?: StringFieldUpdateOperationsInput | string
+    issuerEtaId?: StringFieldUpdateOperationsInput | string
+    receiverEtaId?: StringFieldUpdateOperationsInput | string
     customerId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
