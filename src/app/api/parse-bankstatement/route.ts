@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
@@ -41,9 +41,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No files provided for parsing.' }, { status: 400 });
     }
 
-    // Initialize Gemini
-    const ai = new GoogleGenerativeAI(API_KEY);
-    console.log('Initialized Gemini model for document parsing.');
+    // Initialize GenAI
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    console.log('Initialized GenAI model for document parsing.');
 
     const results = [];
     
@@ -63,22 +63,25 @@ export async function POST(request: Request) {
         const base64Data = await fileToBase64(file);
         const prompt = "Please extract the text content from the provided document.";
 
-        const model = ai.getGenerativeModel({ model: MODEL_NAME });
-        const response = await model.generateContent({
-          contents: [{ 
-            role: "user", 
-            parts: [
-              { text: PARSING_SYSTEM_PROMPT },
-              { text: prompt },
-              { 
-                inlineData: {
-                  mimeType: file.type,
-                  data: base64Data
-                }
+        // Create a content object for the API request
+        const fileContent = {
+          parts: [
+            { text: PARSING_SYSTEM_PROMPT },
+            { text: prompt },
+            { 
+              inlineData: {
+                mimeType: file.type,
+                data: base64Data
               }
-            ]
-          }],
-          generationConfig: {
+            }
+          ]
+        };
+
+        // Make the API call with the new SDK format
+        const response = await ai.models.generateContent({
+          model: MODEL_NAME,
+          contents: fileContent,
+          config: {
             temperature: 0.1,
             topK: 1,
             topP: 0.95,
@@ -86,9 +89,15 @@ export async function POST(request: Request) {
           }
         });
 
-        const text = response.response.text();
-        if (!text) {
-          throw new Error("Gemini returned empty text content for document.");
+        // Check if the response exists
+        if (!response) {
+          throw new Error("Received null response from GenAI API");
+        }
+
+        // Get the text from the response
+        const text = response.text;
+        if (!text || text.trim() === '') {
+          throw new Error("GenAI returned empty text content for document.");
         }
 
         // Add to results
