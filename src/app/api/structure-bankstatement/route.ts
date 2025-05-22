@@ -12,6 +12,39 @@
 
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
+import { prisma } from '@/lib/prisma';
+import { Decimal } from '@prisma/client/runtime/library';
+
+// --- Type definitions ---
+type StatementPeriod = {
+  start_date: string;
+  end_date: string;
+};
+
+type TransactionData = {
+  date: string;
+  credit_amount: string;
+  debit_amount: string;
+  description: string;
+  balance: string;
+  page_number: string;
+  entity_name: string;
+};
+
+type AccountStatement = {
+  bank_name: string;
+  account_number: string;
+  statement_period: StatementPeriod;
+  account_type: string;
+  account_currency: string;
+  starting_balance: string;
+  ending_balance: string;
+  transactions: TransactionData[];
+};
+
+type StructuredData = {
+  account_statements: AccountStatement[];
+};
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
@@ -66,23 +99,24 @@ Guidelines:
 - Entity name is the name of the person or company that the transaction is for
 
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
-`.trim();
+`.trim(); // TODO: Improve prompt to handle all the required fields better. 
 
 // Helper function to normalize the data structure
 function normalizeData(data: any): any {
+  console.log("Normalizing data structure");
   // If the data is not in the expected format, create a wrapper
   if (!data.account_statements) {
     // If there's an account_statement (singular), wrap it in account_statements array
     if (data.account_statement) {
       return {
-        account_statements: [normalizeAccountData(data.account_statement, 0)]
+        account_statements: [data.account_statement]
       };
     }
     
     // If it looks like a single account directly, wrap it
     if (data.bank_name || data.account_number) {
       return {
-        account_statements: [normalizeAccountData(data, 0)]
+        account_statements: [data]
       };
     }
     
@@ -95,57 +129,33 @@ function normalizeData(data: any): any {
   // If account_statements exists but is not an array, convert it
   if (!Array.isArray(data.account_statements)) {
     return {
-      account_statements: [normalizeAccountData(data.account_statements, 0)]
+      account_statements: [data.account_statements]
     };
   }
   
-  // If it's already an array, normalize each item
-  return {
-    account_statements: data.account_statements.map((account: any, index: number) => 
-      normalizeAccountData(account, index)
-    )
-  };
+  // If it's already an array, just return the data
+  return data;
 }
 
-// Helper function to normalize individual account data structure
-function normalizeAccountData(data: any, index: number): any {
-  if (!data || typeof data !== 'object') {
-    return {
-      bank_name: `Unknown Bank (Account ${index})`,
-      account_number: "Unknown",
-      statement_period: {
-        start_date: "",
-        end_date: ""
-      },
-      starting_balance: "0.00",
-      ending_balance: "0.00",
-      transactions: []
-    };
-  }
-  
-  // Create a normalized structure with defaults for missing fields
-  return {
-    bank_name: data.bank_name || `Bank (Account ${index})`,
-    account_number: data.account_number || "Unknown",
-    statement_period: {
-      start_date: data.statement_period?.start_date || "",
-      end_date: data.statement_period?.end_date || ""
-    },
-    starting_balance: data.starting_balance || "0.00",
-    ending_balance: data.ending_balance || "0.00",
-    transactions: Array.isArray(data.transactions) 
-      ? data.transactions.map((t: any) => ({
-          date: t.date || "",
-          credit_amount: t.credit_amount || "",
-          debit_amount: t.debit_amount || "",
-          description: t.description || ""
-        }))
-      : []
-  };
+// Helper function to convert string to Decimal
+function convertToDecimal(value: string): Decimal | null {
+    if (!value || value === '' || value.toLowerCase() === 'unknown') {
+        return null;
+    }
+
+    try {
+        // Remove any non-numeric characters except decimal points and negative signs
+        const cleanedValue = value.replace(/[^0-9.-]/g, '');
+        return new Decimal(cleanedValue);
+    } catch (error) {
+        console.warn(`Could not convert value to Decimal: ${value}`);
+        return null;
+    }
 }
 
 // --- API Route Handler ---
 export async function POST(request: Request) {
+    console.log("=== BANK STATEMENT PROCESSING STARTED ===");
     if (!API_KEY) {
         return NextResponse.json({ error: 'Server configuration error: API key not found.' }, { status: 500 });
     }
@@ -153,6 +163,9 @@ export async function POST(request: Request) {
     try {
         const data = await request.json();
         const { statementText, fileName } = data;
+        
+        console.log(`Request received with filename: ${fileName || 'unnamed'}`);
+        console.log(`Statement text length: ${statementText ? statementText.length : 0} characters`);
 
         if (!statementText) {
             return NextResponse.json({ error: 'No statement text provided for processing.' }, { status: 400 });
@@ -160,16 +173,15 @@ export async function POST(request: Request) {
 
         // Initialize the GenAI client
         const ai = new GoogleGenAI({ apiKey: API_KEY });
-        console.log('Initialized GenAI model for statement structuring using', MODEL_NAME);
+        console.log('Initialized GenAI model for statement structuring');
 
         // Truncate text if too long (prevent token limit issues)
         const truncatedText = statementText.length > 150000 
           ? statementText.substring(0, 150000) + "..." 
           : statementText;
-        
-        console.log('Processing statement, text length:', truncatedText.length);
 
         try {
+            console.log("Sending request to Gemini API");
             // Create the request
             const prompt = `${STRUCTURING_PROMPT}\n\nHere is the bank statement text to parse:\n${truncatedText}`;
             
@@ -192,43 +204,131 @@ export async function POST(request: Request) {
             }
             
             // Get the text from the response
-            const responseText = response.text;
-            console.log('Response received, length:', responseText ? responseText.length : 0);
+            let responseText = response.text || '';
+            console.log('Response received, length:', responseText.length);
             
             if (!responseText || responseText.trim() === '') {
                 console.error('Empty text returned from API');
                 throw new Error("GenAI returned empty response for statement structuring.");
             }
             
+            // Clean the response text - remove any backticks, markdown formatting, etc.
+            responseText = responseText.trim();
+            
+            // Remove any markdown code block indicators or backticks
+            if (responseText.startsWith('```json')) {
+                responseText = responseText.substring(7).trim();
+            }
+            else if (responseText.startsWith('```')) {
+                responseText = responseText.substring(3).trim();
+            }
+            
+            if (responseText.endsWith('```')) {
+                responseText = responseText.substring(0, responseText.length - 3).trim();
+            }
+            
+            console.log("Parsing JSON response");
+            
             // Try to parse the response as JSON
             let parsedData;
             try {
                 parsedData = JSON.parse(responseText);
+                console.log("JSON parsing successful");
             } catch (parseError) {
-                console.error("Failed to parse direct response as JSON:", parseError);
+                console.error("Failed to parse JSON:", parseError);
+                console.log("First 100 characters of response:", responseText.substring(0, 100));
                 
-                // Try to extract JSON from the response using regex if direct parsing fails
-                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
+                // Try to find the start of the JSON (if there's text before it)
+                const jsonStartIndex = responseText.indexOf('{');
+                if (jsonStartIndex > 0) {
                     try {
-                        parsedData = JSON.parse(jsonMatch[0]);
+                        console.log(`Found JSON starting at position ${jsonStartIndex}, attempting to parse`);
+                        parsedData = JSON.parse(responseText.substring(jsonStartIndex));
+                        console.log("JSON parsing successful after trimming prefix");
                     } catch (e) {
-                        console.error("Failed to extract valid JSON with regex:", e);
-                        throw new Error("Failed to extract valid JSON from GenAI response.");
+                        throw new Error("Failed to parse JSON from response even after cleanup");
                     }
                 } else {
-                    console.log("Full response for debugging:", responseText);
-                    throw new Error("Failed to extract valid JSON from GenAI response.");
+                    throw new Error("Failed to parse JSON from response");
                 }
             }
             
             // Normalize the data structure to ensure it matches our expected format
             const structuredData = normalizeData(parsedData);
+            console.log(`Found ${structuredData.account_statements.length} account statements to save`);
+
+            // Save the structured data to the database
+            const savedStatements = [];
+            console.log('Saving to database');
+
+            // Process each account statement and save to database
+            for (let i = 0; i < structuredData.account_statements.length; i++) {
+                const statement = structuredData.account_statements[i];
+                console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
+
+                try {
+                    // Convert string values to appropriate types
+                    const startingBalance = convertToDecimal(statement.starting_balance);
+                    const endingBalance = convertToDecimal(statement.ending_balance);
+
+                    // Create the bank statement record
+                    const bankStatement = await prisma.bankStatement.create({
+                        data: {
+                            fileName,
+                            bankName: statement.bank_name,
+                            accountNumber: statement.account_number,
+                            statementPeriodStart: new Date(statement.statement_period.start_date),
+                            statementPeriodEnd: new Date(statement.statement_period.end_date),
+                            accountType: statement.account_type,
+                            accountCurrency: statement.account_currency,
+                            startingBalance: startingBalance || new Decimal(0),
+                            endingBalance: endingBalance || new Decimal(0),
+                            rawTextContent: statementText,
+                            // Create transactions in the same operation
+                            transactions: {
+                                create: statement.transactions.map((transaction: TransactionData) => ({
+                                    transactionDate: new Date(transaction.date),
+                                    creditAmount: convertToDecimal(transaction.credit_amount) || null,
+                                    debitAmount: convertToDecimal(transaction.debit_amount) || null,
+                                    description: transaction.description,
+                                    balance: convertToDecimal(transaction.balance) || null,
+                                    pageNumber: transaction.page_number,
+                                    entityName: transaction.entity_name,
+                                }))
+                            }
+                        }
+                    });
+
+                    console.log(`Saved bank statement ID: ${bankStatement.id} with ${statement.transactions.length} transactions`);
+                    savedStatements.push(bankStatement);
+                } catch (error) {
+                    console.error('Error saving bank statement:', error);
+                    throw error;
+                }
+            }
+
+            console.log(`Successfully saved ${savedStatements.length} bank statements`);
+
+            // Get transaction counts for each saved statement
+            const statementsWithCounts = await Promise.all(
+                savedStatements.map(async (statement) => {
+                    const count = await prisma.transaction.count({
+                        where: { bankStatementId: statement.id }
+                    });
+                    return {
+                        id: statement.id,
+                        bankName: statement.bankName,
+                        accountNumber: statement.accountNumber,
+                        transactionCount: count
+                    };
+                })
+            );
 
             return NextResponse.json({
                 success: true,
                 fileName: fileName || "statement",
-                structuredData
+                structuredData,
+                savedStatements: statementsWithCounts
             });
 
         } catch (error: any) {

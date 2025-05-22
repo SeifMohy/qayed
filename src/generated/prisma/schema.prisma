@@ -46,11 +46,12 @@ model Customer {
   createdAt DateTime @default(now())
   updatedAt DateTime
 
-  name         String // receiverName from invoice
-  country      String? // receiverCountry from invoice
-  etaId        String? // issuerEtaId or receiverEtaId from invoice
-  paymentTerms Int?
-  Invoice      Invoice[]
+  name          String // receiverName from invoice
+  country       String? // receiverCountry from invoice
+  etaId         String? // issuerEtaId or receiverEtaId from invoice
+  paymentTerms  Int?
+  Invoice       Invoice[]
+  BankStatement BankStatement[]
 }
 
 model Supplier {
@@ -58,9 +59,53 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime
 
-  name         String // issuerName from invoice
-  country      String? // issuerCountry from invoice
-  etaId        String? // issuerEtaId or receiverEtaId  from invoice
-  paymentTerms Int?
-  Invoice      Invoice[]
+  name          String // issuerName from invoice
+  country       String? // issuerCountry from invoice
+  etaId         String? // issuerEtaId or receiverEtaId  from invoice
+  paymentTerms  Int?
+  Invoice       Invoice[]
+  BankStatement BankStatement[]
+}
+
+model BankStatement {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fileName             String?
+  bankName             String
+  accountNumber        String
+  statementPeriodStart DateTime
+  statementPeriodEnd   DateTime
+  accountType          String?
+  accountCurrency      String?
+  startingBalance      Decimal
+  endingBalance        Decimal
+
+  rawTextContent   String? @db.Text
+  processingStatus String  @default("processed")
+
+  customerId Int?
+  supplierId Int?
+  Customer   Customer? @relation(fields: [customerId], references: [id])
+  Supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactionDate DateTime
+  creditAmount    Decimal?
+  debitAmount     Decimal?
+  description     String?
+  balance         Decimal?
+  pageNumber      String?
+  entityName      String?
+
+  bankStatementId Int
+  bankStatement   BankStatement @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
 }

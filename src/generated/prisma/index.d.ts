@@ -28,6 +28,16 @@ export type Customer = $Result.DefaultSelection<Prisma.$CustomerPayload>
  * 
  */
 export type Supplier = $Result.DefaultSelection<Prisma.$SupplierPayload>
+/**
+ * Model BankStatement
+ * 
+ */
+export type BankStatement = $Result.DefaultSelection<Prisma.$BankStatementPayload>
+/**
+ * Model Transaction
+ * 
+ */
+export type Transaction = $Result.DefaultSelection<Prisma.$TransactionPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -183,6 +193,26 @@ export class PrismaClient<
     * ```
     */
   get supplier(): Prisma.SupplierDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.bankStatement`: Exposes CRUD operations for the **BankStatement** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BankStatements
+    * const bankStatements = await prisma.bankStatement.findMany()
+    * ```
+    */
+  get bankStatement(): Prisma.BankStatementDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.transaction`: Exposes CRUD operations for the **Transaction** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Transactions
+    * const transactions = await prisma.transaction.findMany()
+    * ```
+    */
+  get transaction(): Prisma.TransactionDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -625,7 +655,9 @@ export namespace Prisma {
   export const ModelName: {
     Invoice: 'Invoice',
     Customer: 'Customer',
-    Supplier: 'Supplier'
+    Supplier: 'Supplier',
+    BankStatement: 'BankStatement',
+    Transaction: 'Transaction'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -644,7 +676,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "invoice" | "customer" | "supplier"
+      modelProps: "invoice" | "customer" | "supplier" | "bankStatement" | "transaction"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -870,6 +902,154 @@ export namespace Prisma {
           }
         }
       }
+      BankStatement: {
+        payload: Prisma.$BankStatementPayload<ExtArgs>
+        fields: Prisma.BankStatementFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BankStatementFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BankStatementFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          findFirst: {
+            args: Prisma.BankStatementFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BankStatementFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          findMany: {
+            args: Prisma.BankStatementFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>[]
+          }
+          create: {
+            args: Prisma.BankStatementCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          createMany: {
+            args: Prisma.BankStatementCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BankStatementCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>[]
+          }
+          delete: {
+            args: Prisma.BankStatementDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          update: {
+            args: Prisma.BankStatementUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          deleteMany: {
+            args: Prisma.BankStatementDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BankStatementUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.BankStatementUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>[]
+          }
+          upsert: {
+            args: Prisma.BankStatementUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BankStatementPayload>
+          }
+          aggregate: {
+            args: Prisma.BankStatementAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBankStatement>
+          }
+          groupBy: {
+            args: Prisma.BankStatementGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BankStatementGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BankStatementCountArgs<ExtArgs>
+            result: $Utils.Optional<BankStatementCountAggregateOutputType> | number
+          }
+        }
+      }
+      Transaction: {
+        payload: Prisma.$TransactionPayload<ExtArgs>
+        fields: Prisma.TransactionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.TransactionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.TransactionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          findFirst: {
+            args: Prisma.TransactionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.TransactionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          findMany: {
+            args: Prisma.TransactionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>[]
+          }
+          create: {
+            args: Prisma.TransactionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          createMany: {
+            args: Prisma.TransactionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.TransactionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>[]
+          }
+          delete: {
+            args: Prisma.TransactionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          update: {
+            args: Prisma.TransactionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          deleteMany: {
+            args: Prisma.TransactionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.TransactionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.TransactionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>[]
+          }
+          upsert: {
+            args: Prisma.TransactionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TransactionPayload>
+          }
+          aggregate: {
+            args: Prisma.TransactionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateTransaction>
+          }
+          groupBy: {
+            args: Prisma.TransactionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<TransactionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.TransactionCountArgs<ExtArgs>
+            result: $Utils.Optional<TransactionCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -957,6 +1137,8 @@ export namespace Prisma {
     invoice?: InvoiceOmit
     customer?: CustomerOmit
     supplier?: SupplierOmit
+    bankStatement?: BankStatementOmit
+    transaction?: TransactionOmit
   }
 
   /* Types for Logging */
@@ -1052,10 +1234,12 @@ export namespace Prisma {
 
   export type CustomerCountOutputType = {
     Invoice: number
+    BankStatement: number
   }
 
   export type CustomerCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | CustomerCountOutputTypeCountInvoiceArgs
+    BankStatement?: boolean | CustomerCountOutputTypeCountBankStatementArgs
   }
 
   // Custom InputTypes
@@ -1076,6 +1260,13 @@ export namespace Prisma {
     where?: InvoiceWhereInput
   }
 
+  /**
+   * CustomerCountOutputType without action
+   */
+  export type CustomerCountOutputTypeCountBankStatementArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BankStatementWhereInput
+  }
+
 
   /**
    * Count Type SupplierCountOutputType
@@ -1083,10 +1274,12 @@ export namespace Prisma {
 
   export type SupplierCountOutputType = {
     Invoice: number
+    BankStatement: number
   }
 
   export type SupplierCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | SupplierCountOutputTypeCountInvoiceArgs
+    BankStatement?: boolean | SupplierCountOutputTypeCountBankStatementArgs
   }
 
   // Custom InputTypes
@@ -1105,6 +1298,44 @@ export namespace Prisma {
    */
   export type SupplierCountOutputTypeCountInvoiceArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: InvoiceWhereInput
+  }
+
+  /**
+   * SupplierCountOutputType without action
+   */
+  export type SupplierCountOutputTypeCountBankStatementArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BankStatementWhereInput
+  }
+
+
+  /**
+   * Count Type BankStatementCountOutputType
+   */
+
+  export type BankStatementCountOutputType = {
+    transactions: number
+  }
+
+  export type BankStatementCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    transactions?: boolean | BankStatementCountOutputTypeCountTransactionsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * BankStatementCountOutputType without action
+   */
+  export type BankStatementCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatementCountOutputType
+     */
+    select?: BankStatementCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * BankStatementCountOutputType without action
+   */
+  export type BankStatementCountOutputTypeCountTransactionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TransactionWhereInput
   }
 
 
@@ -2709,6 +2940,7 @@ export namespace Prisma {
     etaId?: boolean
     paymentTerms?: boolean
     Invoice?: boolean | Customer$InvoiceArgs<ExtArgs>
+    BankStatement?: boolean | Customer$BankStatementArgs<ExtArgs>
     _count?: boolean | CustomerCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["customer"]>
 
@@ -2745,6 +2977,7 @@ export namespace Prisma {
   export type CustomerOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "etaId" | "paymentTerms", ExtArgs["result"]["customer"]>
   export type CustomerInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | Customer$InvoiceArgs<ExtArgs>
+    BankStatement?: boolean | Customer$BankStatementArgs<ExtArgs>
     _count?: boolean | CustomerCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type CustomerIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2754,6 +2987,7 @@ export namespace Prisma {
     name: "Customer"
     objects: {
       Invoice: Prisma.$InvoicePayload<ExtArgs>[]
+      BankStatement: Prisma.$BankStatementPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -3158,6 +3392,7 @@ export namespace Prisma {
   export interface Prisma__CustomerClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     Invoice<T extends Customer$InvoiceArgs<ExtArgs> = {}>(args?: Subset<T, Customer$InvoiceArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    BankStatement<T extends Customer$BankStatementArgs<ExtArgs> = {}>(args?: Subset<T, Customer$BankStatementArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3606,6 +3841,30 @@ export namespace Prisma {
   }
 
   /**
+   * Customer.BankStatement
+   */
+  export type Customer$BankStatementArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    where?: BankStatementWhereInput
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    cursor?: BankStatementWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BankStatementScalarFieldEnum | BankStatementScalarFieldEnum[]
+  }
+
+  /**
    * Customer without action
    */
   export type CustomerDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -3843,6 +4102,7 @@ export namespace Prisma {
     etaId?: boolean
     paymentTerms?: boolean
     Invoice?: boolean | Supplier$InvoiceArgs<ExtArgs>
+    BankStatement?: boolean | Supplier$BankStatementArgs<ExtArgs>
     _count?: boolean | SupplierCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["supplier"]>
 
@@ -3879,6 +4139,7 @@ export namespace Prisma {
   export type SupplierOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "name" | "country" | "etaId" | "paymentTerms", ExtArgs["result"]["supplier"]>
   export type SupplierInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Invoice?: boolean | Supplier$InvoiceArgs<ExtArgs>
+    BankStatement?: boolean | Supplier$BankStatementArgs<ExtArgs>
     _count?: boolean | SupplierCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type SupplierIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -3888,6 +4149,7 @@ export namespace Prisma {
     name: "Supplier"
     objects: {
       Invoice: Prisma.$InvoicePayload<ExtArgs>[]
+      BankStatement: Prisma.$BankStatementPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: number
@@ -4292,6 +4554,7 @@ export namespace Prisma {
   export interface Prisma__SupplierClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     Invoice<T extends Supplier$InvoiceArgs<ExtArgs> = {}>(args?: Subset<T, Supplier$InvoiceArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    BankStatement<T extends Supplier$BankStatementArgs<ExtArgs> = {}>(args?: Subset<T, Supplier$BankStatementArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4740,6 +5003,30 @@ export namespace Prisma {
   }
 
   /**
+   * Supplier.BankStatement
+   */
+  export type Supplier$BankStatementArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    where?: BankStatementWhereInput
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    cursor?: BankStatementWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: BankStatementScalarFieldEnum | BankStatementScalarFieldEnum[]
+  }
+
+  /**
    * Supplier without action
    */
   export type SupplierDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4755,6 +5042,2519 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: SupplierInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model BankStatement
+   */
+
+  export type AggregateBankStatement = {
+    _count: BankStatementCountAggregateOutputType | null
+    _avg: BankStatementAvgAggregateOutputType | null
+    _sum: BankStatementSumAggregateOutputType | null
+    _min: BankStatementMinAggregateOutputType | null
+    _max: BankStatementMaxAggregateOutputType | null
+  }
+
+  export type BankStatementAvgAggregateOutputType = {
+    id: number | null
+    startingBalance: Decimal | null
+    endingBalance: Decimal | null
+    customerId: number | null
+    supplierId: number | null
+  }
+
+  export type BankStatementSumAggregateOutputType = {
+    id: number | null
+    startingBalance: Decimal | null
+    endingBalance: Decimal | null
+    customerId: number | null
+    supplierId: number | null
+  }
+
+  export type BankStatementMinAggregateOutputType = {
+    id: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    fileName: string | null
+    bankName: string | null
+    accountNumber: string | null
+    statementPeriodStart: Date | null
+    statementPeriodEnd: Date | null
+    accountType: string | null
+    accountCurrency: string | null
+    startingBalance: Decimal | null
+    endingBalance: Decimal | null
+    rawTextContent: string | null
+    processingStatus: string | null
+    customerId: number | null
+    supplierId: number | null
+  }
+
+  export type BankStatementMaxAggregateOutputType = {
+    id: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    fileName: string | null
+    bankName: string | null
+    accountNumber: string | null
+    statementPeriodStart: Date | null
+    statementPeriodEnd: Date | null
+    accountType: string | null
+    accountCurrency: string | null
+    startingBalance: Decimal | null
+    endingBalance: Decimal | null
+    rawTextContent: string | null
+    processingStatus: string | null
+    customerId: number | null
+    supplierId: number | null
+  }
+
+  export type BankStatementCountAggregateOutputType = {
+    id: number
+    createdAt: number
+    updatedAt: number
+    fileName: number
+    bankName: number
+    accountNumber: number
+    statementPeriodStart: number
+    statementPeriodEnd: number
+    accountType: number
+    accountCurrency: number
+    startingBalance: number
+    endingBalance: number
+    rawTextContent: number
+    processingStatus: number
+    customerId: number
+    supplierId: number
+    _all: number
+  }
+
+
+  export type BankStatementAvgAggregateInputType = {
+    id?: true
+    startingBalance?: true
+    endingBalance?: true
+    customerId?: true
+    supplierId?: true
+  }
+
+  export type BankStatementSumAggregateInputType = {
+    id?: true
+    startingBalance?: true
+    endingBalance?: true
+    customerId?: true
+    supplierId?: true
+  }
+
+  export type BankStatementMinAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    fileName?: true
+    bankName?: true
+    accountNumber?: true
+    statementPeriodStart?: true
+    statementPeriodEnd?: true
+    accountType?: true
+    accountCurrency?: true
+    startingBalance?: true
+    endingBalance?: true
+    rawTextContent?: true
+    processingStatus?: true
+    customerId?: true
+    supplierId?: true
+  }
+
+  export type BankStatementMaxAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    fileName?: true
+    bankName?: true
+    accountNumber?: true
+    statementPeriodStart?: true
+    statementPeriodEnd?: true
+    accountType?: true
+    accountCurrency?: true
+    startingBalance?: true
+    endingBalance?: true
+    rawTextContent?: true
+    processingStatus?: true
+    customerId?: true
+    supplierId?: true
+  }
+
+  export type BankStatementCountAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    fileName?: true
+    bankName?: true
+    accountNumber?: true
+    statementPeriodStart?: true
+    statementPeriodEnd?: true
+    accountType?: true
+    accountCurrency?: true
+    startingBalance?: true
+    endingBalance?: true
+    rawTextContent?: true
+    processingStatus?: true
+    customerId?: true
+    supplierId?: true
+    _all?: true
+  }
+
+  export type BankStatementAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BankStatement to aggregate.
+     */
+    where?: BankStatementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BankStatements to fetch.
+     */
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BankStatementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BankStatements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BankStatements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BankStatements
+    **/
+    _count?: true | BankStatementCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BankStatementAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BankStatementSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BankStatementMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BankStatementMaxAggregateInputType
+  }
+
+  export type GetBankStatementAggregateType<T extends BankStatementAggregateArgs> = {
+        [P in keyof T & keyof AggregateBankStatement]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBankStatement[P]>
+      : GetScalarType<T[P], AggregateBankStatement[P]>
+  }
+
+
+
+
+  export type BankStatementGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BankStatementWhereInput
+    orderBy?: BankStatementOrderByWithAggregationInput | BankStatementOrderByWithAggregationInput[]
+    by: BankStatementScalarFieldEnum[] | BankStatementScalarFieldEnum
+    having?: BankStatementScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BankStatementCountAggregateInputType | true
+    _avg?: BankStatementAvgAggregateInputType
+    _sum?: BankStatementSumAggregateInputType
+    _min?: BankStatementMinAggregateInputType
+    _max?: BankStatementMaxAggregateInputType
+  }
+
+  export type BankStatementGroupByOutputType = {
+    id: number
+    createdAt: Date
+    updatedAt: Date
+    fileName: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date
+    statementPeriodEnd: Date
+    accountType: string | null
+    accountCurrency: string | null
+    startingBalance: Decimal
+    endingBalance: Decimal
+    rawTextContent: string | null
+    processingStatus: string
+    customerId: number | null
+    supplierId: number | null
+    _count: BankStatementCountAggregateOutputType | null
+    _avg: BankStatementAvgAggregateOutputType | null
+    _sum: BankStatementSumAggregateOutputType | null
+    _min: BankStatementMinAggregateOutputType | null
+    _max: BankStatementMaxAggregateOutputType | null
+  }
+
+  type GetBankStatementGroupByPayload<T extends BankStatementGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BankStatementGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BankStatementGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BankStatementGroupByOutputType[P]>
+            : GetScalarType<T[P], BankStatementGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BankStatementSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    fileName?: boolean
+    bankName?: boolean
+    accountNumber?: boolean
+    statementPeriodStart?: boolean
+    statementPeriodEnd?: boolean
+    accountType?: boolean
+    accountCurrency?: boolean
+    startingBalance?: boolean
+    endingBalance?: boolean
+    rawTextContent?: boolean
+    processingStatus?: boolean
+    customerId?: boolean
+    supplierId?: boolean
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+    transactions?: boolean | BankStatement$transactionsArgs<ExtArgs>
+    _count?: boolean | BankStatementCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["bankStatement"]>
+
+  export type BankStatementSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    fileName?: boolean
+    bankName?: boolean
+    accountNumber?: boolean
+    statementPeriodStart?: boolean
+    statementPeriodEnd?: boolean
+    accountType?: boolean
+    accountCurrency?: boolean
+    startingBalance?: boolean
+    endingBalance?: boolean
+    rawTextContent?: boolean
+    processingStatus?: boolean
+    customerId?: boolean
+    supplierId?: boolean
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+  }, ExtArgs["result"]["bankStatement"]>
+
+  export type BankStatementSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    fileName?: boolean
+    bankName?: boolean
+    accountNumber?: boolean
+    statementPeriodStart?: boolean
+    statementPeriodEnd?: boolean
+    accountType?: boolean
+    accountCurrency?: boolean
+    startingBalance?: boolean
+    endingBalance?: boolean
+    rawTextContent?: boolean
+    processingStatus?: boolean
+    customerId?: boolean
+    supplierId?: boolean
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+  }, ExtArgs["result"]["bankStatement"]>
+
+  export type BankStatementSelectScalar = {
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    fileName?: boolean
+    bankName?: boolean
+    accountNumber?: boolean
+    statementPeriodStart?: boolean
+    statementPeriodEnd?: boolean
+    accountType?: boolean
+    accountCurrency?: boolean
+    startingBalance?: boolean
+    endingBalance?: boolean
+    rawTextContent?: boolean
+    processingStatus?: boolean
+    customerId?: boolean
+    supplierId?: boolean
+  }
+
+  export type BankStatementOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "fileName" | "bankName" | "accountNumber" | "statementPeriodStart" | "statementPeriodEnd" | "accountType" | "accountCurrency" | "startingBalance" | "endingBalance" | "rawTextContent" | "processingStatus" | "customerId" | "supplierId", ExtArgs["result"]["bankStatement"]>
+  export type BankStatementInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+    transactions?: boolean | BankStatement$transactionsArgs<ExtArgs>
+    _count?: boolean | BankStatementCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type BankStatementIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+  }
+  export type BankStatementIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    Customer?: boolean | BankStatement$CustomerArgs<ExtArgs>
+    Supplier?: boolean | BankStatement$SupplierArgs<ExtArgs>
+  }
+
+  export type $BankStatementPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BankStatement"
+    objects: {
+      Customer: Prisma.$CustomerPayload<ExtArgs> | null
+      Supplier: Prisma.$SupplierPayload<ExtArgs> | null
+      transactions: Prisma.$TransactionPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      createdAt: Date
+      updatedAt: Date
+      fileName: string | null
+      bankName: string
+      accountNumber: string
+      statementPeriodStart: Date
+      statementPeriodEnd: Date
+      accountType: string | null
+      accountCurrency: string | null
+      startingBalance: Prisma.Decimal
+      endingBalance: Prisma.Decimal
+      rawTextContent: string | null
+      processingStatus: string
+      customerId: number | null
+      supplierId: number | null
+    }, ExtArgs["result"]["bankStatement"]>
+    composites: {}
+  }
+
+  type BankStatementGetPayload<S extends boolean | null | undefined | BankStatementDefaultArgs> = $Result.GetResult<Prisma.$BankStatementPayload, S>
+
+  type BankStatementCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<BankStatementFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: BankStatementCountAggregateInputType | true
+    }
+
+  export interface BankStatementDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BankStatement'], meta: { name: 'BankStatement' } }
+    /**
+     * Find zero or one BankStatement that matches the filter.
+     * @param {BankStatementFindUniqueArgs} args - Arguments to find a BankStatement
+     * @example
+     * // Get one BankStatement
+     * const bankStatement = await prisma.bankStatement.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BankStatementFindUniqueArgs>(args: SelectSubset<T, BankStatementFindUniqueArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one BankStatement that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {BankStatementFindUniqueOrThrowArgs} args - Arguments to find a BankStatement
+     * @example
+     * // Get one BankStatement
+     * const bankStatement = await prisma.bankStatement.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BankStatementFindUniqueOrThrowArgs>(args: SelectSubset<T, BankStatementFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BankStatement that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementFindFirstArgs} args - Arguments to find a BankStatement
+     * @example
+     * // Get one BankStatement
+     * const bankStatement = await prisma.bankStatement.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BankStatementFindFirstArgs>(args?: SelectSubset<T, BankStatementFindFirstArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first BankStatement that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementFindFirstOrThrowArgs} args - Arguments to find a BankStatement
+     * @example
+     * // Get one BankStatement
+     * const bankStatement = await prisma.bankStatement.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BankStatementFindFirstOrThrowArgs>(args?: SelectSubset<T, BankStatementFindFirstOrThrowArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more BankStatements that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BankStatements
+     * const bankStatements = await prisma.bankStatement.findMany()
+     * 
+     * // Get first 10 BankStatements
+     * const bankStatements = await prisma.bankStatement.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const bankStatementWithIdOnly = await prisma.bankStatement.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BankStatementFindManyArgs>(args?: SelectSubset<T, BankStatementFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a BankStatement.
+     * @param {BankStatementCreateArgs} args - Arguments to create a BankStatement.
+     * @example
+     * // Create one BankStatement
+     * const BankStatement = await prisma.bankStatement.create({
+     *   data: {
+     *     // ... data to create a BankStatement
+     *   }
+     * })
+     * 
+     */
+    create<T extends BankStatementCreateArgs>(args: SelectSubset<T, BankStatementCreateArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many BankStatements.
+     * @param {BankStatementCreateManyArgs} args - Arguments to create many BankStatements.
+     * @example
+     * // Create many BankStatements
+     * const bankStatement = await prisma.bankStatement.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BankStatementCreateManyArgs>(args?: SelectSubset<T, BankStatementCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BankStatements and returns the data saved in the database.
+     * @param {BankStatementCreateManyAndReturnArgs} args - Arguments to create many BankStatements.
+     * @example
+     * // Create many BankStatements
+     * const bankStatement = await prisma.bankStatement.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BankStatements and only return the `id`
+     * const bankStatementWithIdOnly = await prisma.bankStatement.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BankStatementCreateManyAndReturnArgs>(args?: SelectSubset<T, BankStatementCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a BankStatement.
+     * @param {BankStatementDeleteArgs} args - Arguments to delete one BankStatement.
+     * @example
+     * // Delete one BankStatement
+     * const BankStatement = await prisma.bankStatement.delete({
+     *   where: {
+     *     // ... filter to delete one BankStatement
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BankStatementDeleteArgs>(args: SelectSubset<T, BankStatementDeleteArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one BankStatement.
+     * @param {BankStatementUpdateArgs} args - Arguments to update one BankStatement.
+     * @example
+     * // Update one BankStatement
+     * const bankStatement = await prisma.bankStatement.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BankStatementUpdateArgs>(args: SelectSubset<T, BankStatementUpdateArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more BankStatements.
+     * @param {BankStatementDeleteManyArgs} args - Arguments to filter BankStatements to delete.
+     * @example
+     * // Delete a few BankStatements
+     * const { count } = await prisma.bankStatement.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BankStatementDeleteManyArgs>(args?: SelectSubset<T, BankStatementDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BankStatements.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BankStatements
+     * const bankStatement = await prisma.bankStatement.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BankStatementUpdateManyArgs>(args: SelectSubset<T, BankStatementUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BankStatements and returns the data updated in the database.
+     * @param {BankStatementUpdateManyAndReturnArgs} args - Arguments to update many BankStatements.
+     * @example
+     * // Update many BankStatements
+     * const bankStatement = await prisma.bankStatement.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more BankStatements and only return the `id`
+     * const bankStatementWithIdOnly = await prisma.bankStatement.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends BankStatementUpdateManyAndReturnArgs>(args: SelectSubset<T, BankStatementUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one BankStatement.
+     * @param {BankStatementUpsertArgs} args - Arguments to update or create a BankStatement.
+     * @example
+     * // Update or create a BankStatement
+     * const bankStatement = await prisma.bankStatement.upsert({
+     *   create: {
+     *     // ... data to create a BankStatement
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BankStatement we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BankStatementUpsertArgs>(args: SelectSubset<T, BankStatementUpsertArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of BankStatements.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementCountArgs} args - Arguments to filter BankStatements to count.
+     * @example
+     * // Count the number of BankStatements
+     * const count = await prisma.bankStatement.count({
+     *   where: {
+     *     // ... the filter for the BankStatements we want to count
+     *   }
+     * })
+    **/
+    count<T extends BankStatementCountArgs>(
+      args?: Subset<T, BankStatementCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BankStatementCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BankStatement.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BankStatementAggregateArgs>(args: Subset<T, BankStatementAggregateArgs>): Prisma.PrismaPromise<GetBankStatementAggregateType<T>>
+
+    /**
+     * Group by BankStatement.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BankStatementGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BankStatementGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BankStatementGroupByArgs['orderBy'] }
+        : { orderBy?: BankStatementGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BankStatementGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBankStatementGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BankStatement model
+   */
+  readonly fields: BankStatementFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BankStatement.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BankStatementClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    Customer<T extends BankStatement$CustomerArgs<ExtArgs> = {}>(args?: Subset<T, BankStatement$CustomerArgs<ExtArgs>>): Prisma__CustomerClient<$Result.GetResult<Prisma.$CustomerPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    Supplier<T extends BankStatement$SupplierArgs<ExtArgs> = {}>(args?: Subset<T, BankStatement$SupplierArgs<ExtArgs>>): Prisma__SupplierClient<$Result.GetResult<Prisma.$SupplierPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    transactions<T extends BankStatement$transactionsArgs<ExtArgs> = {}>(args?: Subset<T, BankStatement$transactionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BankStatement model
+   */
+  interface BankStatementFieldRefs {
+    readonly id: FieldRef<"BankStatement", 'Int'>
+    readonly createdAt: FieldRef<"BankStatement", 'DateTime'>
+    readonly updatedAt: FieldRef<"BankStatement", 'DateTime'>
+    readonly fileName: FieldRef<"BankStatement", 'String'>
+    readonly bankName: FieldRef<"BankStatement", 'String'>
+    readonly accountNumber: FieldRef<"BankStatement", 'String'>
+    readonly statementPeriodStart: FieldRef<"BankStatement", 'DateTime'>
+    readonly statementPeriodEnd: FieldRef<"BankStatement", 'DateTime'>
+    readonly accountType: FieldRef<"BankStatement", 'String'>
+    readonly accountCurrency: FieldRef<"BankStatement", 'String'>
+    readonly startingBalance: FieldRef<"BankStatement", 'Decimal'>
+    readonly endingBalance: FieldRef<"BankStatement", 'Decimal'>
+    readonly rawTextContent: FieldRef<"BankStatement", 'String'>
+    readonly processingStatus: FieldRef<"BankStatement", 'String'>
+    readonly customerId: FieldRef<"BankStatement", 'Int'>
+    readonly supplierId: FieldRef<"BankStatement", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BankStatement findUnique
+   */
+  export type BankStatementFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter, which BankStatement to fetch.
+     */
+    where: BankStatementWhereUniqueInput
+  }
+
+  /**
+   * BankStatement findUniqueOrThrow
+   */
+  export type BankStatementFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter, which BankStatement to fetch.
+     */
+    where: BankStatementWhereUniqueInput
+  }
+
+  /**
+   * BankStatement findFirst
+   */
+  export type BankStatementFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter, which BankStatement to fetch.
+     */
+    where?: BankStatementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BankStatements to fetch.
+     */
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BankStatements.
+     */
+    cursor?: BankStatementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BankStatements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BankStatements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BankStatements.
+     */
+    distinct?: BankStatementScalarFieldEnum | BankStatementScalarFieldEnum[]
+  }
+
+  /**
+   * BankStatement findFirstOrThrow
+   */
+  export type BankStatementFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter, which BankStatement to fetch.
+     */
+    where?: BankStatementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BankStatements to fetch.
+     */
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BankStatements.
+     */
+    cursor?: BankStatementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BankStatements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BankStatements.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BankStatements.
+     */
+    distinct?: BankStatementScalarFieldEnum | BankStatementScalarFieldEnum[]
+  }
+
+  /**
+   * BankStatement findMany
+   */
+  export type BankStatementFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter, which BankStatements to fetch.
+     */
+    where?: BankStatementWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BankStatements to fetch.
+     */
+    orderBy?: BankStatementOrderByWithRelationInput | BankStatementOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BankStatements.
+     */
+    cursor?: BankStatementWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BankStatements from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BankStatements.
+     */
+    skip?: number
+    distinct?: BankStatementScalarFieldEnum | BankStatementScalarFieldEnum[]
+  }
+
+  /**
+   * BankStatement create
+   */
+  export type BankStatementCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * The data needed to create a BankStatement.
+     */
+    data: XOR<BankStatementCreateInput, BankStatementUncheckedCreateInput>
+  }
+
+  /**
+   * BankStatement createMany
+   */
+  export type BankStatementCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BankStatements.
+     */
+    data: BankStatementCreateManyInput | BankStatementCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BankStatement createManyAndReturn
+   */
+  export type BankStatementCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * The data used to create many BankStatements.
+     */
+    data: BankStatementCreateManyInput | BankStatementCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BankStatement update
+   */
+  export type BankStatementUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * The data needed to update a BankStatement.
+     */
+    data: XOR<BankStatementUpdateInput, BankStatementUncheckedUpdateInput>
+    /**
+     * Choose, which BankStatement to update.
+     */
+    where: BankStatementWhereUniqueInput
+  }
+
+  /**
+   * BankStatement updateMany
+   */
+  export type BankStatementUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BankStatements.
+     */
+    data: XOR<BankStatementUpdateManyMutationInput, BankStatementUncheckedUpdateManyInput>
+    /**
+     * Filter which BankStatements to update
+     */
+    where?: BankStatementWhereInput
+    /**
+     * Limit how many BankStatements to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * BankStatement updateManyAndReturn
+   */
+  export type BankStatementUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * The data used to update BankStatements.
+     */
+    data: XOR<BankStatementUpdateManyMutationInput, BankStatementUncheckedUpdateManyInput>
+    /**
+     * Filter which BankStatements to update
+     */
+    where?: BankStatementWhereInput
+    /**
+     * Limit how many BankStatements to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * BankStatement upsert
+   */
+  export type BankStatementUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * The filter to search for the BankStatement to update in case it exists.
+     */
+    where: BankStatementWhereUniqueInput
+    /**
+     * In case the BankStatement found by the `where` argument doesn't exist, create a new BankStatement with this data.
+     */
+    create: XOR<BankStatementCreateInput, BankStatementUncheckedCreateInput>
+    /**
+     * In case the BankStatement was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BankStatementUpdateInput, BankStatementUncheckedUpdateInput>
+  }
+
+  /**
+   * BankStatement delete
+   */
+  export type BankStatementDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+    /**
+     * Filter which BankStatement to delete.
+     */
+    where: BankStatementWhereUniqueInput
+  }
+
+  /**
+   * BankStatement deleteMany
+   */
+  export type BankStatementDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BankStatements to delete
+     */
+    where?: BankStatementWhereInput
+    /**
+     * Limit how many BankStatements to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * BankStatement.Customer
+   */
+  export type BankStatement$CustomerArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Customer
+     */
+    select?: CustomerSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Customer
+     */
+    omit?: CustomerOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CustomerInclude<ExtArgs> | null
+    where?: CustomerWhereInput
+  }
+
+  /**
+   * BankStatement.Supplier
+   */
+  export type BankStatement$SupplierArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Supplier
+     */
+    select?: SupplierSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Supplier
+     */
+    omit?: SupplierOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SupplierInclude<ExtArgs> | null
+    where?: SupplierWhereInput
+  }
+
+  /**
+   * BankStatement.transactions
+   */
+  export type BankStatement$transactionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    where?: TransactionWhereInput
+    orderBy?: TransactionOrderByWithRelationInput | TransactionOrderByWithRelationInput[]
+    cursor?: TransactionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: TransactionScalarFieldEnum | TransactionScalarFieldEnum[]
+  }
+
+  /**
+   * BankStatement without action
+   */
+  export type BankStatementDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BankStatement
+     */
+    select?: BankStatementSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the BankStatement
+     */
+    omit?: BankStatementOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: BankStatementInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Transaction
+   */
+
+  export type AggregateTransaction = {
+    _count: TransactionCountAggregateOutputType | null
+    _avg: TransactionAvgAggregateOutputType | null
+    _sum: TransactionSumAggregateOutputType | null
+    _min: TransactionMinAggregateOutputType | null
+    _max: TransactionMaxAggregateOutputType | null
+  }
+
+  export type TransactionAvgAggregateOutputType = {
+    id: number | null
+    creditAmount: Decimal | null
+    debitAmount: Decimal | null
+    balance: Decimal | null
+    bankStatementId: number | null
+  }
+
+  export type TransactionSumAggregateOutputType = {
+    id: number | null
+    creditAmount: Decimal | null
+    debitAmount: Decimal | null
+    balance: Decimal | null
+    bankStatementId: number | null
+  }
+
+  export type TransactionMinAggregateOutputType = {
+    id: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    transactionDate: Date | null
+    creditAmount: Decimal | null
+    debitAmount: Decimal | null
+    description: string | null
+    balance: Decimal | null
+    pageNumber: string | null
+    entityName: string | null
+    bankStatementId: number | null
+  }
+
+  export type TransactionMaxAggregateOutputType = {
+    id: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    transactionDate: Date | null
+    creditAmount: Decimal | null
+    debitAmount: Decimal | null
+    description: string | null
+    balance: Decimal | null
+    pageNumber: string | null
+    entityName: string | null
+    bankStatementId: number | null
+  }
+
+  export type TransactionCountAggregateOutputType = {
+    id: number
+    createdAt: number
+    updatedAt: number
+    transactionDate: number
+    creditAmount: number
+    debitAmount: number
+    description: number
+    balance: number
+    pageNumber: number
+    entityName: number
+    bankStatementId: number
+    _all: number
+  }
+
+
+  export type TransactionAvgAggregateInputType = {
+    id?: true
+    creditAmount?: true
+    debitAmount?: true
+    balance?: true
+    bankStatementId?: true
+  }
+
+  export type TransactionSumAggregateInputType = {
+    id?: true
+    creditAmount?: true
+    debitAmount?: true
+    balance?: true
+    bankStatementId?: true
+  }
+
+  export type TransactionMinAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    transactionDate?: true
+    creditAmount?: true
+    debitAmount?: true
+    description?: true
+    balance?: true
+    pageNumber?: true
+    entityName?: true
+    bankStatementId?: true
+  }
+
+  export type TransactionMaxAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    transactionDate?: true
+    creditAmount?: true
+    debitAmount?: true
+    description?: true
+    balance?: true
+    pageNumber?: true
+    entityName?: true
+    bankStatementId?: true
+  }
+
+  export type TransactionCountAggregateInputType = {
+    id?: true
+    createdAt?: true
+    updatedAt?: true
+    transactionDate?: true
+    creditAmount?: true
+    debitAmount?: true
+    description?: true
+    balance?: true
+    pageNumber?: true
+    entityName?: true
+    bankStatementId?: true
+    _all?: true
+  }
+
+  export type TransactionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Transaction to aggregate.
+     */
+    where?: TransactionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Transactions to fetch.
+     */
+    orderBy?: TransactionOrderByWithRelationInput | TransactionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: TransactionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Transactions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Transactions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Transactions
+    **/
+    _count?: true | TransactionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: TransactionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TransactionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: TransactionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: TransactionMaxAggregateInputType
+  }
+
+  export type GetTransactionAggregateType<T extends TransactionAggregateArgs> = {
+        [P in keyof T & keyof AggregateTransaction]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateTransaction[P]>
+      : GetScalarType<T[P], AggregateTransaction[P]>
+  }
+
+
+
+
+  export type TransactionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TransactionWhereInput
+    orderBy?: TransactionOrderByWithAggregationInput | TransactionOrderByWithAggregationInput[]
+    by: TransactionScalarFieldEnum[] | TransactionScalarFieldEnum
+    having?: TransactionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: TransactionCountAggregateInputType | true
+    _avg?: TransactionAvgAggregateInputType
+    _sum?: TransactionSumAggregateInputType
+    _min?: TransactionMinAggregateInputType
+    _max?: TransactionMaxAggregateInputType
+  }
+
+  export type TransactionGroupByOutputType = {
+    id: number
+    createdAt: Date
+    updatedAt: Date
+    transactionDate: Date
+    creditAmount: Decimal | null
+    debitAmount: Decimal | null
+    description: string | null
+    balance: Decimal | null
+    pageNumber: string | null
+    entityName: string | null
+    bankStatementId: number
+    _count: TransactionCountAggregateOutputType | null
+    _avg: TransactionAvgAggregateOutputType | null
+    _sum: TransactionSumAggregateOutputType | null
+    _min: TransactionMinAggregateOutputType | null
+    _max: TransactionMaxAggregateOutputType | null
+  }
+
+  type GetTransactionGroupByPayload<T extends TransactionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<TransactionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof TransactionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], TransactionGroupByOutputType[P]>
+            : GetScalarType<T[P], TransactionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type TransactionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    transactionDate?: boolean
+    creditAmount?: boolean
+    debitAmount?: boolean
+    description?: boolean
+    balance?: boolean
+    pageNumber?: boolean
+    entityName?: boolean
+    bankStatementId?: boolean
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["transaction"]>
+
+  export type TransactionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    transactionDate?: boolean
+    creditAmount?: boolean
+    debitAmount?: boolean
+    description?: boolean
+    balance?: boolean
+    pageNumber?: boolean
+    entityName?: boolean
+    bankStatementId?: boolean
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["transaction"]>
+
+  export type TransactionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    transactionDate?: boolean
+    creditAmount?: boolean
+    debitAmount?: boolean
+    description?: boolean
+    balance?: boolean
+    pageNumber?: boolean
+    entityName?: boolean
+    bankStatementId?: boolean
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["transaction"]>
+
+  export type TransactionSelectScalar = {
+    id?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    transactionDate?: boolean
+    creditAmount?: boolean
+    debitAmount?: boolean
+    description?: boolean
+    balance?: boolean
+    pageNumber?: boolean
+    entityName?: boolean
+    bankStatementId?: boolean
+  }
+
+  export type TransactionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "createdAt" | "updatedAt" | "transactionDate" | "creditAmount" | "debitAmount" | "description" | "balance" | "pageNumber" | "entityName" | "bankStatementId", ExtArgs["result"]["transaction"]>
+  export type TransactionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }
+  export type TransactionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }
+  export type TransactionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    bankStatement?: boolean | BankStatementDefaultArgs<ExtArgs>
+  }
+
+  export type $TransactionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Transaction"
+    objects: {
+      bankStatement: Prisma.$BankStatementPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      createdAt: Date
+      updatedAt: Date
+      transactionDate: Date
+      creditAmount: Prisma.Decimal | null
+      debitAmount: Prisma.Decimal | null
+      description: string | null
+      balance: Prisma.Decimal | null
+      pageNumber: string | null
+      entityName: string | null
+      bankStatementId: number
+    }, ExtArgs["result"]["transaction"]>
+    composites: {}
+  }
+
+  type TransactionGetPayload<S extends boolean | null | undefined | TransactionDefaultArgs> = $Result.GetResult<Prisma.$TransactionPayload, S>
+
+  type TransactionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<TransactionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: TransactionCountAggregateInputType | true
+    }
+
+  export interface TransactionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Transaction'], meta: { name: 'Transaction' } }
+    /**
+     * Find zero or one Transaction that matches the filter.
+     * @param {TransactionFindUniqueArgs} args - Arguments to find a Transaction
+     * @example
+     * // Get one Transaction
+     * const transaction = await prisma.transaction.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends TransactionFindUniqueArgs>(args: SelectSubset<T, TransactionFindUniqueArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Transaction that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {TransactionFindUniqueOrThrowArgs} args - Arguments to find a Transaction
+     * @example
+     * // Get one Transaction
+     * const transaction = await prisma.transaction.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends TransactionFindUniqueOrThrowArgs>(args: SelectSubset<T, TransactionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Transaction that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionFindFirstArgs} args - Arguments to find a Transaction
+     * @example
+     * // Get one Transaction
+     * const transaction = await prisma.transaction.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends TransactionFindFirstArgs>(args?: SelectSubset<T, TransactionFindFirstArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Transaction that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionFindFirstOrThrowArgs} args - Arguments to find a Transaction
+     * @example
+     * // Get one Transaction
+     * const transaction = await prisma.transaction.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends TransactionFindFirstOrThrowArgs>(args?: SelectSubset<T, TransactionFindFirstOrThrowArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Transactions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Transactions
+     * const transactions = await prisma.transaction.findMany()
+     * 
+     * // Get first 10 Transactions
+     * const transactions = await prisma.transaction.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const transactionWithIdOnly = await prisma.transaction.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends TransactionFindManyArgs>(args?: SelectSubset<T, TransactionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Transaction.
+     * @param {TransactionCreateArgs} args - Arguments to create a Transaction.
+     * @example
+     * // Create one Transaction
+     * const Transaction = await prisma.transaction.create({
+     *   data: {
+     *     // ... data to create a Transaction
+     *   }
+     * })
+     * 
+     */
+    create<T extends TransactionCreateArgs>(args: SelectSubset<T, TransactionCreateArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Transactions.
+     * @param {TransactionCreateManyArgs} args - Arguments to create many Transactions.
+     * @example
+     * // Create many Transactions
+     * const transaction = await prisma.transaction.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends TransactionCreateManyArgs>(args?: SelectSubset<T, TransactionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Transactions and returns the data saved in the database.
+     * @param {TransactionCreateManyAndReturnArgs} args - Arguments to create many Transactions.
+     * @example
+     * // Create many Transactions
+     * const transaction = await prisma.transaction.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Transactions and only return the `id`
+     * const transactionWithIdOnly = await prisma.transaction.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends TransactionCreateManyAndReturnArgs>(args?: SelectSubset<T, TransactionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Transaction.
+     * @param {TransactionDeleteArgs} args - Arguments to delete one Transaction.
+     * @example
+     * // Delete one Transaction
+     * const Transaction = await prisma.transaction.delete({
+     *   where: {
+     *     // ... filter to delete one Transaction
+     *   }
+     * })
+     * 
+     */
+    delete<T extends TransactionDeleteArgs>(args: SelectSubset<T, TransactionDeleteArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Transaction.
+     * @param {TransactionUpdateArgs} args - Arguments to update one Transaction.
+     * @example
+     * // Update one Transaction
+     * const transaction = await prisma.transaction.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends TransactionUpdateArgs>(args: SelectSubset<T, TransactionUpdateArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Transactions.
+     * @param {TransactionDeleteManyArgs} args - Arguments to filter Transactions to delete.
+     * @example
+     * // Delete a few Transactions
+     * const { count } = await prisma.transaction.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends TransactionDeleteManyArgs>(args?: SelectSubset<T, TransactionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Transactions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Transactions
+     * const transaction = await prisma.transaction.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends TransactionUpdateManyArgs>(args: SelectSubset<T, TransactionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Transactions and returns the data updated in the database.
+     * @param {TransactionUpdateManyAndReturnArgs} args - Arguments to update many Transactions.
+     * @example
+     * // Update many Transactions
+     * const transaction = await prisma.transaction.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Transactions and only return the `id`
+     * const transactionWithIdOnly = await prisma.transaction.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends TransactionUpdateManyAndReturnArgs>(args: SelectSubset<T, TransactionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Transaction.
+     * @param {TransactionUpsertArgs} args - Arguments to update or create a Transaction.
+     * @example
+     * // Update or create a Transaction
+     * const transaction = await prisma.transaction.upsert({
+     *   create: {
+     *     // ... data to create a Transaction
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Transaction we want to update
+     *   }
+     * })
+     */
+    upsert<T extends TransactionUpsertArgs>(args: SelectSubset<T, TransactionUpsertArgs<ExtArgs>>): Prisma__TransactionClient<$Result.GetResult<Prisma.$TransactionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Transactions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionCountArgs} args - Arguments to filter Transactions to count.
+     * @example
+     * // Count the number of Transactions
+     * const count = await prisma.transaction.count({
+     *   where: {
+     *     // ... the filter for the Transactions we want to count
+     *   }
+     * })
+    **/
+    count<T extends TransactionCountArgs>(
+      args?: Subset<T, TransactionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], TransactionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Transaction.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends TransactionAggregateArgs>(args: Subset<T, TransactionAggregateArgs>): Prisma.PrismaPromise<GetTransactionAggregateType<T>>
+
+    /**
+     * Group by Transaction.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TransactionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends TransactionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: TransactionGroupByArgs['orderBy'] }
+        : { orderBy?: TransactionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, TransactionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetTransactionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Transaction model
+   */
+  readonly fields: TransactionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Transaction.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__TransactionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    bankStatement<T extends BankStatementDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BankStatementDefaultArgs<ExtArgs>>): Prisma__BankStatementClient<$Result.GetResult<Prisma.$BankStatementPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Transaction model
+   */
+  interface TransactionFieldRefs {
+    readonly id: FieldRef<"Transaction", 'Int'>
+    readonly createdAt: FieldRef<"Transaction", 'DateTime'>
+    readonly updatedAt: FieldRef<"Transaction", 'DateTime'>
+    readonly transactionDate: FieldRef<"Transaction", 'DateTime'>
+    readonly creditAmount: FieldRef<"Transaction", 'Decimal'>
+    readonly debitAmount: FieldRef<"Transaction", 'Decimal'>
+    readonly description: FieldRef<"Transaction", 'String'>
+    readonly balance: FieldRef<"Transaction", 'Decimal'>
+    readonly pageNumber: FieldRef<"Transaction", 'String'>
+    readonly entityName: FieldRef<"Transaction", 'String'>
+    readonly bankStatementId: FieldRef<"Transaction", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Transaction findUnique
+   */
+  export type TransactionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter, which Transaction to fetch.
+     */
+    where: TransactionWhereUniqueInput
+  }
+
+  /**
+   * Transaction findUniqueOrThrow
+   */
+  export type TransactionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter, which Transaction to fetch.
+     */
+    where: TransactionWhereUniqueInput
+  }
+
+  /**
+   * Transaction findFirst
+   */
+  export type TransactionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter, which Transaction to fetch.
+     */
+    where?: TransactionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Transactions to fetch.
+     */
+    orderBy?: TransactionOrderByWithRelationInput | TransactionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Transactions.
+     */
+    cursor?: TransactionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Transactions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Transactions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Transactions.
+     */
+    distinct?: TransactionScalarFieldEnum | TransactionScalarFieldEnum[]
+  }
+
+  /**
+   * Transaction findFirstOrThrow
+   */
+  export type TransactionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter, which Transaction to fetch.
+     */
+    where?: TransactionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Transactions to fetch.
+     */
+    orderBy?: TransactionOrderByWithRelationInput | TransactionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Transactions.
+     */
+    cursor?: TransactionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Transactions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Transactions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Transactions.
+     */
+    distinct?: TransactionScalarFieldEnum | TransactionScalarFieldEnum[]
+  }
+
+  /**
+   * Transaction findMany
+   */
+  export type TransactionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter, which Transactions to fetch.
+     */
+    where?: TransactionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Transactions to fetch.
+     */
+    orderBy?: TransactionOrderByWithRelationInput | TransactionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Transactions.
+     */
+    cursor?: TransactionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Transactions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Transactions.
+     */
+    skip?: number
+    distinct?: TransactionScalarFieldEnum | TransactionScalarFieldEnum[]
+  }
+
+  /**
+   * Transaction create
+   */
+  export type TransactionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Transaction.
+     */
+    data: XOR<TransactionCreateInput, TransactionUncheckedCreateInput>
+  }
+
+  /**
+   * Transaction createMany
+   */
+  export type TransactionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Transactions.
+     */
+    data: TransactionCreateManyInput | TransactionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Transaction createManyAndReturn
+   */
+  export type TransactionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * The data used to create many Transactions.
+     */
+    data: TransactionCreateManyInput | TransactionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Transaction update
+   */
+  export type TransactionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Transaction.
+     */
+    data: XOR<TransactionUpdateInput, TransactionUncheckedUpdateInput>
+    /**
+     * Choose, which Transaction to update.
+     */
+    where: TransactionWhereUniqueInput
+  }
+
+  /**
+   * Transaction updateMany
+   */
+  export type TransactionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Transactions.
+     */
+    data: XOR<TransactionUpdateManyMutationInput, TransactionUncheckedUpdateManyInput>
+    /**
+     * Filter which Transactions to update
+     */
+    where?: TransactionWhereInput
+    /**
+     * Limit how many Transactions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Transaction updateManyAndReturn
+   */
+  export type TransactionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * The data used to update Transactions.
+     */
+    data: XOR<TransactionUpdateManyMutationInput, TransactionUncheckedUpdateManyInput>
+    /**
+     * Filter which Transactions to update
+     */
+    where?: TransactionWhereInput
+    /**
+     * Limit how many Transactions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Transaction upsert
+   */
+  export type TransactionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Transaction to update in case it exists.
+     */
+    where: TransactionWhereUniqueInput
+    /**
+     * In case the Transaction found by the `where` argument doesn't exist, create a new Transaction with this data.
+     */
+    create: XOR<TransactionCreateInput, TransactionUncheckedCreateInput>
+    /**
+     * In case the Transaction was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<TransactionUpdateInput, TransactionUncheckedUpdateInput>
+  }
+
+  /**
+   * Transaction delete
+   */
+  export type TransactionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
+    /**
+     * Filter which Transaction to delete.
+     */
+    where: TransactionWhereUniqueInput
+  }
+
+  /**
+   * Transaction deleteMany
+   */
+  export type TransactionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Transactions to delete
+     */
+    where?: TransactionWhereInput
+    /**
+     * Limit how many Transactions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * Transaction without action
+   */
+  export type TransactionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Transaction
+     */
+    select?: TransactionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Transaction
+     */
+    omit?: TransactionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TransactionInclude<ExtArgs> | null
   }
 
 
@@ -4823,6 +7623,45 @@ export namespace Prisma {
   };
 
   export type SupplierScalarFieldEnum = (typeof SupplierScalarFieldEnum)[keyof typeof SupplierScalarFieldEnum]
+
+
+  export const BankStatementScalarFieldEnum: {
+    id: 'id',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    fileName: 'fileName',
+    bankName: 'bankName',
+    accountNumber: 'accountNumber',
+    statementPeriodStart: 'statementPeriodStart',
+    statementPeriodEnd: 'statementPeriodEnd',
+    accountType: 'accountType',
+    accountCurrency: 'accountCurrency',
+    startingBalance: 'startingBalance',
+    endingBalance: 'endingBalance',
+    rawTextContent: 'rawTextContent',
+    processingStatus: 'processingStatus',
+    customerId: 'customerId',
+    supplierId: 'supplierId'
+  };
+
+  export type BankStatementScalarFieldEnum = (typeof BankStatementScalarFieldEnum)[keyof typeof BankStatementScalarFieldEnum]
+
+
+  export const TransactionScalarFieldEnum: {
+    id: 'id',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    transactionDate: 'transactionDate',
+    creditAmount: 'creditAmount',
+    debitAmount: 'debitAmount',
+    description: 'description',
+    balance: 'balance',
+    pageNumber: 'pageNumber',
+    entityName: 'entityName',
+    bankStatementId: 'bankStatementId'
+  };
+
+  export type TransactionScalarFieldEnum = (typeof TransactionScalarFieldEnum)[keyof typeof TransactionScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -5079,6 +7918,7 @@ export namespace Prisma {
     etaId?: StringNullableFilter<"Customer"> | string | null
     paymentTerms?: IntNullableFilter<"Customer"> | number | null
     Invoice?: InvoiceListRelationFilter
+    BankStatement?: BankStatementListRelationFilter
   }
 
   export type CustomerOrderByWithRelationInput = {
@@ -5090,6 +7930,7 @@ export namespace Prisma {
     etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     Invoice?: InvoiceOrderByRelationAggregateInput
+    BankStatement?: BankStatementOrderByRelationAggregateInput
   }
 
   export type CustomerWhereUniqueInput = Prisma.AtLeast<{
@@ -5104,6 +7945,7 @@ export namespace Prisma {
     etaId?: StringNullableFilter<"Customer"> | string | null
     paymentTerms?: IntNullableFilter<"Customer"> | number | null
     Invoice?: InvoiceListRelationFilter
+    BankStatement?: BankStatementListRelationFilter
   }, "id">
 
   export type CustomerOrderByWithAggregationInput = {
@@ -5146,6 +7988,7 @@ export namespace Prisma {
     etaId?: StringNullableFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableFilter<"Supplier"> | number | null
     Invoice?: InvoiceListRelationFilter
+    BankStatement?: BankStatementListRelationFilter
   }
 
   export type SupplierOrderByWithRelationInput = {
@@ -5157,6 +8000,7 @@ export namespace Prisma {
     etaId?: SortOrderInput | SortOrder
     paymentTerms?: SortOrderInput | SortOrder
     Invoice?: InvoiceOrderByRelationAggregateInput
+    BankStatement?: BankStatementOrderByRelationAggregateInput
   }
 
   export type SupplierWhereUniqueInput = Prisma.AtLeast<{
@@ -5171,6 +8015,7 @@ export namespace Prisma {
     etaId?: StringNullableFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableFilter<"Supplier"> | number | null
     Invoice?: InvoiceListRelationFilter
+    BankStatement?: BankStatementListRelationFilter
   }, "id">
 
   export type SupplierOrderByWithAggregationInput = {
@@ -5199,6 +8044,211 @@ export namespace Prisma {
     country?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
     etaId?: StringNullableWithAggregatesFilter<"Supplier"> | string | null
     paymentTerms?: IntNullableWithAggregatesFilter<"Supplier"> | number | null
+  }
+
+  export type BankStatementWhereInput = {
+    AND?: BankStatementWhereInput | BankStatementWhereInput[]
+    OR?: BankStatementWhereInput[]
+    NOT?: BankStatementWhereInput | BankStatementWhereInput[]
+    id?: IntFilter<"BankStatement"> | number
+    createdAt?: DateTimeFilter<"BankStatement"> | Date | string
+    updatedAt?: DateTimeFilter<"BankStatement"> | Date | string
+    fileName?: StringNullableFilter<"BankStatement"> | string | null
+    bankName?: StringFilter<"BankStatement"> | string
+    accountNumber?: StringFilter<"BankStatement"> | string
+    statementPeriodStart?: DateTimeFilter<"BankStatement"> | Date | string
+    statementPeriodEnd?: DateTimeFilter<"BankStatement"> | Date | string
+    accountType?: StringNullableFilter<"BankStatement"> | string | null
+    accountCurrency?: StringNullableFilter<"BankStatement"> | string | null
+    startingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    rawTextContent?: StringNullableFilter<"BankStatement"> | string | null
+    processingStatus?: StringFilter<"BankStatement"> | string
+    customerId?: IntNullableFilter<"BankStatement"> | number | null
+    supplierId?: IntNullableFilter<"BankStatement"> | number | null
+    Customer?: XOR<CustomerNullableScalarRelationFilter, CustomerWhereInput> | null
+    Supplier?: XOR<SupplierNullableScalarRelationFilter, SupplierWhereInput> | null
+    transactions?: TransactionListRelationFilter
+  }
+
+  export type BankStatementOrderByWithRelationInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    fileName?: SortOrderInput | SortOrder
+    bankName?: SortOrder
+    accountNumber?: SortOrder
+    statementPeriodStart?: SortOrder
+    statementPeriodEnd?: SortOrder
+    accountType?: SortOrderInput | SortOrder
+    accountCurrency?: SortOrderInput | SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    rawTextContent?: SortOrderInput | SortOrder
+    processingStatus?: SortOrder
+    customerId?: SortOrderInput | SortOrder
+    supplierId?: SortOrderInput | SortOrder
+    Customer?: CustomerOrderByWithRelationInput
+    Supplier?: SupplierOrderByWithRelationInput
+    transactions?: TransactionOrderByRelationAggregateInput
+  }
+
+  export type BankStatementWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: BankStatementWhereInput | BankStatementWhereInput[]
+    OR?: BankStatementWhereInput[]
+    NOT?: BankStatementWhereInput | BankStatementWhereInput[]
+    createdAt?: DateTimeFilter<"BankStatement"> | Date | string
+    updatedAt?: DateTimeFilter<"BankStatement"> | Date | string
+    fileName?: StringNullableFilter<"BankStatement"> | string | null
+    bankName?: StringFilter<"BankStatement"> | string
+    accountNumber?: StringFilter<"BankStatement"> | string
+    statementPeriodStart?: DateTimeFilter<"BankStatement"> | Date | string
+    statementPeriodEnd?: DateTimeFilter<"BankStatement"> | Date | string
+    accountType?: StringNullableFilter<"BankStatement"> | string | null
+    accountCurrency?: StringNullableFilter<"BankStatement"> | string | null
+    startingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    rawTextContent?: StringNullableFilter<"BankStatement"> | string | null
+    processingStatus?: StringFilter<"BankStatement"> | string
+    customerId?: IntNullableFilter<"BankStatement"> | number | null
+    supplierId?: IntNullableFilter<"BankStatement"> | number | null
+    Customer?: XOR<CustomerNullableScalarRelationFilter, CustomerWhereInput> | null
+    Supplier?: XOR<SupplierNullableScalarRelationFilter, SupplierWhereInput> | null
+    transactions?: TransactionListRelationFilter
+  }, "id">
+
+  export type BankStatementOrderByWithAggregationInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    fileName?: SortOrderInput | SortOrder
+    bankName?: SortOrder
+    accountNumber?: SortOrder
+    statementPeriodStart?: SortOrder
+    statementPeriodEnd?: SortOrder
+    accountType?: SortOrderInput | SortOrder
+    accountCurrency?: SortOrderInput | SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    rawTextContent?: SortOrderInput | SortOrder
+    processingStatus?: SortOrder
+    customerId?: SortOrderInput | SortOrder
+    supplierId?: SortOrderInput | SortOrder
+    _count?: BankStatementCountOrderByAggregateInput
+    _avg?: BankStatementAvgOrderByAggregateInput
+    _max?: BankStatementMaxOrderByAggregateInput
+    _min?: BankStatementMinOrderByAggregateInput
+    _sum?: BankStatementSumOrderByAggregateInput
+  }
+
+  export type BankStatementScalarWhereWithAggregatesInput = {
+    AND?: BankStatementScalarWhereWithAggregatesInput | BankStatementScalarWhereWithAggregatesInput[]
+    OR?: BankStatementScalarWhereWithAggregatesInput[]
+    NOT?: BankStatementScalarWhereWithAggregatesInput | BankStatementScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"BankStatement"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"BankStatement"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"BankStatement"> | Date | string
+    fileName?: StringNullableWithAggregatesFilter<"BankStatement"> | string | null
+    bankName?: StringWithAggregatesFilter<"BankStatement"> | string
+    accountNumber?: StringWithAggregatesFilter<"BankStatement"> | string
+    statementPeriodStart?: DateTimeWithAggregatesFilter<"BankStatement"> | Date | string
+    statementPeriodEnd?: DateTimeWithAggregatesFilter<"BankStatement"> | Date | string
+    accountType?: StringNullableWithAggregatesFilter<"BankStatement"> | string | null
+    accountCurrency?: StringNullableWithAggregatesFilter<"BankStatement"> | string | null
+    startingBalance?: DecimalWithAggregatesFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalWithAggregatesFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    rawTextContent?: StringNullableWithAggregatesFilter<"BankStatement"> | string | null
+    processingStatus?: StringWithAggregatesFilter<"BankStatement"> | string
+    customerId?: IntNullableWithAggregatesFilter<"BankStatement"> | number | null
+    supplierId?: IntNullableWithAggregatesFilter<"BankStatement"> | number | null
+  }
+
+  export type TransactionWhereInput = {
+    AND?: TransactionWhereInput | TransactionWhereInput[]
+    OR?: TransactionWhereInput[]
+    NOT?: TransactionWhereInput | TransactionWhereInput[]
+    id?: IntFilter<"Transaction"> | number
+    createdAt?: DateTimeFilter<"Transaction"> | Date | string
+    updatedAt?: DateTimeFilter<"Transaction"> | Date | string
+    transactionDate?: DateTimeFilter<"Transaction"> | Date | string
+    creditAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    description?: StringNullableFilter<"Transaction"> | string | null
+    balance?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: StringNullableFilter<"Transaction"> | string | null
+    entityName?: StringNullableFilter<"Transaction"> | string | null
+    bankStatementId?: IntFilter<"Transaction"> | number
+    bankStatement?: XOR<BankStatementScalarRelationFilter, BankStatementWhereInput>
+  }
+
+  export type TransactionOrderByWithRelationInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    transactionDate?: SortOrder
+    creditAmount?: SortOrderInput | SortOrder
+    debitAmount?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
+    balance?: SortOrderInput | SortOrder
+    pageNumber?: SortOrderInput | SortOrder
+    entityName?: SortOrderInput | SortOrder
+    bankStatementId?: SortOrder
+    bankStatement?: BankStatementOrderByWithRelationInput
+  }
+
+  export type TransactionWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: TransactionWhereInput | TransactionWhereInput[]
+    OR?: TransactionWhereInput[]
+    NOT?: TransactionWhereInput | TransactionWhereInput[]
+    createdAt?: DateTimeFilter<"Transaction"> | Date | string
+    updatedAt?: DateTimeFilter<"Transaction"> | Date | string
+    transactionDate?: DateTimeFilter<"Transaction"> | Date | string
+    creditAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    description?: StringNullableFilter<"Transaction"> | string | null
+    balance?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: StringNullableFilter<"Transaction"> | string | null
+    entityName?: StringNullableFilter<"Transaction"> | string | null
+    bankStatementId?: IntFilter<"Transaction"> | number
+    bankStatement?: XOR<BankStatementScalarRelationFilter, BankStatementWhereInput>
+  }, "id">
+
+  export type TransactionOrderByWithAggregationInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    transactionDate?: SortOrder
+    creditAmount?: SortOrderInput | SortOrder
+    debitAmount?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
+    balance?: SortOrderInput | SortOrder
+    pageNumber?: SortOrderInput | SortOrder
+    entityName?: SortOrderInput | SortOrder
+    bankStatementId?: SortOrder
+    _count?: TransactionCountOrderByAggregateInput
+    _avg?: TransactionAvgOrderByAggregateInput
+    _max?: TransactionMaxOrderByAggregateInput
+    _min?: TransactionMinOrderByAggregateInput
+    _sum?: TransactionSumOrderByAggregateInput
+  }
+
+  export type TransactionScalarWhereWithAggregatesInput = {
+    AND?: TransactionScalarWhereWithAggregatesInput | TransactionScalarWhereWithAggregatesInput[]
+    OR?: TransactionScalarWhereWithAggregatesInput[]
+    NOT?: TransactionScalarWhereWithAggregatesInput | TransactionScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"Transaction"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"Transaction"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Transaction"> | Date | string
+    transactionDate?: DateTimeWithAggregatesFilter<"Transaction"> | Date | string
+    creditAmount?: DecimalNullableWithAggregatesFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: DecimalNullableWithAggregatesFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    description?: StringNullableWithAggregatesFilter<"Transaction"> | string | null
+    balance?: DecimalNullableWithAggregatesFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: StringNullableWithAggregatesFilter<"Transaction"> | string | null
+    entityName?: StringNullableWithAggregatesFilter<"Transaction"> | string | null
+    bankStatementId?: IntWithAggregatesFilter<"Transaction"> | number
   }
 
   export type InvoiceCreateInput = {
@@ -5372,6 +8422,7 @@ export namespace Prisma {
     etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceCreateNestedManyWithoutCustomerInput
+    BankStatement?: BankStatementCreateNestedManyWithoutCustomerInput
   }
 
   export type CustomerUncheckedCreateInput = {
@@ -5383,6 +8434,7 @@ export namespace Prisma {
     etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceUncheckedCreateNestedManyWithoutCustomerInput
+    BankStatement?: BankStatementUncheckedCreateNestedManyWithoutCustomerInput
   }
 
   export type CustomerUpdateInput = {
@@ -5393,6 +8445,7 @@ export namespace Prisma {
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUpdateManyWithoutCustomerNestedInput
+    BankStatement?: BankStatementUpdateManyWithoutCustomerNestedInput
   }
 
   export type CustomerUncheckedUpdateInput = {
@@ -5404,6 +8457,7 @@ export namespace Prisma {
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
+    BankStatement?: BankStatementUncheckedUpdateManyWithoutCustomerNestedInput
   }
 
   export type CustomerCreateManyInput = {
@@ -5443,6 +8497,7 @@ export namespace Prisma {
     etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceCreateNestedManyWithoutSupplierInput
+    BankStatement?: BankStatementCreateNestedManyWithoutSupplierInput
   }
 
   export type SupplierUncheckedCreateInput = {
@@ -5454,6 +8509,7 @@ export namespace Prisma {
     etaId?: string | null
     paymentTerms?: number | null
     Invoice?: InvoiceUncheckedCreateNestedManyWithoutSupplierInput
+    BankStatement?: BankStatementUncheckedCreateNestedManyWithoutSupplierInput
   }
 
   export type SupplierUpdateInput = {
@@ -5464,6 +8520,7 @@ export namespace Prisma {
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUpdateManyWithoutSupplierNestedInput
+    BankStatement?: BankStatementUpdateManyWithoutSupplierNestedInput
   }
 
   export type SupplierUncheckedUpdateInput = {
@@ -5475,6 +8532,7 @@ export namespace Prisma {
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
     Invoice?: InvoiceUncheckedUpdateManyWithoutSupplierNestedInput
+    BankStatement?: BankStatementUncheckedUpdateManyWithoutSupplierNestedInput
   }
 
   export type SupplierCreateManyInput = {
@@ -5504,6 +8562,232 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type BankStatementCreateInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    Customer?: CustomerCreateNestedOneWithoutBankStatementInput
+    Supplier?: SupplierCreateNestedOneWithoutBankStatementInput
+    transactions?: TransactionCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementUncheckedCreateInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    customerId?: number | null
+    supplierId?: number | null
+    transactions?: TransactionUncheckedCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementUpdateInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    Customer?: CustomerUpdateOneWithoutBankStatementNestedInput
+    Supplier?: SupplierUpdateOneWithoutBankStatementNestedInput
+    transactions?: TransactionUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    customerId?: NullableIntFieldUpdateOperationsInput | number | null
+    supplierId?: NullableIntFieldUpdateOperationsInput | number | null
+    transactions?: TransactionUncheckedUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementCreateManyInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    customerId?: number | null
+    supplierId?: number | null
+  }
+
+  export type BankStatementUpdateManyMutationInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type BankStatementUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    customerId?: NullableIntFieldUpdateOperationsInput | number | null
+    supplierId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type TransactionCreateInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+    bankStatement: BankStatementCreateNestedOneWithoutTransactionsInput
+  }
+
+  export type TransactionUncheckedCreateInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+    bankStatementId: number
+  }
+
+  export type TransactionUpdateInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankStatement?: BankStatementUpdateOneRequiredWithoutTransactionsNestedInput
+  }
+
+  export type TransactionUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankStatementId?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type TransactionCreateManyInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+    bankStatementId: number
+  }
+
+  export type TransactionUpdateManyMutationInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TransactionUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankStatementId?: IntFieldUpdateOperationsInput | number
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -5777,7 +9061,17 @@ export namespace Prisma {
     none?: InvoiceWhereInput
   }
 
+  export type BankStatementListRelationFilter = {
+    every?: BankStatementWhereInput
+    some?: BankStatementWhereInput
+    none?: BankStatementWhereInput
+  }
+
   export type InvoiceOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type BankStatementOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -5879,6 +9173,179 @@ export namespace Prisma {
     paymentTerms?: SortOrder
   }
 
+  export type TransactionListRelationFilter = {
+    every?: TransactionWhereInput
+    some?: TransactionWhereInput
+    none?: TransactionWhereInput
+  }
+
+  export type TransactionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type BankStatementCountOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    fileName?: SortOrder
+    bankName?: SortOrder
+    accountNumber?: SortOrder
+    statementPeriodStart?: SortOrder
+    statementPeriodEnd?: SortOrder
+    accountType?: SortOrder
+    accountCurrency?: SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    rawTextContent?: SortOrder
+    processingStatus?: SortOrder
+    customerId?: SortOrder
+    supplierId?: SortOrder
+  }
+
+  export type BankStatementAvgOrderByAggregateInput = {
+    id?: SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    customerId?: SortOrder
+    supplierId?: SortOrder
+  }
+
+  export type BankStatementMaxOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    fileName?: SortOrder
+    bankName?: SortOrder
+    accountNumber?: SortOrder
+    statementPeriodStart?: SortOrder
+    statementPeriodEnd?: SortOrder
+    accountType?: SortOrder
+    accountCurrency?: SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    rawTextContent?: SortOrder
+    processingStatus?: SortOrder
+    customerId?: SortOrder
+    supplierId?: SortOrder
+  }
+
+  export type BankStatementMinOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    fileName?: SortOrder
+    bankName?: SortOrder
+    accountNumber?: SortOrder
+    statementPeriodStart?: SortOrder
+    statementPeriodEnd?: SortOrder
+    accountType?: SortOrder
+    accountCurrency?: SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    rawTextContent?: SortOrder
+    processingStatus?: SortOrder
+    customerId?: SortOrder
+    supplierId?: SortOrder
+  }
+
+  export type BankStatementSumOrderByAggregateInput = {
+    id?: SortOrder
+    startingBalance?: SortOrder
+    endingBalance?: SortOrder
+    customerId?: SortOrder
+    supplierId?: SortOrder
+  }
+
+  export type DecimalNullableFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+  }
+
+  export type BankStatementScalarRelationFilter = {
+    is?: BankStatementWhereInput
+    isNot?: BankStatementWhereInput
+  }
+
+  export type TransactionCountOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    transactionDate?: SortOrder
+    creditAmount?: SortOrder
+    debitAmount?: SortOrder
+    description?: SortOrder
+    balance?: SortOrder
+    pageNumber?: SortOrder
+    entityName?: SortOrder
+    bankStatementId?: SortOrder
+  }
+
+  export type TransactionAvgOrderByAggregateInput = {
+    id?: SortOrder
+    creditAmount?: SortOrder
+    debitAmount?: SortOrder
+    balance?: SortOrder
+    bankStatementId?: SortOrder
+  }
+
+  export type TransactionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    transactionDate?: SortOrder
+    creditAmount?: SortOrder
+    debitAmount?: SortOrder
+    description?: SortOrder
+    balance?: SortOrder
+    pageNumber?: SortOrder
+    entityName?: SortOrder
+    bankStatementId?: SortOrder
+  }
+
+  export type TransactionMinOrderByAggregateInput = {
+    id?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    transactionDate?: SortOrder
+    creditAmount?: SortOrder
+    debitAmount?: SortOrder
+    description?: SortOrder
+    balance?: SortOrder
+    pageNumber?: SortOrder
+    entityName?: SortOrder
+    bankStatementId?: SortOrder
+  }
+
+  export type TransactionSumOrderByAggregateInput = {
+    id?: SortOrder
+    creditAmount?: SortOrder
+    debitAmount?: SortOrder
+    balance?: SortOrder
+    bankStatementId?: SortOrder
+  }
+
+  export type DecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableWithAggregatesFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedDecimalNullableFilter<$PrismaModel>
+    _sum?: NestedDecimalNullableFilter<$PrismaModel>
+    _min?: NestedDecimalNullableFilter<$PrismaModel>
+    _max?: NestedDecimalNullableFilter<$PrismaModel>
+  }
+
   export type CustomerCreateNestedOneWithoutInvoiceInput = {
     create?: XOR<CustomerCreateWithoutInvoiceInput, CustomerUncheckedCreateWithoutInvoiceInput>
     connectOrCreate?: CustomerCreateOrConnectWithoutInvoiceInput
@@ -5950,11 +9417,25 @@ export namespace Prisma {
     connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
   }
 
+  export type BankStatementCreateNestedManyWithoutCustomerInput = {
+    create?: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput> | BankStatementCreateWithoutCustomerInput[] | BankStatementUncheckedCreateWithoutCustomerInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutCustomerInput | BankStatementCreateOrConnectWithoutCustomerInput[]
+    createMany?: BankStatementCreateManyCustomerInputEnvelope
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+  }
+
   export type InvoiceUncheckedCreateNestedManyWithoutCustomerInput = {
     create?: XOR<InvoiceCreateWithoutCustomerInput, InvoiceUncheckedCreateWithoutCustomerInput> | InvoiceCreateWithoutCustomerInput[] | InvoiceUncheckedCreateWithoutCustomerInput[]
     connectOrCreate?: InvoiceCreateOrConnectWithoutCustomerInput | InvoiceCreateOrConnectWithoutCustomerInput[]
     createMany?: InvoiceCreateManyCustomerInputEnvelope
     connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
+  }
+
+  export type BankStatementUncheckedCreateNestedManyWithoutCustomerInput = {
+    create?: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput> | BankStatementCreateWithoutCustomerInput[] | BankStatementUncheckedCreateWithoutCustomerInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutCustomerInput | BankStatementCreateOrConnectWithoutCustomerInput[]
+    createMany?: BankStatementCreateManyCustomerInputEnvelope
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
   }
 
   export type NullableStringFieldUpdateOperationsInput = {
@@ -5975,6 +9456,20 @@ export namespace Prisma {
     deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
   }
 
+  export type BankStatementUpdateManyWithoutCustomerNestedInput = {
+    create?: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput> | BankStatementCreateWithoutCustomerInput[] | BankStatementUncheckedCreateWithoutCustomerInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutCustomerInput | BankStatementCreateOrConnectWithoutCustomerInput[]
+    upsert?: BankStatementUpsertWithWhereUniqueWithoutCustomerInput | BankStatementUpsertWithWhereUniqueWithoutCustomerInput[]
+    createMany?: BankStatementCreateManyCustomerInputEnvelope
+    set?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    disconnect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    delete?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    update?: BankStatementUpdateWithWhereUniqueWithoutCustomerInput | BankStatementUpdateWithWhereUniqueWithoutCustomerInput[]
+    updateMany?: BankStatementUpdateManyWithWhereWithoutCustomerInput | BankStatementUpdateManyWithWhereWithoutCustomerInput[]
+    deleteMany?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+  }
+
   export type InvoiceUncheckedUpdateManyWithoutCustomerNestedInput = {
     create?: XOR<InvoiceCreateWithoutCustomerInput, InvoiceUncheckedCreateWithoutCustomerInput> | InvoiceCreateWithoutCustomerInput[] | InvoiceUncheckedCreateWithoutCustomerInput[]
     connectOrCreate?: InvoiceCreateOrConnectWithoutCustomerInput | InvoiceCreateOrConnectWithoutCustomerInput[]
@@ -5989,6 +9484,20 @@ export namespace Prisma {
     deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
   }
 
+  export type BankStatementUncheckedUpdateManyWithoutCustomerNestedInput = {
+    create?: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput> | BankStatementCreateWithoutCustomerInput[] | BankStatementUncheckedCreateWithoutCustomerInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutCustomerInput | BankStatementCreateOrConnectWithoutCustomerInput[]
+    upsert?: BankStatementUpsertWithWhereUniqueWithoutCustomerInput | BankStatementUpsertWithWhereUniqueWithoutCustomerInput[]
+    createMany?: BankStatementCreateManyCustomerInputEnvelope
+    set?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    disconnect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    delete?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    update?: BankStatementUpdateWithWhereUniqueWithoutCustomerInput | BankStatementUpdateWithWhereUniqueWithoutCustomerInput[]
+    updateMany?: BankStatementUpdateManyWithWhereWithoutCustomerInput | BankStatementUpdateManyWithWhereWithoutCustomerInput[]
+    deleteMany?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+  }
+
   export type InvoiceCreateNestedManyWithoutSupplierInput = {
     create?: XOR<InvoiceCreateWithoutSupplierInput, InvoiceUncheckedCreateWithoutSupplierInput> | InvoiceCreateWithoutSupplierInput[] | InvoiceUncheckedCreateWithoutSupplierInput[]
     connectOrCreate?: InvoiceCreateOrConnectWithoutSupplierInput | InvoiceCreateOrConnectWithoutSupplierInput[]
@@ -5996,11 +9505,25 @@ export namespace Prisma {
     connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
   }
 
+  export type BankStatementCreateNestedManyWithoutSupplierInput = {
+    create?: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput> | BankStatementCreateWithoutSupplierInput[] | BankStatementUncheckedCreateWithoutSupplierInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutSupplierInput | BankStatementCreateOrConnectWithoutSupplierInput[]
+    createMany?: BankStatementCreateManySupplierInputEnvelope
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+  }
+
   export type InvoiceUncheckedCreateNestedManyWithoutSupplierInput = {
     create?: XOR<InvoiceCreateWithoutSupplierInput, InvoiceUncheckedCreateWithoutSupplierInput> | InvoiceCreateWithoutSupplierInput[] | InvoiceUncheckedCreateWithoutSupplierInput[]
     connectOrCreate?: InvoiceCreateOrConnectWithoutSupplierInput | InvoiceCreateOrConnectWithoutSupplierInput[]
     createMany?: InvoiceCreateManySupplierInputEnvelope
     connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
+  }
+
+  export type BankStatementUncheckedCreateNestedManyWithoutSupplierInput = {
+    create?: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput> | BankStatementCreateWithoutSupplierInput[] | BankStatementUncheckedCreateWithoutSupplierInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutSupplierInput | BankStatementCreateOrConnectWithoutSupplierInput[]
+    createMany?: BankStatementCreateManySupplierInputEnvelope
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
   }
 
   export type InvoiceUpdateManyWithoutSupplierNestedInput = {
@@ -6017,6 +9540,20 @@ export namespace Prisma {
     deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
   }
 
+  export type BankStatementUpdateManyWithoutSupplierNestedInput = {
+    create?: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput> | BankStatementCreateWithoutSupplierInput[] | BankStatementUncheckedCreateWithoutSupplierInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutSupplierInput | BankStatementCreateOrConnectWithoutSupplierInput[]
+    upsert?: BankStatementUpsertWithWhereUniqueWithoutSupplierInput | BankStatementUpsertWithWhereUniqueWithoutSupplierInput[]
+    createMany?: BankStatementCreateManySupplierInputEnvelope
+    set?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    disconnect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    delete?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    update?: BankStatementUpdateWithWhereUniqueWithoutSupplierInput | BankStatementUpdateWithWhereUniqueWithoutSupplierInput[]
+    updateMany?: BankStatementUpdateManyWithWhereWithoutSupplierInput | BankStatementUpdateManyWithWhereWithoutSupplierInput[]
+    deleteMany?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+  }
+
   export type InvoiceUncheckedUpdateManyWithoutSupplierNestedInput = {
     create?: XOR<InvoiceCreateWithoutSupplierInput, InvoiceUncheckedCreateWithoutSupplierInput> | InvoiceCreateWithoutSupplierInput[] | InvoiceUncheckedCreateWithoutSupplierInput[]
     connectOrCreate?: InvoiceCreateOrConnectWithoutSupplierInput | InvoiceCreateOrConnectWithoutSupplierInput[]
@@ -6029,6 +9566,116 @@ export namespace Prisma {
     update?: InvoiceUpdateWithWhereUniqueWithoutSupplierInput | InvoiceUpdateWithWhereUniqueWithoutSupplierInput[]
     updateMany?: InvoiceUpdateManyWithWhereWithoutSupplierInput | InvoiceUpdateManyWithWhereWithoutSupplierInput[]
     deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
+  }
+
+  export type BankStatementUncheckedUpdateManyWithoutSupplierNestedInput = {
+    create?: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput> | BankStatementCreateWithoutSupplierInput[] | BankStatementUncheckedCreateWithoutSupplierInput[]
+    connectOrCreate?: BankStatementCreateOrConnectWithoutSupplierInput | BankStatementCreateOrConnectWithoutSupplierInput[]
+    upsert?: BankStatementUpsertWithWhereUniqueWithoutSupplierInput | BankStatementUpsertWithWhereUniqueWithoutSupplierInput[]
+    createMany?: BankStatementCreateManySupplierInputEnvelope
+    set?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    disconnect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    delete?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    connect?: BankStatementWhereUniqueInput | BankStatementWhereUniqueInput[]
+    update?: BankStatementUpdateWithWhereUniqueWithoutSupplierInput | BankStatementUpdateWithWhereUniqueWithoutSupplierInput[]
+    updateMany?: BankStatementUpdateManyWithWhereWithoutSupplierInput | BankStatementUpdateManyWithWhereWithoutSupplierInput[]
+    deleteMany?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+  }
+
+  export type CustomerCreateNestedOneWithoutBankStatementInput = {
+    create?: XOR<CustomerCreateWithoutBankStatementInput, CustomerUncheckedCreateWithoutBankStatementInput>
+    connectOrCreate?: CustomerCreateOrConnectWithoutBankStatementInput
+    connect?: CustomerWhereUniqueInput
+  }
+
+  export type SupplierCreateNestedOneWithoutBankStatementInput = {
+    create?: XOR<SupplierCreateWithoutBankStatementInput, SupplierUncheckedCreateWithoutBankStatementInput>
+    connectOrCreate?: SupplierCreateOrConnectWithoutBankStatementInput
+    connect?: SupplierWhereUniqueInput
+  }
+
+  export type TransactionCreateNestedManyWithoutBankStatementInput = {
+    create?: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput> | TransactionCreateWithoutBankStatementInput[] | TransactionUncheckedCreateWithoutBankStatementInput[]
+    connectOrCreate?: TransactionCreateOrConnectWithoutBankStatementInput | TransactionCreateOrConnectWithoutBankStatementInput[]
+    createMany?: TransactionCreateManyBankStatementInputEnvelope
+    connect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+  }
+
+  export type TransactionUncheckedCreateNestedManyWithoutBankStatementInput = {
+    create?: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput> | TransactionCreateWithoutBankStatementInput[] | TransactionUncheckedCreateWithoutBankStatementInput[]
+    connectOrCreate?: TransactionCreateOrConnectWithoutBankStatementInput | TransactionCreateOrConnectWithoutBankStatementInput[]
+    createMany?: TransactionCreateManyBankStatementInputEnvelope
+    connect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+  }
+
+  export type CustomerUpdateOneWithoutBankStatementNestedInput = {
+    create?: XOR<CustomerCreateWithoutBankStatementInput, CustomerUncheckedCreateWithoutBankStatementInput>
+    connectOrCreate?: CustomerCreateOrConnectWithoutBankStatementInput
+    upsert?: CustomerUpsertWithoutBankStatementInput
+    disconnect?: CustomerWhereInput | boolean
+    delete?: CustomerWhereInput | boolean
+    connect?: CustomerWhereUniqueInput
+    update?: XOR<XOR<CustomerUpdateToOneWithWhereWithoutBankStatementInput, CustomerUpdateWithoutBankStatementInput>, CustomerUncheckedUpdateWithoutBankStatementInput>
+  }
+
+  export type SupplierUpdateOneWithoutBankStatementNestedInput = {
+    create?: XOR<SupplierCreateWithoutBankStatementInput, SupplierUncheckedCreateWithoutBankStatementInput>
+    connectOrCreate?: SupplierCreateOrConnectWithoutBankStatementInput
+    upsert?: SupplierUpsertWithoutBankStatementInput
+    disconnect?: SupplierWhereInput | boolean
+    delete?: SupplierWhereInput | boolean
+    connect?: SupplierWhereUniqueInput
+    update?: XOR<XOR<SupplierUpdateToOneWithWhereWithoutBankStatementInput, SupplierUpdateWithoutBankStatementInput>, SupplierUncheckedUpdateWithoutBankStatementInput>
+  }
+
+  export type TransactionUpdateManyWithoutBankStatementNestedInput = {
+    create?: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput> | TransactionCreateWithoutBankStatementInput[] | TransactionUncheckedCreateWithoutBankStatementInput[]
+    connectOrCreate?: TransactionCreateOrConnectWithoutBankStatementInput | TransactionCreateOrConnectWithoutBankStatementInput[]
+    upsert?: TransactionUpsertWithWhereUniqueWithoutBankStatementInput | TransactionUpsertWithWhereUniqueWithoutBankStatementInput[]
+    createMany?: TransactionCreateManyBankStatementInputEnvelope
+    set?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    disconnect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    delete?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    connect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    update?: TransactionUpdateWithWhereUniqueWithoutBankStatementInput | TransactionUpdateWithWhereUniqueWithoutBankStatementInput[]
+    updateMany?: TransactionUpdateManyWithWhereWithoutBankStatementInput | TransactionUpdateManyWithWhereWithoutBankStatementInput[]
+    deleteMany?: TransactionScalarWhereInput | TransactionScalarWhereInput[]
+  }
+
+  export type TransactionUncheckedUpdateManyWithoutBankStatementNestedInput = {
+    create?: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput> | TransactionCreateWithoutBankStatementInput[] | TransactionUncheckedCreateWithoutBankStatementInput[]
+    connectOrCreate?: TransactionCreateOrConnectWithoutBankStatementInput | TransactionCreateOrConnectWithoutBankStatementInput[]
+    upsert?: TransactionUpsertWithWhereUniqueWithoutBankStatementInput | TransactionUpsertWithWhereUniqueWithoutBankStatementInput[]
+    createMany?: TransactionCreateManyBankStatementInputEnvelope
+    set?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    disconnect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    delete?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    connect?: TransactionWhereUniqueInput | TransactionWhereUniqueInput[]
+    update?: TransactionUpdateWithWhereUniqueWithoutBankStatementInput | TransactionUpdateWithWhereUniqueWithoutBankStatementInput[]
+    updateMany?: TransactionUpdateManyWithWhereWithoutBankStatementInput | TransactionUpdateManyWithWhereWithoutBankStatementInput[]
+    deleteMany?: TransactionScalarWhereInput | TransactionScalarWhereInput[]
+  }
+
+  export type BankStatementCreateNestedOneWithoutTransactionsInput = {
+    create?: XOR<BankStatementCreateWithoutTransactionsInput, BankStatementUncheckedCreateWithoutTransactionsInput>
+    connectOrCreate?: BankStatementCreateOrConnectWithoutTransactionsInput
+    connect?: BankStatementWhereUniqueInput
+  }
+
+  export type NullableDecimalFieldUpdateOperationsInput = {
+    set?: Decimal | DecimalJsLike | number | string | null
+    increment?: Decimal | DecimalJsLike | number | string
+    decrement?: Decimal | DecimalJsLike | number | string
+    multiply?: Decimal | DecimalJsLike | number | string
+    divide?: Decimal | DecimalJsLike | number | string
+  }
+
+  export type BankStatementUpdateOneRequiredWithoutTransactionsNestedInput = {
+    create?: XOR<BankStatementCreateWithoutTransactionsInput, BankStatementUncheckedCreateWithoutTransactionsInput>
+    connectOrCreate?: BankStatementCreateOrConnectWithoutTransactionsInput
+    upsert?: BankStatementUpsertWithoutTransactionsInput
+    connect?: BankStatementWhereUniqueInput
+    update?: XOR<XOR<BankStatementUpdateToOneWithWhereWithoutTransactionsInput, BankStatementUpdateWithoutTransactionsInput>, BankStatementUncheckedUpdateWithoutTransactionsInput>
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -6221,6 +9868,33 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
+  export type NestedDecimalNullableFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+  }
+
+  export type NestedDecimalNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel> | null
+    in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    notIn?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel> | null
+    lt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    lte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
+    not?: NestedDecimalNullableWithAggregatesFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedDecimalNullableFilter<$PrismaModel>
+    _sum?: NestedDecimalNullableFilter<$PrismaModel>
+    _min?: NestedDecimalNullableFilter<$PrismaModel>
+    _max?: NestedDecimalNullableFilter<$PrismaModel>
+  }
+
   export type CustomerCreateWithoutInvoiceInput = {
     createdAt?: Date | string
     updatedAt: Date | string
@@ -6228,6 +9902,7 @@ export namespace Prisma {
     country?: string | null
     etaId?: string | null
     paymentTerms?: number | null
+    BankStatement?: BankStatementCreateNestedManyWithoutCustomerInput
   }
 
   export type CustomerUncheckedCreateWithoutInvoiceInput = {
@@ -6238,6 +9913,7 @@ export namespace Prisma {
     country?: string | null
     etaId?: string | null
     paymentTerms?: number | null
+    BankStatement?: BankStatementUncheckedCreateNestedManyWithoutCustomerInput
   }
 
   export type CustomerCreateOrConnectWithoutInvoiceInput = {
@@ -6252,6 +9928,7 @@ export namespace Prisma {
     country?: string | null
     etaId?: string | null
     paymentTerms?: number | null
+    BankStatement?: BankStatementCreateNestedManyWithoutSupplierInput
   }
 
   export type SupplierUncheckedCreateWithoutInvoiceInput = {
@@ -6262,6 +9939,7 @@ export namespace Prisma {
     country?: string | null
     etaId?: string | null
     paymentTerms?: number | null
+    BankStatement?: BankStatementUncheckedCreateNestedManyWithoutSupplierInput
   }
 
   export type SupplierCreateOrConnectWithoutInvoiceInput = {
@@ -6287,6 +9965,7 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    BankStatement?: BankStatementUpdateManyWithoutCustomerNestedInput
   }
 
   export type CustomerUncheckedUpdateWithoutInvoiceInput = {
@@ -6297,6 +9976,7 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    BankStatement?: BankStatementUncheckedUpdateManyWithoutCustomerNestedInput
   }
 
   export type SupplierUpsertWithoutInvoiceInput = {
@@ -6317,6 +9997,7 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    BankStatement?: BankStatementUpdateManyWithoutSupplierNestedInput
   }
 
   export type SupplierUncheckedUpdateWithoutInvoiceInput = {
@@ -6327,6 +10008,7 @@ export namespace Prisma {
     country?: NullableStringFieldUpdateOperationsInput | string | null
     etaId?: NullableStringFieldUpdateOperationsInput | string | null
     paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    BankStatement?: BankStatementUncheckedUpdateManyWithoutSupplierNestedInput
   }
 
   export type InvoiceCreateWithoutCustomerInput = {
@@ -6384,6 +10066,53 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type BankStatementCreateWithoutCustomerInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    Supplier?: SupplierCreateNestedOneWithoutBankStatementInput
+    transactions?: TransactionCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementUncheckedCreateWithoutCustomerInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    supplierId?: number | null
+    transactions?: TransactionUncheckedCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementCreateOrConnectWithoutCustomerInput = {
+    where: BankStatementWhereUniqueInput
+    create: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput>
+  }
+
+  export type BankStatementCreateManyCustomerInputEnvelope = {
+    data: BankStatementCreateManyCustomerInput | BankStatementCreateManyCustomerInput[]
+    skipDuplicates?: boolean
+  }
+
   export type InvoiceUpsertWithWhereUniqueWithoutCustomerInput = {
     where: InvoiceWhereUniqueInput
     update: XOR<InvoiceUpdateWithoutCustomerInput, InvoiceUncheckedUpdateWithoutCustomerInput>
@@ -6425,6 +10154,44 @@ export namespace Prisma {
     receiverEtaId?: StringFilter<"Invoice"> | string
     customerId?: IntNullableFilter<"Invoice"> | number | null
     supplierId?: IntNullableFilter<"Invoice"> | number | null
+  }
+
+  export type BankStatementUpsertWithWhereUniqueWithoutCustomerInput = {
+    where: BankStatementWhereUniqueInput
+    update: XOR<BankStatementUpdateWithoutCustomerInput, BankStatementUncheckedUpdateWithoutCustomerInput>
+    create: XOR<BankStatementCreateWithoutCustomerInput, BankStatementUncheckedCreateWithoutCustomerInput>
+  }
+
+  export type BankStatementUpdateWithWhereUniqueWithoutCustomerInput = {
+    where: BankStatementWhereUniqueInput
+    data: XOR<BankStatementUpdateWithoutCustomerInput, BankStatementUncheckedUpdateWithoutCustomerInput>
+  }
+
+  export type BankStatementUpdateManyWithWhereWithoutCustomerInput = {
+    where: BankStatementScalarWhereInput
+    data: XOR<BankStatementUpdateManyMutationInput, BankStatementUncheckedUpdateManyWithoutCustomerInput>
+  }
+
+  export type BankStatementScalarWhereInput = {
+    AND?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+    OR?: BankStatementScalarWhereInput[]
+    NOT?: BankStatementScalarWhereInput | BankStatementScalarWhereInput[]
+    id?: IntFilter<"BankStatement"> | number
+    createdAt?: DateTimeFilter<"BankStatement"> | Date | string
+    updatedAt?: DateTimeFilter<"BankStatement"> | Date | string
+    fileName?: StringNullableFilter<"BankStatement"> | string | null
+    bankName?: StringFilter<"BankStatement"> | string
+    accountNumber?: StringFilter<"BankStatement"> | string
+    statementPeriodStart?: DateTimeFilter<"BankStatement"> | Date | string
+    statementPeriodEnd?: DateTimeFilter<"BankStatement"> | Date | string
+    accountType?: StringNullableFilter<"BankStatement"> | string | null
+    accountCurrency?: StringNullableFilter<"BankStatement"> | string | null
+    startingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFilter<"BankStatement"> | Decimal | DecimalJsLike | number | string
+    rawTextContent?: StringNullableFilter<"BankStatement"> | string | null
+    processingStatus?: StringFilter<"BankStatement"> | string
+    customerId?: IntNullableFilter<"BankStatement"> | number | null
+    supplierId?: IntNullableFilter<"BankStatement"> | number | null
   }
 
   export type InvoiceCreateWithoutSupplierInput = {
@@ -6482,6 +10249,53 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type BankStatementCreateWithoutSupplierInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    Customer?: CustomerCreateNestedOneWithoutBankStatementInput
+    transactions?: TransactionCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementUncheckedCreateWithoutSupplierInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    customerId?: number | null
+    transactions?: TransactionUncheckedCreateNestedManyWithoutBankStatementInput
+  }
+
+  export type BankStatementCreateOrConnectWithoutSupplierInput = {
+    where: BankStatementWhereUniqueInput
+    create: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput>
+  }
+
+  export type BankStatementCreateManySupplierInputEnvelope = {
+    data: BankStatementCreateManySupplierInput | BankStatementCreateManySupplierInput[]
+    skipDuplicates?: boolean
+  }
+
   export type InvoiceUpsertWithWhereUniqueWithoutSupplierInput = {
     where: InvoiceWhereUniqueInput
     update: XOR<InvoiceUpdateWithoutSupplierInput, InvoiceUncheckedUpdateWithoutSupplierInput>
@@ -6496,6 +10310,296 @@ export namespace Prisma {
   export type InvoiceUpdateManyWithWhereWithoutSupplierInput = {
     where: InvoiceScalarWhereInput
     data: XOR<InvoiceUpdateManyMutationInput, InvoiceUncheckedUpdateManyWithoutSupplierInput>
+  }
+
+  export type BankStatementUpsertWithWhereUniqueWithoutSupplierInput = {
+    where: BankStatementWhereUniqueInput
+    update: XOR<BankStatementUpdateWithoutSupplierInput, BankStatementUncheckedUpdateWithoutSupplierInput>
+    create: XOR<BankStatementCreateWithoutSupplierInput, BankStatementUncheckedCreateWithoutSupplierInput>
+  }
+
+  export type BankStatementUpdateWithWhereUniqueWithoutSupplierInput = {
+    where: BankStatementWhereUniqueInput
+    data: XOR<BankStatementUpdateWithoutSupplierInput, BankStatementUncheckedUpdateWithoutSupplierInput>
+  }
+
+  export type BankStatementUpdateManyWithWhereWithoutSupplierInput = {
+    where: BankStatementScalarWhereInput
+    data: XOR<BankStatementUpdateManyMutationInput, BankStatementUncheckedUpdateManyWithoutSupplierInput>
+  }
+
+  export type CustomerCreateWithoutBankStatementInput = {
+    createdAt?: Date | string
+    updatedAt: Date | string
+    name: string
+    country?: string | null
+    etaId?: string | null
+    paymentTerms?: number | null
+    Invoice?: InvoiceCreateNestedManyWithoutCustomerInput
+  }
+
+  export type CustomerUncheckedCreateWithoutBankStatementInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt: Date | string
+    name: string
+    country?: string | null
+    etaId?: string | null
+    paymentTerms?: number | null
+    Invoice?: InvoiceUncheckedCreateNestedManyWithoutCustomerInput
+  }
+
+  export type CustomerCreateOrConnectWithoutBankStatementInput = {
+    where: CustomerWhereUniqueInput
+    create: XOR<CustomerCreateWithoutBankStatementInput, CustomerUncheckedCreateWithoutBankStatementInput>
+  }
+
+  export type SupplierCreateWithoutBankStatementInput = {
+    createdAt?: Date | string
+    updatedAt: Date | string
+    name: string
+    country?: string | null
+    etaId?: string | null
+    paymentTerms?: number | null
+    Invoice?: InvoiceCreateNestedManyWithoutSupplierInput
+  }
+
+  export type SupplierUncheckedCreateWithoutBankStatementInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt: Date | string
+    name: string
+    country?: string | null
+    etaId?: string | null
+    paymentTerms?: number | null
+    Invoice?: InvoiceUncheckedCreateNestedManyWithoutSupplierInput
+  }
+
+  export type SupplierCreateOrConnectWithoutBankStatementInput = {
+    where: SupplierWhereUniqueInput
+    create: XOR<SupplierCreateWithoutBankStatementInput, SupplierUncheckedCreateWithoutBankStatementInput>
+  }
+
+  export type TransactionCreateWithoutBankStatementInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+  }
+
+  export type TransactionUncheckedCreateWithoutBankStatementInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+  }
+
+  export type TransactionCreateOrConnectWithoutBankStatementInput = {
+    where: TransactionWhereUniqueInput
+    create: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput>
+  }
+
+  export type TransactionCreateManyBankStatementInputEnvelope = {
+    data: TransactionCreateManyBankStatementInput | TransactionCreateManyBankStatementInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CustomerUpsertWithoutBankStatementInput = {
+    update: XOR<CustomerUpdateWithoutBankStatementInput, CustomerUncheckedUpdateWithoutBankStatementInput>
+    create: XOR<CustomerCreateWithoutBankStatementInput, CustomerUncheckedCreateWithoutBankStatementInput>
+    where?: CustomerWhereInput
+  }
+
+  export type CustomerUpdateToOneWithWhereWithoutBankStatementInput = {
+    where?: CustomerWhereInput
+    data: XOR<CustomerUpdateWithoutBankStatementInput, CustomerUncheckedUpdateWithoutBankStatementInput>
+  }
+
+  export type CustomerUpdateWithoutBankStatementInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    name?: StringFieldUpdateOperationsInput | string
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    Invoice?: InvoiceUpdateManyWithoutCustomerNestedInput
+  }
+
+  export type CustomerUncheckedUpdateWithoutBankStatementInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    name?: StringFieldUpdateOperationsInput | string
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    Invoice?: InvoiceUncheckedUpdateManyWithoutCustomerNestedInput
+  }
+
+  export type SupplierUpsertWithoutBankStatementInput = {
+    update: XOR<SupplierUpdateWithoutBankStatementInput, SupplierUncheckedUpdateWithoutBankStatementInput>
+    create: XOR<SupplierCreateWithoutBankStatementInput, SupplierUncheckedCreateWithoutBankStatementInput>
+    where?: SupplierWhereInput
+  }
+
+  export type SupplierUpdateToOneWithWhereWithoutBankStatementInput = {
+    where?: SupplierWhereInput
+    data: XOR<SupplierUpdateWithoutBankStatementInput, SupplierUncheckedUpdateWithoutBankStatementInput>
+  }
+
+  export type SupplierUpdateWithoutBankStatementInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    name?: StringFieldUpdateOperationsInput | string
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    Invoice?: InvoiceUpdateManyWithoutSupplierNestedInput
+  }
+
+  export type SupplierUncheckedUpdateWithoutBankStatementInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    name?: StringFieldUpdateOperationsInput | string
+    country?: NullableStringFieldUpdateOperationsInput | string | null
+    etaId?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTerms?: NullableIntFieldUpdateOperationsInput | number | null
+    Invoice?: InvoiceUncheckedUpdateManyWithoutSupplierNestedInput
+  }
+
+  export type TransactionUpsertWithWhereUniqueWithoutBankStatementInput = {
+    where: TransactionWhereUniqueInput
+    update: XOR<TransactionUpdateWithoutBankStatementInput, TransactionUncheckedUpdateWithoutBankStatementInput>
+    create: XOR<TransactionCreateWithoutBankStatementInput, TransactionUncheckedCreateWithoutBankStatementInput>
+  }
+
+  export type TransactionUpdateWithWhereUniqueWithoutBankStatementInput = {
+    where: TransactionWhereUniqueInput
+    data: XOR<TransactionUpdateWithoutBankStatementInput, TransactionUncheckedUpdateWithoutBankStatementInput>
+  }
+
+  export type TransactionUpdateManyWithWhereWithoutBankStatementInput = {
+    where: TransactionScalarWhereInput
+    data: XOR<TransactionUpdateManyMutationInput, TransactionUncheckedUpdateManyWithoutBankStatementInput>
+  }
+
+  export type TransactionScalarWhereInput = {
+    AND?: TransactionScalarWhereInput | TransactionScalarWhereInput[]
+    OR?: TransactionScalarWhereInput[]
+    NOT?: TransactionScalarWhereInput | TransactionScalarWhereInput[]
+    id?: IntFilter<"Transaction"> | number
+    createdAt?: DateTimeFilter<"Transaction"> | Date | string
+    updatedAt?: DateTimeFilter<"Transaction"> | Date | string
+    transactionDate?: DateTimeFilter<"Transaction"> | Date | string
+    creditAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    description?: StringNullableFilter<"Transaction"> | string | null
+    balance?: DecimalNullableFilter<"Transaction"> | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: StringNullableFilter<"Transaction"> | string | null
+    entityName?: StringNullableFilter<"Transaction"> | string | null
+    bankStatementId?: IntFilter<"Transaction"> | number
+  }
+
+  export type BankStatementCreateWithoutTransactionsInput = {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    Customer?: CustomerCreateNestedOneWithoutBankStatementInput
+    Supplier?: SupplierCreateNestedOneWithoutBankStatementInput
+  }
+
+  export type BankStatementUncheckedCreateWithoutTransactionsInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
+    customerId?: number | null
+    supplierId?: number | null
+  }
+
+  export type BankStatementCreateOrConnectWithoutTransactionsInput = {
+    where: BankStatementWhereUniqueInput
+    create: XOR<BankStatementCreateWithoutTransactionsInput, BankStatementUncheckedCreateWithoutTransactionsInput>
+  }
+
+  export type BankStatementUpsertWithoutTransactionsInput = {
+    update: XOR<BankStatementUpdateWithoutTransactionsInput, BankStatementUncheckedUpdateWithoutTransactionsInput>
+    create: XOR<BankStatementCreateWithoutTransactionsInput, BankStatementUncheckedCreateWithoutTransactionsInput>
+    where?: BankStatementWhereInput
+  }
+
+  export type BankStatementUpdateToOneWithWhereWithoutTransactionsInput = {
+    where?: BankStatementWhereInput
+    data: XOR<BankStatementUpdateWithoutTransactionsInput, BankStatementUncheckedUpdateWithoutTransactionsInput>
+  }
+
+  export type BankStatementUpdateWithoutTransactionsInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    Customer?: CustomerUpdateOneWithoutBankStatementNestedInput
+    Supplier?: SupplierUpdateOneWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateWithoutTransactionsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    customerId?: NullableIntFieldUpdateOperationsInput | number | null
+    supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type InvoiceCreateManyCustomerInput = {
@@ -6518,6 +10622,24 @@ export namespace Prisma {
     receiverCountry: string
     issuerEtaId: string
     receiverEtaId: string
+    supplierId?: number | null
+  }
+
+  export type BankStatementCreateManyCustomerInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
     supplierId?: number | null
   }
 
@@ -6589,6 +10711,61 @@ export namespace Prisma {
     supplierId?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
+  export type BankStatementUpdateWithoutCustomerInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    Supplier?: SupplierUpdateOneWithoutBankStatementNestedInput
+    transactions?: TransactionUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateWithoutCustomerInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    supplierId?: NullableIntFieldUpdateOperationsInput | number | null
+    transactions?: TransactionUncheckedUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateManyWithoutCustomerInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    supplierId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
   export type InvoiceCreateManySupplierInput = {
     id?: number
     createdAt?: Date | string
@@ -6609,6 +10786,24 @@ export namespace Prisma {
     receiverCountry: string
     issuerEtaId: string
     receiverEtaId: string
+    customerId?: number | null
+  }
+
+  export type BankStatementCreateManySupplierInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    fileName?: string | null
+    bankName: string
+    accountNumber: string
+    statementPeriodStart: Date | string
+    statementPeriodEnd: Date | string
+    accountType?: string | null
+    accountCurrency?: string | null
+    startingBalance: Decimal | DecimalJsLike | number | string
+    endingBalance: Decimal | DecimalJsLike | number | string
+    rawTextContent?: string | null
+    processingStatus?: string
     customerId?: number | null
   }
 
@@ -6678,6 +10873,112 @@ export namespace Prisma {
     issuerEtaId?: StringFieldUpdateOperationsInput | string
     receiverEtaId?: StringFieldUpdateOperationsInput | string
     customerId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type BankStatementUpdateWithoutSupplierInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    Customer?: CustomerUpdateOneWithoutBankStatementNestedInput
+    transactions?: TransactionUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateWithoutSupplierInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    customerId?: NullableIntFieldUpdateOperationsInput | number | null
+    transactions?: TransactionUncheckedUpdateManyWithoutBankStatementNestedInput
+  }
+
+  export type BankStatementUncheckedUpdateManyWithoutSupplierInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    fileName?: NullableStringFieldUpdateOperationsInput | string | null
+    bankName?: StringFieldUpdateOperationsInput | string
+    accountNumber?: StringFieldUpdateOperationsInput | string
+    statementPeriodStart?: DateTimeFieldUpdateOperationsInput | Date | string
+    statementPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    accountType?: NullableStringFieldUpdateOperationsInput | string | null
+    accountCurrency?: NullableStringFieldUpdateOperationsInput | string | null
+    startingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    endingBalance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    rawTextContent?: NullableStringFieldUpdateOperationsInput | string | null
+    processingStatus?: StringFieldUpdateOperationsInput | string
+    customerId?: NullableIntFieldUpdateOperationsInput | number | null
+  }
+
+  export type TransactionCreateManyBankStatementInput = {
+    id?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    transactionDate: Date | string
+    creditAmount?: Decimal | DecimalJsLike | number | string | null
+    debitAmount?: Decimal | DecimalJsLike | number | string | null
+    description?: string | null
+    balance?: Decimal | DecimalJsLike | number | string | null
+    pageNumber?: string | null
+    entityName?: string | null
+  }
+
+  export type TransactionUpdateWithoutBankStatementInput = {
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TransactionUncheckedUpdateWithoutBankStatementInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TransactionUncheckedUpdateManyWithoutBankStatementInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    transactionDate?: DateTimeFieldUpdateOperationsInput | Date | string
+    creditAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    debitAmount?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    balance?: NullableDecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string | null
+    pageNumber?: NullableStringFieldUpdateOperationsInput | string | null
+    entityName?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
 

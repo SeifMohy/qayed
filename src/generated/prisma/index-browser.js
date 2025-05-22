@@ -164,6 +164,39 @@ exports.Prisma.SupplierScalarFieldEnum = {
   paymentTerms: 'paymentTerms'
 };
 
+exports.Prisma.BankStatementScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  fileName: 'fileName',
+  bankName: 'bankName',
+  accountNumber: 'accountNumber',
+  statementPeriodStart: 'statementPeriodStart',
+  statementPeriodEnd: 'statementPeriodEnd',
+  accountType: 'accountType',
+  accountCurrency: 'accountCurrency',
+  startingBalance: 'startingBalance',
+  endingBalance: 'endingBalance',
+  rawTextContent: 'rawTextContent',
+  processingStatus: 'processingStatus',
+  customerId: 'customerId',
+  supplierId: 'supplierId'
+};
+
+exports.Prisma.TransactionScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  transactionDate: 'transactionDate',
+  creditAmount: 'creditAmount',
+  debitAmount: 'debitAmount',
+  description: 'description',
+  balance: 'balance',
+  pageNumber: 'pageNumber',
+  entityName: 'entityName',
+  bankStatementId: 'bankStatementId'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -183,7 +216,9 @@ exports.Prisma.NullsOrder = {
 exports.Prisma.ModelName = {
   Invoice: 'Invoice',
   Customer: 'Customer',
-  Supplier: 'Supplier'
+  Supplier: 'Supplier',
+  BankStatement: 'BankStatement',
+  Transaction: 'Transaction'
 };
 
 /**
