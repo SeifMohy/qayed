@@ -38,6 +38,8 @@ The document may contain MULTIPLE account statements. For each unique account st
         "start_date": "",
         "end_date": ""
       },
+      "account_type": "",
+      "account_currency": "",
       "starting_balance": "",
       "ending_balance": "",
       "transactions": [
@@ -45,7 +47,10 @@ The document may contain MULTIPLE account statements. For each unique account st
           "date": "",
           "credit_amount": "",
           "debit_amount": "",
-          "description": ""
+          "description": "",
+          "balance": "",
+          "page_number": "",
+          "entity_name": "",
         }
       ]
     }
@@ -58,6 +63,7 @@ Guidelines:
 - Dates should be in ISO format (YYYY-MM-DD) if possible
 - Credit and debit amounts should be parsed as numerical values without currency symbols
 - If the amount is ambiguous, leave it blank or return "unknown" rather than guessing
+- Entity name is the name of the person or company that the transaction is for
 
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
 `.trim();

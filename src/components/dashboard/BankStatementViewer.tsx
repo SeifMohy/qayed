@@ -7,6 +7,9 @@ type Transaction = {
   credit_amount: string;
   debit_amount: string;
   description: string;
+  balance?: string;
+  page_number?: string;
+  entity_name?: string;
 };
 
 type AccountStatement = {
@@ -16,6 +19,8 @@ type AccountStatement = {
     start_date: string;
     end_date: string;
   };
+  account_type?: string;
+  account_currency?: string;
   starting_balance: string;
   ending_balance: string;
   transactions: Transaction[];
@@ -168,9 +173,16 @@ export default function BankStatementViewer() {
       bank_name: account.bank_name || 'Unknown Bank',
       account_number: account.account_number || 'Unknown',
       statement_period: account.statement_period || { start_date: '', end_date: '' },
+      account_type: account.account_type || 'N/A',
+      account_currency: account.account_currency || 'N/A',
       starting_balance: account.starting_balance || '0.00',
       ending_balance: account.ending_balance || '0.00',
-      transactions: Array.isArray(account.transactions) ? account.transactions : []
+      transactions: Array.isArray(account.transactions) ? account.transactions.map(t => ({
+        ...t,
+        balance: t.balance || 'N/A',
+        page_number: t.page_number || 'N/A',
+        entity_name: t.entity_name || 'N/A',
+      })) : []
     };
   };
   
@@ -350,6 +362,14 @@ export default function BankStatementViewer() {
                             <p className="font-medium">{currentAccount.account_number || 'Not available'}</p>
                           </div>
                           <div>
+                            <p className="text-sm text-gray-500">Account Type</p>
+                            <p className="font-medium">{currentAccount.account_type || 'Not available'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Account Currency</p>
+                            <p className="font-medium">{currentAccount.account_currency || 'Not available'}</p>
+                          </div>
+                          <div>
                             <p className="text-sm text-gray-500">Statement Period</p>
                             <p className="font-medium">
                               {currentAccount.statement_period?.start_date || 'Unknown'} to {currentAccount.statement_period?.end_date || 'Unknown'}
@@ -358,7 +378,7 @@ export default function BankStatementViewer() {
                           <div>
                             <p className="text-sm text-gray-500">Balance</p>
                             <p className="font-medium">
-                              Starting: ${currentAccount.starting_balance || '0.00'} | 
+                              Starting: ${currentAccount.starting_balance || '0.00'} |
                               Ending: ${currentAccount.ending_balance || '0.00'}
                             </p>
                           </div>
@@ -382,11 +402,20 @@ export default function BankStatementViewer() {
                                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Description
                                   </th>
+                                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Entity Name
+                                  </th>
                                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Debit
                                   </th>
                                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Credit
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Balance
+                                  </th>
+                                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Page
                                   </th>
                                 </tr>
                               </thead>
@@ -399,11 +428,20 @@ export default function BankStatementViewer() {
                                     <td className="px-6 py-4 text-sm text-gray-900">
                                       {transaction.description || 'No description'}
                                     </td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                      {transaction.entity_name || 'N/A'}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
                                       {transaction.debit_amount ? `$${transaction.debit_amount}` : ''}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">
                                       {transaction.credit_amount ? `$${transaction.credit_amount}` : ''}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
+                                      {transaction.balance || 'N/A'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
+                                      {transaction.page_number || 'N/A'}
                                     </td>
                                   </tr>
                                 ))}
