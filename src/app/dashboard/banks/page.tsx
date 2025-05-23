@@ -181,6 +181,7 @@ export default function BanksPage() {
     };
     
     fetchBankStatements();
+    console.log(recentTransactions,'recentTransactions');
   }, []);
   
   // Process bank statements data
@@ -235,6 +236,7 @@ export default function BanksPage() {
         
         // Collect transactions for this statement
         if (statement.transactions && statement.transactions.length > 0) {
+          console.log(statement.transactions,'statement.transactions');
           statement.transactions.forEach((transaction: any) => {
             allTransactions.push({
               ...transaction,
@@ -254,6 +256,8 @@ export default function BanksPage() {
         lastUpdate: latestUpdate.toLocaleDateString()
       });
     });
+    
+    console.log('All collected transactions:', allTransactions);
     
     // Set total cash and obligations
     setTotalCash(totalPositiveBalance);
@@ -282,27 +286,36 @@ export default function BanksPage() {
     
     // Process recent transactions
     // Sort by date descending and take top 5
+    console.log(allTransactions,'allTransactions');
     const sortedTransactions = allTransactions.sort((a, b) => 
       new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
     ).slice(0, 5);
     
+    console.log('Sorted transactions:', sortedTransactions);
+    
     const processedTransactions: Transaction[] = sortedTransactions.map((transaction: any, index: number) => {
+      console.log('Processing transaction:', transaction);
+      
       const isCredit = parseFloat(transaction.creditAmount || '0') > 0;
       const amount = isCredit 
         ? parseFloat(transaction.creditAmount || '0') 
         : parseFloat(transaction.debitAmount || '0');
       
-      return {
+      const processedTransaction = {
         id: index,
         bank: transaction.bankName,
         date: new Date(transaction.transactionDate).toLocaleDateString(),
         description: transaction.description || 'Unknown Transaction',
         amount: formatCurrency(amount),
-        type: isCredit ? 'credit' : 'debit',
+        type: (isCredit ? 'credit' : 'debit') as 'credit' | 'debit',
         currency: transaction.currency || 'USD'
       };
+      
+      console.log('Processed transaction:', processedTransaction);
+      return processedTransaction;
     });
     
+    console.log('Final processed transactions:', processedTransactions);
     setRecentTransactions(processedTransactions);
   };
   
@@ -511,7 +524,7 @@ export default function BanksPage() {
   
   const isBankAccountsVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
   const isCreditFacilitiesVisible = !isLoading && (creditFacilities.length > 0 || isDataSourceUploaded('bankPosition'));
-  const isTransactionsVisible = !isLoading && (recentTransactions.length > 0 || (isDataSourceUploaded('bankStatements') && isDataSourceUploaded('bankPosition')));
+  const isTransactionsVisible = !isLoading && (recentTransactions.length > 0 || isDataSourceUploaded('bankStatements'));
   
   return (
     <div>
@@ -557,7 +570,11 @@ export default function BanksPage() {
       {/* Summary Stats */}
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div className="relative">
-          {!isBankAccountsVisible && (
+          {isLoading ? (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : !isBankAccountsVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -582,7 +599,11 @@ export default function BanksPage() {
         </div>
 
         <div className="relative">
-          {!isCreditFacilitiesVisible && (
+          {isLoading ? (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : !isCreditFacilitiesVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -612,7 +633,11 @@ export default function BanksPage() {
         </div>
 
         <div className="relative">
-          {!isCreditFacilitiesVisible && (
+          {isLoading ? (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : !isCreditFacilitiesVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -640,7 +665,14 @@ export default function BanksPage() {
 
       {/* Bank Accounts */}
       <h2 className="mt-8 text-lg font-medium text-gray-900">Banks</h2>
-      {!isBankAccountsVisible ? (
+      {isLoading ? (
+        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+          <div className="p-12 text-center bg-white">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading bank accounts...</p>
+          </div>
+        </div>
+      ) : !isBankAccountsVisible ? (
         <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
           <div className="p-12 text-center bg-white">
             <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -706,7 +738,14 @@ export default function BanksPage() {
 
       {/* Credit Facilities */}
       <h2 className="mt-8 text-lg font-medium text-gray-900">Credit Facilities</h2>
-      {!isCreditFacilitiesVisible ? (
+      {isLoading ? (
+        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+          <div className="p-12 text-center bg-white">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading credit facilities...</p>
+          </div>
+        </div>
+      ) : !isCreditFacilitiesVisible ? (
         <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
           <div className="p-12 text-center bg-white">
             <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -773,12 +812,19 @@ export default function BanksPage() {
 
       {/* Recent Transactions */}
       <h2 className="mt-8 text-lg font-medium text-gray-900">Recent Transactions</h2>
-      {!isTransactionsVisible ? (
+      {isLoading ? (
+        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+          <div className="p-12 text-center bg-white">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading transactions...</p>
+          </div>
+        </div>
+      ) : !isTransactionsVisible ? (
         <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
           <div className="p-12 text-center bg-white">
             <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-semibold text-gray-900">No transaction data available</h3>
-            <p className="mt-1 text-sm text-gray-500">Upload Bank Statements and Bank Position data to view recent transactions.</p>
+            <p className="mt-1 text-sm text-gray-500">Upload Bank Statements to view recent transactions.</p>
             <div className="mt-6">
               <button
                 type="button"
@@ -786,7 +832,7 @@ export default function BanksPage() {
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                Upload Bank Data
+                Upload Bank Statements
               </button>
             </div>
           </div>

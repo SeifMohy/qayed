@@ -36,6 +36,11 @@ export async function GET(request: Request) {
             id: true,
             name: true
           }
+        },
+        transactions: {
+          orderBy: {
+            transactionDate: 'desc'
+          }
         }
       },
       orderBy: {
@@ -43,22 +48,16 @@ export async function GET(request: Request) {
       }
     });
     
-    // Get transaction counts for each statement
-    const statementsWithCounts = await Promise.all(
-      bankStatements.map(async (statement) => {
-        const transactionCount = await prisma.transaction.count({
-          where: { bankStatementId: statement.id }
-        });
-        
-        // Don't include raw text content in the response to reduce payload size
-        const { rawTextContent, ...statementWithoutText } = statement;
-        
-        return {
-          ...statementWithoutText,
-          transactionCount
-        };
-      })
-    );
+    // Process statements and include transaction counts
+    const statementsWithCounts = bankStatements.map((statement) => {
+      // Don't include raw text content in the response to reduce payload size
+      const { rawTextContent, ...statementWithoutText } = statement;
+      
+      return {
+        ...statementWithoutText,
+        transactionCount: statement.transactions.length
+      };
+    });
     
     return NextResponse.json({
       success: true,
