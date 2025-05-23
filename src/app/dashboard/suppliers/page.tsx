@@ -95,26 +95,68 @@ export default function SuppliersPage() {
         const files = sourceFiles[id];
         console.log(`📄 Processing ${files.length} files for source '${id}'`);
         
-        for (const file of files) {
-          if (file.name.endsWith('.json')) {
-            const text = await file.text();
-            try {
-              const json = JSON.parse(text);
-              // If the JSON is an array of invoices, add them all
-              if (Array.isArray(json)) {
-                console.log(`✅ Adding ${json.length} invoices from ${file.name}`);
-                allInvoices.push(...json);
-              } else {
-                // Otherwise, assume it's a single invoice object
-                console.log(`✅ Adding single invoice from ${file.name}`);
-                allInvoices.push(json);
-              }
-            } catch (parseError) {
-              console.error(`❌ Error parsing JSON from file ${file.name}:`, parseError);
-              // Optionally, inform the user about the specific file error
-              alert(`Error parsing JSON from file ${file.name}. Please check its format.`);
-              // Continue to next file
+        // Separate JSON files for server-side encoding processing
+        const jsonFiles = files.filter(file => file.name.endsWith('.json'));
+        const otherFiles = files.filter(file => !file.name.endsWith('.json'));
+        
+        // Process JSON files with encoding detection on server
+        if (jsonFiles.length > 0) {
+          console.log(`🔍 Processing ${jsonFiles.length} JSON files with encoding detection...`);
+          
+          const formData = new FormData();
+          jsonFiles.forEach(file => {
+            formData.append('files', file);
+          });
+          
+          const uploadResponse = await fetch('/api/upload-json', {
+            method: 'POST',
+            body: formData,
+          });
+          
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || `Failed to process JSON files: ${uploadResponse.status}`);
+          }
+          
+          const uploadResult = await uploadResponse.json();
+          console.log(`📊 JSON processing result:`, uploadResult.summary);
+          
+          // Add processed JSON data to invoices
+          uploadResult.processedFiles.forEach((fileResult: any) => {
+            const jsonData = fileResult.data;
+            if (Array.isArray(jsonData)) {
+              console.log(`✅ Adding ${jsonData.length} invoices from ${fileResult.fileName} (encoding-corrected)`);
+              allInvoices.push(...jsonData);
+            } else {
+              console.log(`✅ Adding single invoice from ${fileResult.fileName} (encoding-corrected)`);
+              allInvoices.push(jsonData);
             }
+          });
+          
+          // Log any encoding errors
+          if (uploadResult.errors.length > 0) {
+            console.warn('⚠️ Some files had encoding issues:', uploadResult.errors);
+            uploadResult.errors.forEach((error: any) => {
+              alert(`Warning: ${error.fileName} - ${error.error}`);
+            });
+          }
+        }
+
+        // Process other file types with the old method (if any)
+        for (const file of otherFiles) {
+          try {
+            const text = await file.text();
+            const json = JSON.parse(text);
+            if (Array.isArray(json)) {
+              console.log(`✅ Adding ${json.length} invoices from ${file.name}`);
+              allInvoices.push(...json);
+            } else {
+              console.log(`✅ Adding single invoice from ${file.name}`);
+              allInvoices.push(json);
+            }
+          } catch (parseError) {
+            console.error(`❌ Error parsing file ${file.name}:`, parseError);
+            alert(`Error parsing file ${file.name}. Please check its format.`);
           }
         }
       }
@@ -132,7 +174,7 @@ export default function SuppliersPage() {
           throw new Error(errorData.error || `Server responded with ${response.status}`);
         }
 
-        console.log('✅ Successfully uploaded invoices');
+        console.log('✅ Successfully uploaded invoices with proper encoding');
         
         // Update uploaded sources state
         const newUploadedSources = { ...uploadedSources };
