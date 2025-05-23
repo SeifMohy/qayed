@@ -48,6 +48,7 @@ type StructuredData = {
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
+const FALLBACK_MODEL = "gemini-1.5-flash";
 const API_KEY = process.env.GEMINI_API_KEY;
 
 if (!API_KEY) {
@@ -182,6 +183,81 @@ function convertToDecimal(value: any): Decimal | null {
     }
 }
 
+// Helper function to retry API calls with exponential backoff
+async function retryWithBackoff<T>(
+    fn: () => Promise<T>, 
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error: any) {
+            lastError = error;
+            console.warn(`Attempt ${attempt + 1} failed:`, error.message);
+            
+            if (attempt < maxRetries - 1) {
+                const delay = baseDelay * Math.pow(2, attempt);
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// Helper function to make Gemini API call with fallback models
+async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
+    const models = [MODEL_NAME, FALLBACK_MODEL];
+    
+    for (const modelName of models) {
+        try {
+            console.log(`Trying model: ${modelName}`);
+            
+            const response = await retryWithBackoff(async () => {
+                return await ai.models.generateContent({
+                    model: modelName,
+                    contents: prompt,
+                    config: {
+                        temperature: 0.1,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 48000,
+                    }
+                });
+            });
+            
+            if (!response) {
+                throw new Error("Received null response from GenAI API");
+            }
+            
+            const responseText = response.text || '';
+            if (!responseText || responseText.trim() === '') {
+                throw new Error("GenAI returned empty response");
+            }
+            
+            console.log(`Successfully got response from ${modelName}, length: ${responseText.length}`);
+            return responseText;
+            
+        } catch (error: any) {
+            console.error(`Model ${modelName} failed:`, error.message);
+            
+            // If this is the last model, throw the error
+            if (modelName === models[models.length - 1]) {
+                throw error;
+            }
+            
+            // Otherwise, try the next model
+            console.log(`Trying fallback model...`);
+        }
+    }
+    
+    throw new Error("All models failed");
+}
+
 // --- API Route Handler ---
 export async function POST(request: Request) {
     console.log("=== BANK STATEMENT PROCESSING STARTED ===");
@@ -205,55 +281,28 @@ export async function POST(request: Request) {
         console.log('Initialized GenAI model for statement structuring');
 
         // Truncate text if too long (prevent token limit issues)
-        const truncatedText = statementText.length > 150000 
-          ? statementText.substring(0, 150000) + "..." 
-          : statementText;
 
         try {
             console.log("Sending request to Gemini API");
             // Create the request
-            const prompt = `${STRUCTURING_PROMPT}\n\nHere is the bank statement text to parse:\n${truncatedText}`;
+            const prompt = `${STRUCTURING_PROMPT}\n\nHere is the bank statement text to parse:\n${statementText}`;
             
             // Make the API call with the new SDK format
-            const response = await ai.models.generateContent({
-                model: MODEL_NAME,
-                contents: prompt,
-                config: {
-                    temperature: 0.1,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 48000,
-                }
-            });
-            
-            // Check if the response exists
-            if (!response) {
-                console.error('API response object is null or undefined');
-                throw new Error("Received null response from GenAI API");
-            }
-            
-            // Get the text from the response
-            let responseText = response.text || '';
-            console.log('Response received, length:', responseText.length);
-            
-            if (!responseText || responseText.trim() === '') {
-                console.error('Empty text returned from API');
-                throw new Error("GenAI returned empty response for statement structuring.");
-            }
+            const responseText = await callGeminiAPI(ai, prompt);
             
             // Clean the response text - remove any backticks, markdown formatting, etc.
-            responseText = responseText.trim();
+            let cleanedText = responseText.trim();
             
             // Remove any markdown code block indicators or backticks
-            if (responseText.startsWith('```json')) {
-                responseText = responseText.substring(7).trim();
+            if (cleanedText.startsWith('```json')) {
+                cleanedText = cleanedText.substring(7).trim();
             }
-            else if (responseText.startsWith('```')) {
-                responseText = responseText.substring(3).trim();
+            else if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.substring(3).trim();
             }
             
-            if (responseText.endsWith('```')) {
-                responseText = responseText.substring(0, responseText.length - 3).trim();
+            if (cleanedText.endsWith('```')) {
+                cleanedText = cleanedText.substring(0, cleanedText.length - 3).trim();
             }
             
             console.log("Parsing JSON response");
@@ -261,18 +310,18 @@ export async function POST(request: Request) {
             // Try to parse the response as JSON
             let parsedData;
             try {
-                parsedData = JSON.parse(responseText);
+                parsedData = JSON.parse(cleanedText);
                 console.log("JSON parsing successful");
             } catch (parseError) {
                 console.error("Failed to parse JSON:", parseError);
-                console.log("First 100 characters of response:", responseText.substring(0, 100));
+                console.log("First 100 characters of response:", cleanedText.substring(0, 100));
                 
                 // Try to find the start of the JSON (if there's text before it)
-                const jsonStartIndex = responseText.indexOf('{');
+                const jsonStartIndex = cleanedText.indexOf('{');
                 if (jsonStartIndex > 0) {
                     try {
                         console.log(`Found JSON starting at position ${jsonStartIndex}, attempting to parse`);
-                        parsedData = JSON.parse(responseText.substring(jsonStartIndex));
+                        parsedData = JSON.parse(cleanedText.substring(jsonStartIndex));
                         console.log("JSON parsing successful after trimming prefix");
                     } catch (e) {
                         throw new Error("Failed to parse JSON from response even after cleanup");
@@ -370,9 +419,26 @@ export async function POST(request: Request) {
 
         } catch (error: any) {
             console.error('Error in statement structuring:', error);
+            
+            // Provide more specific error messages for different types of failures
+            let errorMessage = 'An unexpected error occurred during processing.';
+            
+            if (error.message?.includes('INTERNAL') || error.message?.includes('500')) {
+                errorMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
+            } else if (error.message?.includes('QUOTA_EXCEEDED') || error.message?.includes('429')) {
+                errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
+            } else if (error.message?.includes('INVALID_ARGUMENT') || error.message?.includes('400')) {
+                errorMessage = 'The document format is not supported or the content is too complex to process.';
+            } else if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('403')) {
+                errorMessage = 'API access is denied. Please check the server configuration.';
+            } else if (error.message?.includes('Failed to parse JSON')) {
+                errorMessage = 'The AI service returned an invalid response. Please try again or try with a different document.';
+            }
+            
             return NextResponse.json({
                 success: false,
-                error: error.message || 'An unexpected error occurred during processing.'
+                error: errorMessage,
+                technicalError: process.env.NODE_ENV === 'development' ? error.message : undefined
             }, { status: 500 });
         }
     } catch (error: any) {

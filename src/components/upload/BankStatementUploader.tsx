@@ -147,6 +147,7 @@ export default function BankStatementUploader({
       }
       
       // Process each document sequentially to avoid overwhelming the server
+      const results = [];
       for (const doc of successful) {
         try {
           const structureResponse = await fetch('/api/structure-bankstatement', {
@@ -164,11 +165,20 @@ export default function BankStatementUploader({
           
           if (!structureResponse.ok || !structureResult.success) {
             console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
+            results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
           } else {
             console.log(`Structured and saved ${doc.fileName} successfully`);
+            results.push({ fileName: doc.fileName, success: true });
           }
+          
+          // Add a small delay between processing documents to avoid rate limits
+          if (successful.indexOf(doc) < successful.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+          }
+          
         } catch (structureError: any) {
           console.error(`Error processing ${doc.fileName}:`, structureError);
+          results.push({ fileName: doc.fileName, success: false, error: structureError.message });
         }
       }
       
@@ -419,6 +429,12 @@ export const processBankStatements = async (files: File[]) => {
         console.log(`Structured and saved ${doc.fileName} successfully`);
         results.push({ fileName: doc.fileName, success: true });
       }
+      
+      // Add a small delay between processing documents to avoid rate limits
+      if (successful.indexOf(doc) < successful.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+      }
+      
     } catch (structureError: any) {
       console.error(`Error processing ${doc.fileName}:`, structureError);
       results.push({ fileName: doc.fileName, success: false, error: structureError.message });
