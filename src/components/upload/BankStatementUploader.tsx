@@ -19,8 +19,10 @@ type ParseResponse = {
 export default function BankStatementUploader() {
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [processedDocs, setProcessedDocs] = useState<ParsedDocument[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -76,6 +78,7 @@ export default function BankStatementUploader() {
       setIsUploading(true);
       setUploadError(null);
       setUploadSuccess(false);
+      setProcessedDocs([]);
       
       // Create form data
       const formData = new FormData();
@@ -83,7 +86,7 @@ export default function BankStatementUploader() {
         formData.append('files', file);
       });
       
-      // Send request to API
+      // Send request to API to parse text
       const response = await fetch('/api/parse-bankstatement', {
         method: 'POST',
         body: formData,
@@ -96,20 +99,42 @@ export default function BankStatementUploader() {
         throw new Error(result.error || 'Failed to process the bank statements.');
       }
       
-      // Store results in session storage
-      result.results.forEach(doc => {
-        if (doc.success && doc.extractedText) {
-          // Store each document in session storage
-          sessionStorage.setItem(`bankstatement_${doc.fileName}`, doc.extractedText);
+      setProcessedDocs(result.results);
+      
+      // Now process each successfully parsed document with structure-bankstatement
+      setIsProcessing(true);
+      
+      const successful = result.results.filter(doc => doc.success && doc.extractedText);
+      
+      if (successful.length === 0) {
+        throw new Error('No documents were successfully parsed.');
+      }
+      
+      // Process each document sequentially to avoid overwhelming the server
+      for (const doc of successful) {
+        try {
+          const structureResponse = await fetch('/api/structure-bankstatement', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              statementText: doc.extractedText,
+              fileName: doc.fileName
+            }),
+          });
+          
+          const structureResult = await structureResponse.json();
+          
+          if (!structureResponse.ok || !structureResult.success) {
+            console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
+          } else {
+            console.log(`Structured and saved ${doc.fileName} successfully`);
+          }
+        } catch (structureError) {
+          console.error(`Error processing ${doc.fileName}:`, structureError);
         }
-      });
-      
-      // Store file names for reference
-      const successfulFiles = result.results
-        .filter(doc => doc.success)
-        .map(doc => doc.fileName);
-      
-      sessionStorage.setItem('bankstatement_files', JSON.stringify(successfulFiles));
+      }
       
       // Show success message
       setUploadSuccess(true);
@@ -130,6 +155,7 @@ export default function BankStatementUploader() {
       setUploadError(error.message || 'An error occurred while processing the files.');
     } finally {
       setIsUploading(false);
+      setIsProcessing(false);
     }
   };
   
@@ -141,11 +167,9 @@ export default function BankStatementUploader() {
   };
   
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">Bank Statement Parser</h2>
-      
+    <div className="p-6 bg-white rounded-lg">
       {/* Upload Form */}
-      <form onSubmit={handleSubmit} className="mb-8">
+      <form onSubmit={handleSubmit} className="mb-4">
         <div 
           className={`mb-4 border-2 border-dashed rounded-lg p-6 text-center ${
             files.length > 0 ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
@@ -165,12 +189,12 @@ export default function BankStatementUploader() {
               multiple
               className="hidden"
               ref={fileInputRef}
-              disabled={isUploading}
+              disabled={isUploading || isProcessing}
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
+              disabled={isUploading || isProcessing}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
             >
               Select Files
@@ -213,22 +237,46 @@ export default function BankStatementUploader() {
         
         {uploadSuccess && (
           <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md">
-            Bank statements processed successfully! The extracted text has been saved.
+            Bank statements processed and saved successfully! The data is now available in the system.
           </div>
         )}
         
         <button
           type="submit"
-          disabled={files.length === 0 || isUploading}
+          disabled={files.length === 0 || isUploading || isProcessing}
           className={`px-4 py-2 rounded-md text-white font-medium ${
-            files.length === 0 || isUploading
+            files.length === 0 || isUploading || isProcessing
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          {isUploading ? 'Processing...' : 'Process Bank Statements'}
+          {isUploading 
+            ? 'Extracting Text...' 
+            : isProcessing 
+              ? 'Saving to Database...' 
+              : 'Process Bank Statements'}
         </button>
       </form>
+      
+      {processedDocs.length > 0 && (
+        <div className="mt-6 border-t pt-4">
+          <h3 className="text-sm font-medium text-gray-900">Processing Results:</h3>
+          <ul className="mt-2 divide-y divide-gray-200">
+            {processedDocs.map((doc, index) => (
+              <li key={index} className="py-2">
+                <div className="flex items-center">
+                  <span className={`inline-block w-3 h-3 rounded-full ${doc.success ? 'bg-green-500' : 'bg-red-500'} mr-2`}></span>
+                  <span className="font-medium">{doc.fileName}</span>
+                  <span className={`ml-2 text-xs ${doc.success ? 'text-green-600' : 'text-red-600'}`}>
+                    {doc.success ? 'Success' : 'Failed'}
+                  </span>
+                </div>
+                {doc.error && <p className="mt-1 text-xs text-red-600">{doc.error}</p>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 } 

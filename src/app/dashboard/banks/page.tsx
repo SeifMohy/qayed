@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
@@ -9,8 +9,38 @@ import { useUploadedSources } from '../layout'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
+import BankStatementUploader from '@/components/upload/BankStatementUploader'
 
-const bankAccounts = [
+type Bank = {
+  id: number;
+  name: string;
+  cashBalance: string;
+  bankPayments: string;
+  lastUpdate: string;
+}
+
+type CreditFacility = {
+  id: number;
+  name: string;
+  facilityType: string;
+  limit: string;
+  used: string;
+  available: string;
+  interestRate: string;
+  expiryDate: string;
+}
+
+type Transaction = {
+  id: number;
+  bank: string;
+  date: string;
+  description: string;
+  amount: string;
+  type: 'credit' | 'debit';
+  currency: string;
+}
+
+const defaultBankAccounts: Bank[] = [
   {
     id: 1,
     name: 'First National Bank',
@@ -34,7 +64,7 @@ const bankAccounts = [
   },
 ]
 
-const creditFacilities = [
+const defaultCreditFacilities: CreditFacility[] = [
   {
     id: 1,
     name: 'First National Bank',
@@ -57,7 +87,7 @@ const creditFacilities = [
   },
 ]
 
-const recentTransactions = [
+const defaultRecentTransactions: Transaction[] = [
   {
     id: 1,
     bank: 'First National Bank',
@@ -65,6 +95,7 @@ const recentTransactions = [
     description: 'Payment from Enterprise Solutions',
     amount: '$86,000.00',
     type: 'credit',
+    currency: 'USD',
   },
   {
     id: 2,
@@ -73,6 +104,7 @@ const recentTransactions = [
     description: 'Payment to Tech Innovations Ltd',
     amount: '$42,000.00',
     type: 'debit',
+    currency: 'USD',
   },
   {
     id: 3,
@@ -81,6 +113,7 @@ const recentTransactions = [
     description: 'Quarterly Loan Payment',
     amount: '$18,750.00',
     type: 'debit',
+    currency: 'USD',
   },
   {
     id: 4,
@@ -89,6 +122,7 @@ const recentTransactions = [
     description: 'Payment from Retail Chain Corp (EUR)',
     amount: '€32,450.00',
     type: 'credit',
+    currency: 'EUR',
   },
   {
     id: 5,
@@ -97,6 +131,7 @@ const recentTransactions = [
     description: 'Payment to Global Shipping Co.',
     amount: '$18,500.00',
     type: 'debit',
+    currency: 'USD',
   },
 ]
 
@@ -106,6 +141,176 @@ export default function BanksPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
   const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
+  
+  // State for bank data
+  const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
+  const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [totalCash, setTotalCash] = useState<number>(0);
+  const [totalObligations, setTotalObligations] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  // Fetch bank statements from API
+  useEffect(() => {
+    const fetchBankStatements = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch bank statements
+        const response = await fetch('/api/bank-statements');
+        const data = await response.json();
+        
+        if (data.success && data.bankStatements) {
+          // Process the bank statements data
+          processBankStatements(data.bankStatements);
+        } else {
+          // If no data is available, use default data
+          setBankAccounts(defaultBankAccounts);
+          setCreditFacilities(defaultCreditFacilities);
+          setRecentTransactions(defaultRecentTransactions);
+        }
+      } catch (error) {
+        console.error('Error fetching bank data:', error);
+        // Use default data on error
+        setBankAccounts(defaultBankAccounts);
+        setCreditFacilities(defaultCreditFacilities);
+        setRecentTransactions(defaultRecentTransactions);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchBankStatements();
+  }, []);
+  
+  // Process bank statements data
+  const processBankStatements = (statements: any[]) => {
+    if (!statements || statements.length === 0) {
+      return;
+    }
+    
+    // Group by bank name
+    const bankGroups = statements.reduce((acc: { [key: string]: any[] }, statement: any) => {
+      const bankName = statement.bankName || 'Unknown Bank';
+      if (!acc[bankName]) {
+        acc[bankName] = [];
+      }
+      acc[bankName].push(statement);
+      return acc;
+    }, {});
+    
+    // Process banks for display
+    const processedBanks: Bank[] = [];
+    let totalPositiveBalance = 0;
+    let totalNegativeBalance = 0;
+    const allTransactions: any[] = [];
+    const negativeBankStatements: any[] = [];
+    
+    // Process each bank group
+    Object.entries(bankGroups).forEach(([bankName, bankStatements]) => {
+      let totalCashBalance = 0;
+      let totalNegativeBalance = 0;
+      let latestUpdate = new Date(0);
+      
+      // Process each statement
+      bankStatements.forEach((statement: any) => {
+        const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
+        
+        // Add to cash balance or negative balance
+        if (endingBalance > 0) {
+          totalCashBalance += endingBalance;
+          totalPositiveBalance += endingBalance;
+        } else {
+          const absBalance = Math.abs(endingBalance);
+          totalNegativeBalance += absBalance;
+          
+          // Add to negative bank statements for credit facilities
+          negativeBankStatements.push(statement);
+        }
+        
+        // Track the latest update date
+        const statementEndDate = new Date(statement.statementPeriodEnd);
+        if (statementEndDate > latestUpdate) {
+          latestUpdate = statementEndDate;
+        }
+        
+        // Collect transactions for this statement
+        if (statement.transactions && statement.transactions.length > 0) {
+          statement.transactions.forEach((transaction: any) => {
+            allTransactions.push({
+              ...transaction,
+              bankName,
+              statementId: statement.id
+            });
+          });
+        }
+      });
+      
+      // Add bank to processed banks
+      processedBanks.push({
+        id: bankStatements[0].id,
+        name: bankName,
+        cashBalance: formatCurrency(totalCashBalance),
+        bankPayments: formatCurrency(totalNegativeBalance),
+        lastUpdate: latestUpdate.toLocaleDateString()
+      });
+    });
+    
+    // Set total cash and obligations
+    setTotalCash(totalPositiveBalance);
+    setTotalObligations(totalNegativeBalance);
+    
+    // Update banks state
+    setBankAccounts(processedBanks);
+    
+    // Process credit facilities from negative balance accounts
+    const processedFacilities: CreditFacility[] = negativeBankStatements.map((statement: any) => {
+      const negativeBalance = Math.abs(parseFloat(statement.endingBalance?.toString() || '0'));
+      
+      return {
+        id: statement.id,
+        name: statement.bankName,
+        facilityType: statement.accountType || 'N/A',
+        limit: 'N/A',
+        used: formatCurrency(negativeBalance),
+        available: 'N/A',
+        interestRate: 'N/A',
+        expiryDate: 'N/A'
+      };
+    });
+    
+    setCreditFacilities(processedFacilities);
+    
+    // Process recent transactions
+    // Sort by date descending and take top 5
+    const sortedTransactions = allTransactions.sort((a, b) => 
+      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+    ).slice(0, 5);
+    
+    const processedTransactions: Transaction[] = sortedTransactions.map((transaction: any, index: number) => {
+      const isCredit = parseFloat(transaction.creditAmount || '0') > 0;
+      const amount = isCredit 
+        ? parseFloat(transaction.creditAmount || '0') 
+        : parseFloat(transaction.debitAmount || '0');
+      
+      return {
+        id: index,
+        bank: transaction.bankName,
+        date: new Date(transaction.transactionDate).toLocaleDateString(),
+        description: transaction.description || 'Unknown Transaction',
+        amount: formatCurrency(amount),
+        type: isCredit ? 'credit' : 'debit',
+        currency: transaction.currency || 'USD'
+      };
+    });
+    
+    setRecentTransactions(processedTransactions);
+  };
+  
+  // Format currency
+  const formatCurrency = (amount: number): string => {
+    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
   
   const handleFilesChange = (sourceId: string, files: File[]) => {
     setSourceFiles(prev => ({
@@ -146,6 +351,14 @@ export default function BanksPage() {
   };
   
   const renderSourceContent = (source: { id: string, name: string }) => {
+    if (source.id === 'bankStatements') {
+      return (
+        <div className="mt-3">
+          <BankStatementUploader />
+        </div>
+      );
+    }
+    
     const hasUploadedFiles = isDataSourceUploaded(source.id);
     const hasSelectedFiles = sourceFiles[source.id]?.length > 0;
     
@@ -164,7 +377,7 @@ export default function BanksPage() {
           onFilesChange={(files) => handleFilesChange(source.id, files)}
           maxFiles={5}
           maxSize={10}
-          accept=".xlsx,.xls,.csv"
+          accept=".xlsx,.xls,.csv,.pdf"
           label=""
           buttonText={hasUploadedFiles ? "Upload More Files" : "Select Files"}
           disabled={isUploading === 'processing'}
@@ -209,9 +422,9 @@ export default function BanksPage() {
   
   const areAllSourcesUploaded = PAGE_DATA_SOURCES.banks.every(source => isDataSourceUploaded(source.id));
   
-  const isBankAccountsVisible = isDataSourceUploaded('bankStatements');
-  const isCreditFacilitiesVisible = isDataSourceUploaded('bankPosition');
-  const isTransactionsVisible = isDataSourceUploaded('bankStatements') && isDataSourceUploaded('bankPosition');
+  const isBankAccountsVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
+  const isCreditFacilitiesVisible = !isLoading && (creditFacilities.length > 0 || isDataSourceUploaded('bankPosition'));
+  const isTransactionsVisible = !isLoading && (recentTransactions.length > 0 || (isDataSourceUploaded('bankStatements') && isDataSourceUploaded('bankPosition')));
   
   return (
     <div>
@@ -221,7 +434,7 @@ export default function BanksPage() {
           <button
             type="button"
             className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-            disabled={!areAllSourcesUploaded}
+            onClick={() => window.location.reload()}
           >
             <ArrowPathIcon className="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" aria-hidden="true" />
             Refresh Data
@@ -256,7 +469,7 @@ export default function BanksPage() {
       {/* Summary Stats */}
       <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div className="relative">
-          {!isDataSourceUploaded('bankStatements') && (
+          {!isBankAccountsVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -270,7 +483,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Cash on Hand"
-            value="$1,423,982.09"
+            value={formatCurrency(totalCash)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -281,7 +494,7 @@ export default function BanksPage() {
         </div>
 
         <div className="relative">
-          {!isDataSourceUploaded('bankPosition') && (
+          {!isCreditFacilitiesVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -295,7 +508,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Credit Available"
-            value="$650,000.00"
+            value="N/A"
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -306,7 +519,7 @@ export default function BanksPage() {
         </div>
 
         <div className="relative">
-          {!isDataSourceUploaded('bankPosition') && (
+          {!isCreditFacilitiesVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -320,7 +533,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Upcoming Bank Obligations (30 days)"
-            value="$60,950.00"
+            value={formatCurrency(totalObligations)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path

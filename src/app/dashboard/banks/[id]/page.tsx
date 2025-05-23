@@ -10,6 +10,31 @@ import dynamic from 'next/dynamic'
 // Dynamically import Chart.js components
 const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
 
+// Define types for bank statement data
+type Transaction = {
+  id: number;
+  bankStatementId: number;
+  transactionDate: string;
+  description: string;
+  creditAmount: string | null;
+  debitAmount: string | null;
+  balance: string | null;
+  currency: string | null;
+}
+
+type BankStatement = {
+  id: number;
+  bankName: string;
+  accountNumber: string;
+  accountType: string;
+  currency: string;
+  statementPeriodStart: string;
+  statementPeriodEnd: string;
+  startingBalance: string;
+  endingBalance: string;
+  transactions: Transaction[];
+}
+
 // Mock bank data - in a real app this would come from an API
 const banks = [
     {
@@ -150,9 +175,65 @@ const cashFlowForecast = [
 
 export default function BankProfile({ params }: { params: { id: string } }) {
     const bankId = parseInt(params.id)
-    const bank = banks.find(b => b.id === bankId) || banks[0]
+    const [bankData, setBankData] = useState<any>(null)
+    const [bankStatements, setBankStatements] = useState<BankStatement[]>([])
     const [activeTab, setActiveTab] = useState('overview')
     const [chartLoaded, setChartLoaded] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    
+    // Load bank data
+    useEffect(() => {
+      const fetchBankData = async () => {
+        try {
+          setIsLoading(true);
+          
+          // Fetch bank statements for this bank
+          const response = await fetch('/api/bank-statements');
+          const data = await response.json();
+          
+          if (data.success && data.bankStatements) {
+            // Filter statements for this bank
+            const bankIdNumber = parseInt(params.id);
+            const relevantStatements = data.bankStatements.filter(
+              (statement: any) => statement.id === bankIdNumber || 
+              statement.bankName === banks.find(b => b.id === bankIdNumber)?.name
+            );
+            
+            setBankStatements(relevantStatements);
+            
+            // If we have statements, use the data to enhance the mock bank
+            if (relevantStatements.length > 0) {
+              // Find the mock bank
+              const mockBank = banks.find(b => b.id === bankIdNumber) || banks[0];
+              
+              // Use real data to enhance the mock
+              setBankData({
+                ...mockBank,
+                accounts: mapStatementsToAccounts(relevantStatements, mockBank),
+                facilities: extractFacilitiesFromStatements(relevantStatements, mockBank),
+                transactions: extractTransactionsFromStatements(relevantStatements)
+              });
+            } else {
+              // No statements found, use mock data
+              setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
+            }
+          } else {
+            // Use mock data if API call fails
+            setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
+          }
+        } catch (error) {
+          console.error('Error fetching bank data:', error);
+          setError('Failed to load bank data');
+          // Use mock data on error
+          setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      fetchBankData();
+    }, [params.id]);
     
     // Load chart.js when component mounts
     useEffect(() => {
@@ -181,22 +262,145 @@ export default function BankProfile({ params }: { params: { id: string } }) {
       
       loadChartJs();
     }, []);
+    
+    // Helper function to map bank statements to account structure
+    const mapStatementsToAccounts = (statements: BankStatement[], mockBank: any) => {
+      return statements.map(statement => ({
+        id: statement.id,
+        accountNumber: statement.accountNumber,
+        balance: formatCurrency(parseFloat(statement.endingBalance)),
+        type: statement.accountType || 'Bank Account',
+        currency: statement.currency || 'USD',
+        interestRate: 'N/A',
+        lastUpdate: new Date(statement.statementPeriodEnd).toLocaleDateString(),
+      }));
+    };
+    
+    // Helper function to extract facilities (accounts with negative balance)
+    const extractFacilitiesFromStatements = (statements: BankStatement[], mockBank: any) => {
+      const facilitiesFromStatements = statements
+        .filter(statement => parseFloat(statement.endingBalance) < 0)
+        .map(statement => ({
+          id: statement.id,
+          facilityType: statement.accountType || 'Credit Account',
+          limit: 'N/A',
+          used: formatCurrency(Math.abs(parseFloat(statement.endingBalance))),
+          available: 'N/A',
+          interestRate: 'N/A',
+          expiryDate: 'N/A',
+          covenants: '',
+        }));
+      
+      return facilitiesFromStatements.length > 0 ? facilitiesFromStatements : mockBank.facilities;
+    };
+    
+    // Helper function to extract transactions from statements
+    const extractTransactionsFromStatements = (statements: BankStatement[]) => {
+      // Flatten all transactions from all statements
+      const allTransactions = statements.flatMap(statement => 
+        statement.transactions.map(transaction => ({
+          id: transaction.id,
+          date: transaction.transactionDate,
+          account: statement.accountNumber,
+          description: transaction.description,
+          amount: transaction.creditAmount 
+            ? formatCurrency(parseFloat(transaction.creditAmount))
+            : formatCurrency(parseFloat(transaction.debitAmount || '0')),
+          type: transaction.creditAmount && parseFloat(transaction.creditAmount) > 0 ? 'credit' : 'debit',
+        }))
+      );
+      
+      // Sort by date (newest first) and take top 5
+      return allTransactions
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5);
+    };
+    
+    // Helper function to format currency
+    const formatCurrency = (amount: number): string => {
+      return `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+    
+    // Generate cash flow data from transactions
+    const generateCashFlowData = () => {
+      if (!bankData || !bankData.transactions || bankData.transactions.length === 0) {
+        return cashFlowForecast;
+      }
+      
+      // Group transactions by month
+      const monthlyData: Record<string, { inflows: number, outflows: number }> = {};
+      
+      // Process each transaction
+      bankData.transactions.forEach((transaction: any) => {
+        const date = new Date(transaction.date);
+        const monthKey = date.toLocaleString('default', { month: 'short' });
+        
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = { inflows: 0, outflows: 0 };
+        }
+        
+        const amount = parseFloat(transaction.amount.replace(/[^0-9.-]+/g, ''));
+        
+        if (transaction.type === 'credit') {
+          monthlyData[monthKey].inflows += amount;
+        } else {
+          monthlyData[monthKey].outflows += amount;
+        }
+      });
+      
+      // Convert to array format
+      return Object.entries(monthlyData).map(([month, data]) => ({
+        month,
+        inflows: data.inflows,
+        outflows: data.outflows
+      }));
+    };
+
+    // If still loading, show a loading state
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading bank data...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // If there's an error or no data, show error state
+    if (error || !bankData) {
+      return (
+        <div className="text-center p-6 bg-red-50 rounded-lg">
+          <p className="text-red-700">{error || "Failed to load bank data"}</p>
+          <Link href="/dashboard/banks" className="mt-4 inline-block text-blue-600 hover:underline">
+            Return to Banks Overview
+          </Link>
+        </div>
+      );
+    }
+    
+    const bank = bankData;
 
     // Calculate metrics
-    const totalBalance = bank.accounts.reduce((sum, account) => {
+    const totalBalance = bank.accounts.reduce((sum: number, account: any) => {
         let balance = account.balance.replace(/[^0-9.-]+/g, '')
         return sum + parseFloat(balance)
     }, 0)
 
-    const totalCredit = bank.facilities.reduce((sum, facility) => {
+    const totalCredit = bank.facilities.reduce((sum: number, facility: any) => {
         let limit = facility.limit.replace(/[^0-9.-]+/g, '')
+        if (isNaN(parseFloat(limit))) return sum;
         return sum + parseFloat(limit)
     }, 0)
 
-    const totalAvailable = bank.facilities.reduce((sum, facility) => {
-        let available = facility.available.replace(/[^0-9.-]+/g, '')
-        return sum + parseFloat(available)
+    const totalOutstanding = bank.facilities.reduce((sum: number, facility: any) => {
+        let used = facility.used.replace(/[^0-9.-]+/g, '')
+        return sum + parseFloat(used)
     }, 0)
+    
+    // Get cash flow data for the chart
+    const cashFlowData = generateCashFlowData();
 
     return (
         <div>
@@ -367,7 +571,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                         <dl>
                                             <dt className="truncate text-sm font-medium text-gray-500">Available Credit</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{`$${totalAvailable.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</div>
+                                                <div className="text-lg font-medium text-gray-900">{`$${totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -385,18 +589,18 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                             <div className="h-64">
                                 <Bar
                                     data={{
-                                        labels: cashFlowForecast.map(month => month.month),
+                                        labels: cashFlowData.map(month => month.month),
                                         datasets: [
                                             {
                                                 label: 'Cash Inflows',
-                                                data: cashFlowForecast.map(month => month.inflows),
+                                                data: cashFlowData.map(month => month.inflows),
                                                 backgroundColor: 'rgba(34, 197, 94, 0.5)',
                                                 borderColor: 'rgb(34, 197, 94)',
                                                 borderWidth: 1,
                                             },
                                             {
                                                 label: 'Cash Outflows',
-                                                data: cashFlowForecast.map(month => month.outflows),
+                                                data: cashFlowData.map(month => month.outflows),
                                                 backgroundColor: 'rgba(239, 68, 68, 0.5)',
                                                 borderColor: 'rgb(239, 68, 68)',
                                                 borderWidth: 1,
@@ -420,8 +624,8 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                                         const index = tooltipItems[0].dataIndex;
 
                                                         if (datasetIndex === 0 || datasetIndex === 1) {
-                                                            const inflow = cashFlowForecast[index].inflows;
-                                                            const outflow = cashFlowForecast[index].outflows;
+                                                            const inflow = cashFlowData[index].inflows;
+                                                            const outflow = cashFlowData[index].outflows;
                                                             const netFlow = inflow - outflow;
                                                             return `Net Flow: ${netFlow >= 0 ? '+' : ''}$${netFlow.toLocaleString()}`;
                                                         }
@@ -450,14 +654,14 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                             </div>
                             <div className="flex justify-between items-center mt-4 border-t border-gray-100 pt-4">
                                 <div className="text-sm text-gray-500">
-                                    <span className="font-medium">Total Inflows:</span> ${cashFlowForecast.reduce((acc, month) => acc + month.inflows, 0).toLocaleString()}
+                                    <span className="font-medium">Total Inflows:</span> ${cashFlowData.reduce((acc, month) => acc + month.inflows, 0).toLocaleString()}
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                    <span className="font-medium">Total Outflows:</span> ${cashFlowForecast.reduce((acc, month) => acc + month.outflows, 0).toLocaleString()}
+                                    <span className="font-medium">Total Outflows:</span> ${cashFlowData.reduce((acc, month) => acc + month.outflows, 0).toLocaleString()}
                                 </div>
                                 <div className="text-sm text-gray-900 font-medium">
                                     <span>Net Flow:</span> $
-                                    {cashFlowForecast.reduce((acc, month) => acc + (month.inflows - month.outflows), 0).toLocaleString()}
+                                    {cashFlowData.reduce((acc, month) => acc + (month.inflows - month.outflows), 0).toLocaleString()}
                                 </div>
                             </div>
                         </div>
