@@ -209,7 +209,6 @@ export default function BanksPage() {
     // Process each bank group
     Object.entries(bankGroups).forEach(([bankName, bankStatements]) => {
       let totalCashBalance = 0;
-      let totalNegativeBalance = 0;
       let latestUpdate = new Date(0);
       
       // Process each statement
@@ -225,7 +224,7 @@ export default function BanksPage() {
           totalNegativeBalance += absBalance;
           
           // Add to negative bank statements for credit facilities
-          negativeBankStatements.push(statement);
+          if (absBalance !== 0) negativeBankStatements.push(statement);
         }
         
         // Track the latest update date
@@ -587,6 +586,36 @@ export default function BanksPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
+                onClick={() => openUploadModal('recentTransactions')}
+                className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
+              >
+                <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
+                Upload Bank Data
+              </button>
+            </div>
+          )}
+          <KeyFigureCard
+            title="Bank Obligations"
+            value={formatCurrency(totalObligations)}
+            icon={() => (
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                />
+              </svg>
+            )}
+            iconColor="bg-red-500"
+          />
+        </div>
+
+        <div className="relative">
+          {!isCreditFacilitiesVisible && (
+            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+              <button
+                type="button"
                 onClick={() => openUploadModal('creditFacilities')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
@@ -607,35 +636,6 @@ export default function BanksPage() {
           />
         </div>
 
-        <div className="relative">
-          {!isCreditFacilitiesVisible && (
-            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
-              <button
-                type="button"
-                onClick={() => openUploadModal('recentTransactions')}
-                className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-              >
-                <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                Upload Bank Data
-              </button>
-            </div>
-          )}
-          <KeyFigureCard
-            title="Upcoming Bank Obligations (30 days)"
-            value={formatCurrency(totalObligations)}
-            icon={() => (
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                />
-              </svg>
-            )}
-            iconColor="bg-red-500"
-          />
-        </div>
       </div>
 
       {/* Bank Accounts */}
