@@ -137,18 +137,47 @@ function normalizeData(data: any): any {
   return data;
 }
 
+// Helper function to safely convert dates
+function convertToDate(dateValue: any): Date {
+    if (!dateValue) {
+        throw new Error('Date value is required');
+    }
+    
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) {
+        throw new Error(`Invalid date value: ${dateValue}`);
+    }
+    
+    return date;
+}
+
 // Helper function to convert string to Decimal
-function convertToDecimal(value: string): Decimal | null {
-    if (!value || value === '' || value.toLowerCase() === 'unknown') {
+function convertToDecimal(value: any): Decimal | null {
+    // Handle null, undefined, or empty values
+    if (!value || value === '') {
+        return null;
+    }
+    
+    // Convert to string if not already a string
+    const stringValue = String(value);
+    
+    // Check for 'unknown' keyword
+    if (stringValue.toLowerCase() === 'unknown') {
         return null;
     }
 
     try {
         // Remove any non-numeric characters except decimal points and negative signs
-        const cleanedValue = value.replace(/[^0-9.-]/g, '');
+        const cleanedValue = stringValue.replace(/[^0-9.-]/g, '');
+        
+        // If after cleaning there's nothing left, return null
+        if (!cleanedValue || cleanedValue === '' || cleanedValue === '-') {
+            return null;
+        }
+        
         return new Decimal(cleanedValue);
     } catch (error) {
-        console.warn(`Could not convert value to Decimal: ${value}`);
+        console.warn(`Could not convert value to Decimal: ${value} (type: ${typeof value})`);
         return null;
     }
 }
@@ -277,8 +306,8 @@ export async function POST(request: Request) {
                             fileName,
                             bankName: statement.bank_name,
                             accountNumber: statement.account_number,
-                            statementPeriodStart: new Date(statement.statement_period.start_date),
-                            statementPeriodEnd: new Date(statement.statement_period.end_date),
+                            statementPeriodStart: convertToDate(statement.statement_period.start_date),
+                            statementPeriodEnd: convertToDate(statement.statement_period.end_date),
                             accountType: statement.account_type,
                             accountCurrency: statement.account_currency,
                             startingBalance: startingBalance || new Decimal(0),
@@ -286,15 +315,23 @@ export async function POST(request: Request) {
                             rawTextContent: statementText,
                             // Create transactions in the same operation
                             transactions: {
-                                create: statement.transactions.map((transaction: TransactionData) => ({
-                                    transactionDate: new Date(transaction.date),
-                                    creditAmount: convertToDecimal(transaction.credit_amount) || null,
-                                    debitAmount: convertToDecimal(transaction.debit_amount) || null,
-                                    description: transaction.description,
-                                    balance: convertToDecimal(transaction.balance) || null,
-                                    pageNumber: transaction.page_number,
-                                    entityName: transaction.entity_name,
-                                }))
+                                create: statement.transactions.map((transaction: TransactionData, index: number) => {
+                                    try {
+                                        return {
+                                            transactionDate: convertToDate(transaction.date),
+                                            creditAmount: convertToDecimal(transaction.credit_amount) || null,
+                                            debitAmount: convertToDecimal(transaction.debit_amount) || null,
+                                            description: String(transaction.description || ''),
+                                            balance: convertToDecimal(transaction.balance) || null,
+                                            pageNumber: String(transaction.page_number || ''),
+                                            entityName: String(transaction.entity_name || ''),
+                                        };
+                                    } catch (transactionError: any) {
+                                        console.error(`Error processing transaction ${index + 1}:`, transactionError);
+                                        console.error('Transaction data:', transaction);
+                                        throw new Error(`Failed to process transaction ${index + 1}: ${transactionError.message}`);
+                                    }
+                                })
                             }
                         }
                     });

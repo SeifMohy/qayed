@@ -16,6 +16,7 @@ export type UploadModalProps = {
   onSubmit: () => void
   isUploadDisabled: boolean
   renderSourceContent: (source: DataSource) => ReactNode
+  customButtonText?: string
 }
 
 export default function UploadModal({
@@ -27,7 +28,8 @@ export default function UploadModal({
   isUploading,
   onSubmit,
   isUploadDisabled,
-  renderSourceContent
+  renderSourceContent,
+  customButtonText
 }: UploadModalProps) {
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -112,7 +114,9 @@ export default function UploadModal({
                           Processing...
                         </>
                       ) : (
-                        <>Upload Files</>
+                        <>
+                          {customButtonText || 'Upload Files'}
+                        </>
                       )}
                     </button>
                   </div>

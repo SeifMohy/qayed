@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 type ParsedDocument = {
@@ -16,8 +16,28 @@ type ParseResponse = {
   error?: string;
 };
 
-export default function BankStatementUploader() {
-  const [files, setFiles] = useState<File[]>([]);
+interface BankStatementUploaderProps {
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
+  onProcessingStart?: () => void;
+  onProcessingEnd?: () => void;
+  onSuccess?: () => void;
+  onError?: (error: string) => void;
+  triggerProcessing?: boolean;
+  compact?: boolean;
+}
+
+export default function BankStatementUploader({ 
+  files: externalFiles, 
+  onFilesChange,
+  onProcessingStart,
+  onProcessingEnd,
+  onSuccess,
+  onError,
+  triggerProcessing = false,
+  compact = false
+}: BankStatementUploaderProps) {
+  const [internalFiles, setInternalFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -26,6 +46,17 @@ export default function BankStatementUploader() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
+  // Use external files if provided, otherwise use internal files
+  const files = externalFiles || internalFiles;
+  const setFiles = onFilesChange || setInternalFiles;
+
+  // Handle processing trigger from parent component
+  useEffect(() => {
+    if (triggerProcessing && files.length > 0) {
+      handleProcessing();
+    }
+  }, [triggerProcessing]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files);
@@ -33,7 +64,9 @@ export default function BankStatementUploader() {
       // Validate if they're PDFs
       const invalidFiles = selectedFiles.filter(file => !file.type.includes('pdf'));
       if (invalidFiles.length > 0) {
-        setUploadError(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
+        const errorMsg = `Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`;
+        setUploadError(errorMsg);
+        onError?.(errorMsg);
         return;
       }
       
@@ -57,7 +90,9 @@ export default function BankStatementUploader() {
       // Validate if they're PDFs
       const invalidFiles = droppedFiles.filter(file => !file.type.includes('pdf'));
       if (invalidFiles.length > 0) {
-        setUploadError(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
+        const errorMsg = `Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`;
+        setUploadError(errorMsg);
+        onError?.(errorMsg);
         return;
       }
       
@@ -66,11 +101,11 @@ export default function BankStatementUploader() {
     }
   };
   
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleProcessing = async () => {
     if (files.length === 0) {
-      setUploadError('Please select at least one PDF file to upload.');
+      const errorMsg = 'Please select at least one PDF file to upload.';
+      setUploadError(errorMsg);
+      onError?.(errorMsg);
       return;
     }
     
@@ -79,6 +114,7 @@ export default function BankStatementUploader() {
       setUploadError(null);
       setUploadSuccess(false);
       setProcessedDocs([]);
+      onProcessingStart?.();
       
       // Create form data
       const formData = new FormData();
@@ -131,15 +167,16 @@ export default function BankStatementUploader() {
           } else {
             console.log(`Structured and saved ${doc.fileName} successfully`);
           }
-        } catch (structureError) {
+        } catch (structureError: any) {
           console.error(`Error processing ${doc.fileName}:`, structureError);
         }
       }
       
       // Show success message
       setUploadSuccess(true);
+      onSuccess?.();
       
-      // Clear the file input
+      // Clear the file input and files
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -152,10 +189,13 @@ export default function BankStatementUploader() {
       
     } catch (error: any) {
       console.error('Error uploading files:', error);
-      setUploadError(error.message || 'An error occurred while processing the files.');
+      const errorMsg = error.message || 'An error occurred while processing the files.';
+      setUploadError(errorMsg);
+      onError?.(errorMsg);
     } finally {
       setIsUploading(false);
       setIsProcessing(false);
+      onProcessingEnd?.();
     }
   };
   
@@ -166,10 +206,46 @@ export default function BankStatementUploader() {
     }
   };
   
+  // If compact mode (used in modal), show simplified interface
+  if (compact) {
+    return (
+      <div className="space-y-4">
+        {uploadError && (
+          <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+            {uploadError}
+          </div>
+        )}
+        
+        {uploadSuccess && (
+          <div className="p-3 bg-green-50 text-green-700 rounded-md text-sm">
+            Bank statements processed and saved successfully!
+          </div>
+        )}
+
+        {processedDocs.length > 0 && (
+          <div className="border-t pt-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Processing Results:</h4>
+            <ul className="space-y-1">
+              {processedDocs.map((doc, index) => (
+                <li key={index} className="flex items-center text-sm">
+                  <span className={`inline-block w-2 h-2 rounded-full ${doc.success ? 'bg-green-500' : 'bg-red-500'} mr-2`}></span>
+                  <span className="font-medium">{doc.fileName}</span>
+                  <span className={`ml-2 text-xs ${doc.success ? 'text-green-600' : 'text-red-600'}`}>
+                    {doc.success ? 'Success' : 'Failed'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
   return (
     <div className="p-6 bg-white rounded-lg">
-      {/* Upload Form */}
-      <form onSubmit={handleSubmit} className="mb-4">
+      {/* Upload Interface */}
+      <div className="mb-4">
         <div 
           className={`mb-4 border-2 border-dashed rounded-lg p-6 text-center ${
             files.length > 0 ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
@@ -242,7 +318,8 @@ export default function BankStatementUploader() {
         )}
         
         <button
-          type="submit"
+          type="button"
+          onClick={handleProcessing}
           disabled={files.length === 0 || isUploading || isProcessing}
           className={`px-4 py-2 rounded-md text-white font-medium ${
             files.length === 0 || isUploading || isProcessing
@@ -256,7 +333,7 @@ export default function BankStatementUploader() {
               ? 'Saving to Database...' 
               : 'Process Bank Statements'}
         </button>
-      </form>
+      </div>
       
       {processedDocs.length > 0 && (
         <div className="mt-6 border-t pt-4">
@@ -279,4 +356,74 @@ export default function BankStatementUploader() {
       )}
     </div>
   );
-} 
+}
+
+// Export processing function for external use
+export const processBankStatements = async (files: File[]) => {
+  if (files.length === 0) {
+    throw new Error('Please select at least one PDF file to upload.');
+  }
+  
+  // Validate if they're PDFs
+  const invalidFiles = files.filter(file => !file.type.includes('pdf'));
+  if (invalidFiles.length > 0) {
+    throw new Error(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
+  }
+  
+  // Create form data
+  const formData = new FormData();
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+  
+  // Send request to API to parse text
+  const response = await fetch('/api/parse-bankstatement', {
+    method: 'POST',
+    body: formData,
+  });
+  
+  // Parse response
+  const result: ParseResponse = await response.json();
+  
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to process the bank statements.');
+  }
+  
+  const successful = result.results.filter(doc => doc.success && doc.extractedText);
+  
+  if (successful.length === 0) {
+    throw new Error('No documents were successfully parsed.');
+  }
+  
+  // Process each document sequentially to avoid overwhelming the server
+  const results = [];
+  for (const doc of successful) {
+    try {
+      const structureResponse = await fetch('/api/structure-bankstatement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          statementText: doc.extractedText,
+          fileName: doc.fileName
+        }),
+      });
+      
+      const structureResult = await structureResponse.json();
+      
+      if (!structureResponse.ok || !structureResult.success) {
+        console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
+        results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
+      } else {
+        console.log(`Structured and saved ${doc.fileName} successfully`);
+        results.push({ fileName: doc.fileName, success: true });
+      }
+    } catch (structureError: any) {
+      console.error(`Error processing ${doc.fileName}:`, structureError);
+      results.push({ fileName: doc.fileName, success: false, error: structureError.message });
+    }
+  }
+  
+  return results;
+}; 

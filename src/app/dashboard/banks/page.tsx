@@ -9,7 +9,7 @@ import { useUploadedSources } from '../layout'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
-import BankStatementUploader from '@/components/upload/BankStatementUploader'
+import BankStatementUploader, { processBankStatements } from '@/components/upload/BankStatementUploader'
 
 type Bank = {
   id: number;
@@ -162,7 +162,7 @@ export default function BanksPage() {
         
         if (data.success && data.bankStatements) {
           // Process the bank statements data
-          processBankStatements(data.bankStatements);
+          processBankStatementsData(data.bankStatements);
         } else {
           // If no data is available, use default data
           setBankAccounts(defaultBankAccounts);
@@ -184,7 +184,7 @@ export default function BanksPage() {
   }, []);
   
   // Process bank statements data
-  const processBankStatements = (statements: any[]) => {
+  const processBankStatementsData = (statements: any[]) => {
     if (!statements || statements.length === 0) {
       return;
     }
@@ -313,6 +313,15 @@ export default function BanksPage() {
   };
   
   const handleFilesChange = (sourceId: string, files: File[]) => {
+    // Validate PDF files for bank statements
+    if (sourceId === 'bankStatements') {
+      const invalidFiles = files.filter(file => !file.type.includes('pdf'));
+      if (invalidFiles.length > 0) {
+        alert(`Please select only PDF files for bank statements. Invalid files: ${invalidFiles.map(f => f.name).join(', ')}`);
+        return;
+      }
+    }
+    
     setSourceFiles(prev => ({
       ...prev,
       [sourceId]: files
@@ -325,6 +334,56 @@ export default function BanksPage() {
     
     if (sourceIds.length === 0) return;
     
+    // Check if bank statements are being uploaded
+    const hasBankStatements = sourceIds.includes('bankStatements');
+    
+    if (hasBankStatements) {
+      // Handle bank statement processing
+      handleBankStatementProcessing(sourceFiles['bankStatements'] || []);
+    } else {
+      // Handle regular file uploads
+      handleRegularFileUploads(sourceIds);
+    }
+  };
+  
+  const handleBankStatementProcessing = async (files: File[]) => {
+    if (files.length === 0) {
+      return;
+    }
+    
+    try {
+      setIsUploading('processing');
+      
+      // Process bank statements
+      await processBankStatements(files);
+      
+      // Mark as uploaded and clear files
+      const newUploadedSources = { ...uploadedSources };
+      newUploadedSources['bankStatements'] = true;
+      setUploadedSources(newUploadedSources);
+      
+      // Clear the bank statement files
+      const newSourceFiles = { ...sourceFiles };
+      delete newSourceFiles['bankStatements'];
+      setSourceFiles(newSourceFiles);
+      
+      // Close modal after short delay
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        // Refresh the page to show updated data
+        window.location.reload();
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Error processing bank statements:', error);
+      alert(`Error processing bank statements: ${error.message}`);
+      // Keep the modal open to show the error
+    } finally {
+      setIsUploading(null);
+    }
+  };
+  
+  const handleRegularFileUploads = (sourceIds: string[]) => {
     // Start uploading process
     setIsUploading('processing');
     
@@ -354,7 +413,24 @@ export default function BanksPage() {
     if (source.id === 'bankStatements') {
       return (
         <div className="mt-3">
-          <BankStatementUploader />
+          <MultiFileUpload
+            onFilesChange={(files) => handleFilesChange(source.id, files)}
+            maxFiles={10}
+            maxSize={50}
+            accept=".pdf"
+            label=""
+            buttonText="Select PDF Files"
+            disabled={isUploading === 'processing'}
+            compact={isDataSourceUploaded(source.id)}
+          />
+          
+          {sourceFiles[source.id]?.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-500">
+                {sourceFiles[source.id].length} bank statement {sourceFiles[source.id].length === 1 ? 'file' : 'files'} selected
+              </p>
+            </div>
+          )}
         </div>
       );
     }
@@ -420,6 +496,18 @@ export default function BanksPage() {
     );
   };
   
+  // Determine upload button text based on data sources
+  const getUploadButtonText = () => {
+    const hasBankStatements = Object.keys(sourceFiles).includes('bankStatements') && 
+                             sourceFiles['bankStatements']?.length > 0;
+    
+    if (hasBankStatements) {
+      return isUploading === 'processing' ? 'Processing Bank Statements...' : 'Process Bank Statements';
+    }
+    
+    return isUploading === 'processing' ? 'Processing...' : 'Upload Files';
+  };
+
   const areAllSourcesUploaded = PAGE_DATA_SOURCES.banks.every(source => isDataSourceUploaded(source.id));
   
   const isBankAccountsVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
@@ -464,6 +552,7 @@ export default function BanksPage() {
         onSubmit={handleSubmitFiles}
         isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
         renderSourceContent={renderSourceContent}
+        customButtonText={getUploadButtonText()}
       />
 
       {/* Summary Stats */}
