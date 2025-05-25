@@ -183,6 +183,103 @@ function convertToDecimal(value: any): Decimal | null {
     }
 }
 
+// Helper function to save problematic responses for debugging
+async function saveDebugResponse(responseText: string, fileName: string, error: string): Promise<void> {
+    try {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        
+        const debugDir = path.join(process.cwd(), 'debug-responses');
+        
+        // Create debug directory if it doesn't exist
+        try {
+            await fs.access(debugDir);
+        } catch {
+            await fs.mkdir(debugDir, { recursive: true });
+        }
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const debugFileName = `failed-response-${timestamp}-${fileName || 'unknown'}.txt`;
+        const debugFilePath = path.join(debugDir, debugFileName);
+        
+        const debugContent = `
+=== FAILED JSON PARSING DEBUG INFO ===
+Timestamp: ${new Date().toISOString()}
+Original File: ${fileName || 'unknown'}
+Error: ${error}
+Response Length: ${responseText.length}
+
+=== RAW RESPONSE ===
+${responseText}
+
+=== END DEBUG INFO ===
+        `.trim();
+        
+        await fs.writeFile(debugFilePath, debugContent, 'utf8');
+        console.log(`Debug response saved to: ${debugFilePath}`);
+    } catch (debugError) {
+        console.error('Failed to save debug response:', debugError);
+    }
+}
+
+// Helper function to validate and potentially fix JSON structure
+function validateAndFixJSON(jsonString: string): string {
+    console.log("Validating and fixing JSON structure");
+    
+    let cleaned = jsonString.trim();
+    
+    // Remove any markdown code block indicators
+    if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.substring(7).trim();
+    } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.substring(3).trim();
+    }
+    
+    if (cleaned.endsWith('```')) {
+        cleaned = cleaned.substring(0, cleaned.length - 3).trim();
+    }
+    
+    // Find the actual JSON content
+    const jsonStart = cleaned.indexOf('{');
+    if (jsonStart > 0) {
+        cleaned = cleaned.substring(jsonStart);
+    }
+    
+    // Try to find the end of the JSON by counting braces
+    let braceCount = 0;
+    let jsonEnd = -1;
+    
+    for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') {
+            braceCount++;
+        } else if (cleaned[i] === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+                jsonEnd = i + 1;
+                break;
+            }
+        }
+    }
+    
+    if (jsonEnd > 0 && jsonEnd < cleaned.length) {
+        console.log(`Truncating JSON at position ${jsonEnd} (original length: ${cleaned.length})`);
+        cleaned = cleaned.substring(0, jsonEnd);
+    }
+    
+    // Clean up common JSON formatting issues
+    cleaned = cleaned
+        .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+        .replace(/\n/g, ' ')           // Replace newlines with spaces
+        .replace(/\r/g, ' ')           // Replace carriage returns
+        .replace(/\t/g, ' ')           // Replace tabs
+        .replace(/\s+/g, ' ')          // Collapse multiple spaces
+        .trim();
+    
+    console.log(`JSON validation complete. Original length: ${jsonString.length}, Cleaned length: ${cleaned.length}`);
+    
+    return cleaned;
+}
+
 // Helper function to retry API calls with exponential backoff
 async function retryWithBackoff<T>(
     fn: () => Promise<T>, 
@@ -240,6 +337,29 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
             }
             
             console.log(`Successfully got response from ${modelName}, length: ${responseText.length}`);
+            
+            // Additional validation to check if response looks like it might be truncated
+            const trimmedResponse = responseText.trim();
+            
+            // Check if response starts with { but doesn't end with }
+            if (trimmedResponse.startsWith('{') && !trimmedResponse.endsWith('}')) {
+                console.warn("Warning: Response appears to be truncated - starts with { but doesn't end with }");
+                console.log("Response ends with:", trimmedResponse.slice(-100));
+            }
+            
+            // Check if response contains "account_statements" which we expect
+            if (!trimmedResponse.includes('account_statements')) {
+                console.warn("Warning: Response doesn't contain expected 'account_statements' field");
+            }
+            
+            // Log response structure for debugging
+            console.log("Response structure check:");
+            console.log("- Starts with '{':", trimmedResponse.startsWith('{'));
+            console.log("- Ends with '}':", trimmedResponse.endsWith('}'));
+            console.log("- Contains 'account_statements':", trimmedResponse.includes('account_statements'));
+            console.log("- First 100 chars:", trimmedResponse.substring(0, 100));
+            console.log("- Last 100 chars:", trimmedResponse.substring(Math.max(0, trimmedResponse.length - 100)));
+            
             return responseText;
             
         } catch (error: any) {
@@ -282,52 +402,70 @@ export async function POST(request: Request) {
 
         // Truncate text if too long (prevent token limit issues)
 
+        let responseText = '';
         try {
             console.log("Sending request to Gemini API");
             // Create the request
             const prompt = `${STRUCTURING_PROMPT}\n\nHere is the bank statement text to parse:\n${statementText}`;
             
             // Make the API call with the new SDK format
-            const responseText = await callGeminiAPI(ai, prompt);
+            responseText = await callGeminiAPI(ai, prompt);
             
-            // Clean the response text - remove any backticks, markdown formatting, etc.
-            let cleanedText = responseText.trim();
-            
-            // Remove any markdown code block indicators or backticks
-            if (cleanedText.startsWith('```json')) {
-                cleanedText = cleanedText.substring(7).trim();
-            }
-            else if (cleanedText.startsWith('```')) {
-                cleanedText = cleanedText.substring(3).trim();
-            }
-            
-            if (cleanedText.endsWith('```')) {
-                cleanedText = cleanedText.substring(0, cleanedText.length - 3).trim();
-            }
+            // Use the new validation and fixing function
+            const cleanedText = validateAndFixJSON(responseText);
             
             console.log("Parsing JSON response");
+            console.log(`Response length: ${cleanedText.length} characters`);
+            console.log("First 200 characters of response:", cleanedText.substring(0, 200));
+            console.log("Last 200 characters of response:", cleanedText.substring(Math.max(0, cleanedText.length - 200)));
             
             // Try to parse the response as JSON
             let parsedData;
             try {
                 parsedData = JSON.parse(cleanedText);
                 console.log("JSON parsing successful");
-            } catch (parseError) {
+            } catch (parseError: any) {
                 console.error("Failed to parse JSON:", parseError);
-                console.log("First 100 characters of response:", cleanedText.substring(0, 100));
+                console.log("Full response text length:", cleanedText.length);
+                console.log("First 500 characters of response:", cleanedText.substring(0, 500));
+                console.log("Last 500 characters of response:", cleanedText.substring(Math.max(0, cleanedText.length - 500)));
                 
-                // Try to find the start of the JSON (if there's text before it)
-                const jsonStartIndex = cleanedText.indexOf('{');
-                if (jsonStartIndex > 0) {
-                    try {
-                        console.log(`Found JSON starting at position ${jsonStartIndex}, attempting to parse`);
-                        parsedData = JSON.parse(cleanedText.substring(jsonStartIndex));
-                        console.log("JSON parsing successful after trimming prefix");
-                    } catch (e) {
-                        throw new Error("Failed to parse JSON from response even after cleanup");
+                // If the helper function didn't work, try one more manual approach
+                try {
+                    // Try to manually fix common issues
+                    let manualFix = cleanedText;
+                    
+                    // Ensure it starts and ends properly
+                    if (!manualFix.startsWith('{')) {
+                        const startIndex = manualFix.indexOf('{');
+                        if (startIndex > -1) {
+                            manualFix = manualFix.substring(startIndex);
+                        }
                     }
-                } else {
-                    throw new Error("Failed to parse JSON from response");
+                    
+                    // If it doesn't end with }, try to add it
+                    if (!manualFix.endsWith('}')) {
+                        // Count open braces vs close braces
+                        const openBraces = (manualFix.match(/\{/g) || []).length;
+                        const closeBraces = (manualFix.match(/\}/g) || []).length;
+                        const missingBraces = openBraces - closeBraces;
+                        
+                        if (missingBraces > 0) {
+                            console.log(`Adding ${missingBraces} missing closing braces`);
+                            manualFix += '}'.repeat(missingBraces);
+                        }
+                    }
+                    
+                    console.log("Attempting manual fix parse");
+                    console.log("Manual fix preview:", manualFix.substring(0, 200) + "...");
+                    
+                    parsedData = JSON.parse(manualFix);
+                    console.log("JSON parsing successful after manual fix");
+                } catch (finalParseError: any) {
+                    console.error("All JSON parsing attempts failed:", finalParseError);
+                    console.error("Original response (truncated to 1000 chars):", responseText.substring(0, 1000));
+                    console.error("Cleaned response (truncated to 1000 chars):", cleanedText.substring(0, 1000));
+                    throw new Error(`Failed to parse JSON from response. Original length: ${responseText.length}, Cleaned length: ${cleanedText.length}. Parse error: ${finalParseError.message}`);
                 }
             }
             
@@ -449,6 +587,9 @@ export async function POST(request: Request) {
             } else if (error.message?.includes('Failed to parse JSON')) {
                 errorMessage = 'The AI service returned an invalid response. Please try again or try with a different document.';
             }
+            
+            // Save problematic responses for debugging
+            await saveDebugResponse(responseText, fileName, error.message || '');
             
             return NextResponse.json({
                 success: false,
