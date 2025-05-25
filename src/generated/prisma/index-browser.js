@@ -164,6 +164,13 @@ exports.Prisma.SupplierScalarFieldEnum = {
   paymentTerms: 'paymentTerms'
 };
 
+exports.Prisma.BankScalarFieldEnum = {
+  id: 'id',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  name: 'name'
+};
+
 exports.Prisma.BankStatementScalarFieldEnum = {
   id: 'id',
   createdAt: 'createdAt',
@@ -179,6 +186,7 @@ exports.Prisma.BankStatementScalarFieldEnum = {
   endingBalance: 'endingBalance',
   rawTextContent: 'rawTextContent',
   processingStatus: 'processingStatus',
+  bankId: 'bankId',
   customerId: 'customerId',
   supplierId: 'supplierId'
 };
@@ -217,6 +225,7 @@ exports.Prisma.ModelName = {
   Invoice: 'Invoice',
   Customer: 'Customer',
   Supplier: 'Supplier',
+  Bank: 'Bank',
   BankStatement: 'BankStatement',
   Transaction: 'Transaction'
 };

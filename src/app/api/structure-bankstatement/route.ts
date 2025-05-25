@@ -349,6 +349,20 @@ export async function POST(request: Request) {
                     const startingBalance = convertToDecimal(statement.starting_balance);
                     const endingBalance = convertToDecimal(statement.ending_balance);
 
+                    // Find or create the bank
+                    let bank = await prisma.bank.findUnique({
+                        where: { name: statement.bank_name }
+                    });
+
+                    if (!bank) {
+                        bank = await prisma.bank.create({
+                            data: { name: statement.bank_name }
+                        });
+                        console.log(`Created new bank: ${bank.name} with ID: ${bank.id}`);
+                    } else {
+                        console.log(`Found existing bank: ${bank.name} with ID: ${bank.id}`);
+                    }
+
                     // Create the bank statement record
                     const bankStatement = await prisma.bankStatement.create({
                         data: {
@@ -362,6 +376,7 @@ export async function POST(request: Request) {
                             startingBalance: startingBalance || new Decimal(0),
                             endingBalance: endingBalance || new Decimal(0),
                             rawTextContent: statementText,
+                            bankId: bank.id, // Link to the bank
                             // Create transactions in the same operation
                             transactions: {
                                 create: statement.transactions.map((transaction: TransactionData, index: number) => {

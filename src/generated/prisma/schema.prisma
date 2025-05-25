@@ -67,6 +67,16 @@ model Supplier {
   BankStatement BankStatement[]
 }
 
+model Bank {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String @unique
+
+  bankStatements BankStatement[]
+}
+
 model BankStatement {
   id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
@@ -84,6 +94,9 @@ model BankStatement {
 
   rawTextContent   String? @db.Text
   processingStatus String  @default("processed")
+
+  bankId Int
+  bank   Bank @relation(fields: [bankId], references: [id])
 
   customerId Int?
   supplierId Int?

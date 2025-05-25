@@ -5,402 +5,293 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
-import dynamic from 'next/dynamic'
 
-// Dynamically import Chart.js components
-const Bar = dynamic(() => import('react-chartjs-2').then(mod => mod.Bar), { ssr: false })
-
-// Define types for bank statement data
+// Define types based on Prisma schema
 type Transaction = {
-  id: number;
-  bankStatementId: number;
-  transactionDate: string;
-  description: string;
-  creditAmount: string | null;
-  debitAmount: string | null;
-  balance: string | null;
-  currency: string | null;
+    id: number;
+    transactionDate: string;
+    creditAmount: string | null;
+    debitAmount: string | null;
+    description: string | null;
+    balance: string | null;
+    pageNumber: string | null;
+    entityName: string | null;
 }
 
 type BankStatement = {
-  id: number;
-  bankName: string;
-  accountNumber: string;
-  accountType: string;
-  currency: string;
-  statementPeriodStart: string;
-  statementPeriodEnd: string;
-  startingBalance: string;
-  endingBalance: string;
-  transactions: Transaction[];
+    id: number;
+    bankName: string;
+    accountNumber: string;
+    accountType: string | null;
+    accountCurrency: string | null;
+    statementPeriodStart: string;
+    statementPeriodEnd: string;
+    startingBalance: string;
+    endingBalance: string;
+    transactions: Transaction[];
 }
 
-// Mock bank data - in a real app this would come from an API
-const banks = [
-    {
-        id: 1,
-        name: 'First National Bank',
-        logoBackground: 'bg-blue-100',
-        relationshipManager: 'Robert Thompson',
-        email: 'r.thompson@firstnational.com',
-        phone: '(555) 123-9876',
-        relationshipSince: 'Jan 2015',
-        bankingFees: '$1,850/quarter',
-        nextReviewDate: 'Dec 15, 2023',
-        accounts: [
-            {
-                id: 1,
-                accountNumber: 'xxxx-xxxx-8475',
-                balance: '$758,492.32',
-                type: 'Operating Account',
-                currency: 'USD',
-                interestRate: '0.75%',
-                lastUpdate: 'Today at 9:41 AM',
-            },
-            {
-                id: 2,
-                accountNumber: 'xxxx-xxxx-7392',
-                balance: '$125,000.00',
-                type: 'Reserve Account',
-                currency: 'USD',
-                interestRate: '1.25%',
-                lastUpdate: 'Today at 9:41 AM',
-            }
-        ],
-        facilities: [
-            {
-                id: 1,
-                facilityType: 'Line of Credit',
-                limit: '$1,000,000.00',
-                used: '$350,000.00',
-                available: '$650,000.00',
-                interestRate: '5.25%',
-                expiryDate: 'Dec 31, 2024',
-                covenants: 'Current ratio > 1.2x, Debt service ratio > 1.5x',
-            }
-        ],
-        transactions: [
-            { id: 1, date: '2023-07-05', account: 'xxxx-xxxx-8475', description: 'Payment from Enterprise Solutions', amount: '$86,000.00', type: 'credit' },
-            { id: 2, date: '2023-07-03', account: 'xxxx-xxxx-8475', description: 'Payment to Tech Innovations Ltd', amount: '$42,000.00', type: 'debit' },
-            { id: 3, date: '2023-06-30', account: 'xxxx-xxxx-8475', description: 'Monthly Service Fee', amount: '$125.00', type: 'debit' },
-            { id: 4, date: '2023-06-28', account: 'xxxx-xxxx-8475', description: 'Interest Payment', amount: '$354.21', type: 'credit' },
-            { id: 5, date: '2023-06-25', account: 'xxxx-xxxx-8475', description: 'Payment to Global Shipping Co.', amount: '$18,500.00', type: 'debit' },
-        ],
-        notes: 'Primary banking relationship with favorable terms. Recent facility review secured additional $250,000 on line of credit. Relationship manager suggested exploring trade financing options for international expansion.'
-    },
-    {
-        id: 2,
-        name: 'Central Finance',
-        logoBackground: 'bg-green-100',
-        relationshipManager: 'Jessica Miller',
-        email: 'jessica.miller@centralfinance.com',
-        phone: '(555) 456-7890',
-        relationshipSince: 'Mar 2018',
-        bankingFees: '$1,200/quarter',
-        nextReviewDate: 'Feb 28, 2024',
-        accounts: [
-            {
-                id: 1,
-                accountNumber: 'xxxx-xxxx-3829',
-                balance: '$245,872.12',
-                type: 'Savings Account',
-                currency: 'USD',
-                interestRate: '1.85%',
-                lastUpdate: 'Today at 9:41 AM',
-            }
-        ],
-        facilities: [
-            {
-                id: 1,
-                facilityType: 'Term Loan',
-                limit: '$500,000.00',
-                used: '$500,000.00',
-                available: '$0.00',
-                interestRate: '4.75%',
-                expiryDate: 'Jun 30, 2025',
-                covenants: 'Debt-to-equity ratio < 0.5, Interest coverage > 3.0x',
-            }
-        ],
-        transactions: [
-            { id: 1, date: '2023-07-01', account: 'xxxx-xxxx-3829', description: 'Quarterly Loan Payment', amount: '$18,750.00', type: 'debit' },
-            { id: 2, date: '2023-06-30', account: 'xxxx-xxxx-3829', description: 'Interest Income', amount: '$1,247.65', type: 'credit' },
-            { id: 3, date: '2023-06-15', account: 'xxxx-xxxx-3829', description: 'Transfer from Operating Account', amount: '$50,000.00', type: 'credit' },
-            { id: 4, date: '2023-06-01', account: 'xxxx-xxxx-3829', description: 'Service Fees', amount: '$95.00', type: 'debit' },
-            { id: 5, date: '2023-05-30', account: 'xxxx-xxxx-3829', description: 'Interest Income', amount: '$1,183.42', type: 'credit' },
-        ],
-        notes: 'Secondary banking relationship, primarily for backup liquidity and term loans. Higher interest on savings but less flexible on credit facilities. Good option for longer-term deposits.'
-    },
-    {
-        id: 3,
-        name: 'International Banking',
-        logoBackground: 'bg-purple-100',
-        relationshipManager: 'Michael Zhang',
-        email: 'm.zhang@intlbanking.com',
-        phone: '(555) 789-0123',
-        relationshipSince: 'Sep 2020',
-        bankingFees: '€1,500/quarter',
-        nextReviewDate: 'Oct 15, 2023',
-        accounts: [
-            {
-                id: 1,
-                accountNumber: 'xxxx-xxxx-9231',
-                balance: '€419,617.65',
-                type: 'Foreign Currency Account (EUR)',
-                currency: 'EUR',
-                interestRate: '0.25%',
-                lastUpdate: 'Today at 9:41 AM',
-            }
-        ],
-        facilities: [],
-        transactions: [
-            { id: 1, date: '2023-06-28', account: 'xxxx-xxxx-9231', description: 'Payment from Retail Chain Corp', amount: '€32,450.00', type: 'credit' },
-            { id: 2, date: '2023-06-15', account: 'xxxx-xxxx-9231', description: 'Payment to European Suppliers Ltd', amount: '€24,785.00', type: 'debit' },
-            { id: 3, date: '2023-06-05', account: 'xxxx-xxxx-9231', description: 'Foreign Exchange Fee', amount: '€175.50', type: 'debit' },
-            { id: 4, date: '2023-06-01', account: 'xxxx-xxxx-9231', description: 'Service Charge', amount: '€125.00', type: 'debit' },
-            { id: 5, date: '2023-05-22', account: 'xxxx-xxxx-9231', description: 'Payment from EU Distribution', amount: '€45,890.00', type: 'credit' },
-        ],
-        notes: 'International banking relationship for European operations. Provides efficient forex services and international wire transfers. Consider negotiating banking fees down at next review based on increased transaction volume.'
-    }
-]
+type Bank = {
+    id: number;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    bankStatements: BankStatement[];
+}
 
-// Cash flow forecast data
-const cashFlowForecast = [
-    { month: 'Aug', inflows: 425000, outflows: 372000 },
-    { month: 'Sep', inflows: 478000, outflows: 391000 },
-    { month: 'Oct', inflows: 512000, outflows: 435000 },
-    { month: 'Nov', inflows: 498000, outflows: 452000 },
-    { month: 'Dec', inflows: 587000, outflows: 513000 },
-    { month: 'Jan', inflows: 432000, outflows: 389000 },
-]
+// Display types for processed data
+type AccountDisplay = {
+    id: number;
+    accountNumber: string;
+    balance: string;
+    type: string;
+    currency: string;
+    interestRate: string;
+    lastUpdate: string;
+}
+
+type FacilityDisplay = {
+    id: number;
+    facilityType: string;
+    limit: string;
+    used: string;
+    available: string;
+    interestRate: string;
+    expiryDate: string;
+}
+
+type TransactionDisplay = {
+    id: number;
+    date: string;
+    account: string;
+    description: string;
+    amount: string;
+    type: 'credit' | 'debit';
+}
 
 export default function BankProfile({ params }: { params: { id: string } }) {
-    const bankId = parseInt(params.id)
-    const [bankData, setBankData] = useState<any>(null)
-    const [bankStatements, setBankStatements] = useState<BankStatement[]>([])
+    const [bank, setBank] = useState<Bank | null>(null)
     const [activeTab, setActiveTab] = useState('overview')
-    const [chartLoaded, setChartLoaded] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    
+
     // Load bank data
     useEffect(() => {
-      const fetchBankData = async () => {
-        try {
-          setIsLoading(true);
-          
-          // Fetch bank statements for this bank
-          const response = await fetch('/api/bank-statements');
-          const data = await response.json();
-          
-          if (data.success && data.bankStatements) {
-            // Filter statements for this bank
-            const bankIdNumber = parseInt(params.id);
-            const relevantStatements = data.bankStatements.filter(
-              (statement: any) => statement.id === bankIdNumber || 
-              statement.bankName === banks.find(b => b.id === bankIdNumber)?.name
-            );
-            
-            setBankStatements(relevantStatements);
-            
-            // If we have statements, use the data to enhance the mock bank
-            if (relevantStatements.length > 0) {
-              // Find the mock bank
-              const mockBank = banks.find(b => b.id === bankIdNumber) || banks[0];
-              
-              // Use real data to enhance the mock
-              setBankData({
-                ...mockBank,
-                accounts: mapStatementsToAccounts(relevantStatements, mockBank),
-                facilities: extractFacilitiesFromStatements(relevantStatements, mockBank),
-                transactions: extractTransactionsFromStatements(relevantStatements)
-              });
-            } else {
-              // No statements found, use mock data
-              setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
+        const fetchBankData = async () => {
+            try {
+                console.log('Starting fetch for bank ID:', params.id)
+                setIsLoading(true)
+                setError(null)
+
+                const response = await fetch(`/api/banks/${params.id}`)
+                console.log('Fetch response status:', response.status, response.ok)
+                
+                const data = await response.json()
+                console.log('Fetch response data:', data)
+
+                if (data.success && data.bank) {
+                    console.log('Setting bank data:', data.bank.name)
+                    setBank(data.bank)
+                } else {
+                    console.error('API returned error:', data.error)
+                    setError(data.error || 'Failed to load bank data')
+                }
+            } catch (error) {
+                console.error('Fetch error:', error)
+                setError('Failed to load bank data')
+            } finally {
+                console.log('Setting loading to false')
+                setIsLoading(false)
             }
-          } else {
-            // Use mock data if API call fails
-            setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
-          }
-        } catch (error) {
-          console.error('Error fetching bank data:', error);
-          setError('Failed to load bank data');
-          // Use mock data on error
-          setBankData(banks.find(b => b.id === bankIdNumber) || banks[0]);
-        } finally {
-          setIsLoading(false);
         }
-      };
-      
-      fetchBankData();
-    }, [params.id]);
-    
-    // Load chart.js when component mounts
-    useEffect(() => {
-      const loadChartJs = async () => {
-        const { 
-          Chart, 
-          CategoryScale, 
-          LinearScale, 
-          BarElement, 
-          Title, 
-          Tooltip, 
-          Legend
-        } = await import('chart.js');
-        
-        Chart.register(
-          CategoryScale, 
-          LinearScale, 
-          BarElement, 
-          Title, 
-          Tooltip, 
-          Legend
-        );
-        
-        setChartLoaded(true);
-      };
-      
-      loadChartJs();
-    }, []);
-    
-    // Helper function to map bank statements to account structure
-    const mapStatementsToAccounts = (statements: BankStatement[], mockBank: any) => {
-      return statements.map(statement => ({
-        id: statement.id,
-        accountNumber: statement.accountNumber,
-        balance: formatCurrency(parseFloat(statement.endingBalance)),
-        type: statement.accountType || 'Bank Account',
-        currency: statement.currency || 'USD',
-        interestRate: 'N/A',
-        lastUpdate: new Date(statement.statementPeriodEnd).toLocaleDateString(),
-      }));
-    };
-    
-    // Helper function to extract facilities (accounts with negative balance)
-    const extractFacilitiesFromStatements = (statements: BankStatement[], mockBank: any) => {
-      const facilitiesFromStatements = statements
-        .filter(statement => parseFloat(statement.endingBalance) < 0)
-        .map(statement => ({
-          id: statement.id,
-          facilityType: statement.accountType || 'Credit Account',
-          limit: 'N/A',
-          used: formatCurrency(Math.abs(parseFloat(statement.endingBalance))),
-          available: 'N/A',
-          interestRate: 'N/A',
-          expiryDate: 'N/A',
-          covenants: '',
-        }));
-      
-      return facilitiesFromStatements.length > 0 ? facilitiesFromStatements : mockBank.facilities;
-    };
-    
-    // Helper function to extract transactions from statements
-    const extractTransactionsFromStatements = (statements: BankStatement[]) => {
-      // Flatten all transactions from all statements
-      const allTransactions = statements.flatMap(statement => 
-        statement.transactions.map(transaction => ({
-          id: transaction.id,
-          date: transaction.transactionDate,
-          account: statement.accountNumber,
-          description: transaction.description,
-          amount: transaction.creditAmount 
-            ? formatCurrency(parseFloat(transaction.creditAmount))
-            : formatCurrency(parseFloat(transaction.debitAmount || '0')),
-          type: transaction.creditAmount && parseFloat(transaction.creditAmount) > 0 ? 'credit' : 'debit',
-        }))
-      );
-      
-      // Sort by date (newest first) and take top 5
-      return allTransactions
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 5);
-    };
-    
+
+        fetchBankData()
+    }, [params.id])
+
     // Helper function to format currency
-    const formatCurrency = (amount: number): string => {
-      return `$${Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    };
-    
-    // Generate cash flow data from transactions
-    const generateCashFlowData = () => {
-      if (!bankData || !bankData.transactions || bankData.transactions.length === 0) {
-        return cashFlowForecast;
-      }
-      
-      // Group transactions by month
-      const monthlyData: Record<string, { inflows: number, outflows: number }> = {};
-      
-      // Process each transaction
-      bankData.transactions.forEach((transaction: any) => {
-        const date = new Date(transaction.date);
-        const monthKey = date.toLocaleString('default', { month: 'short' });
+    const formatCurrency = (amount: number | string, currency?: string): string => {
+        const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+        const absAmount = Math.abs(numAmount)
         
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = { inflows: 0, outflows: 0 };
+        // Map database currency values to proper currency codes
+        const currencyMap: Record<string, string> = {
+            'EGP': 'EGP',
+            'Egyptian Pound': 'EGP',
+            'USD': 'USD',
+            'US DOLLAR': 'USD',
+            'US Dollar': 'USD'
         }
         
-        const amount = parseFloat(transaction.amount.replace(/[^0-9.-]+/g, ''));
+        const currencyCode = currency ? currencyMap[currency] || 'USD' : 'USD'
         
-        if (transaction.type === 'credit') {
-          monthlyData[monthKey].inflows += amount;
-        } else {
-          monthlyData[monthKey].outflows += amount;
+        // Format based on currency
+        switch (currencyCode) {
+            case 'EGP':
+                return `EGP ${absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            default:
+                return `$${absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         }
-      });
-      
-      // Convert to array format
-      return Object.entries(monthlyData).map(([month, data]) => ({
-        month,
-        inflows: data.inflows,
-        outflows: data.outflows
-      }));
-    };
+    }
+
+    // Helper function to format date
+    const formatDate = (dateString: string): string => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        })
+    }
+
+    // Process bank statements into accounts display format (POSITIVE and ZERO balances)
+    const processAccountsData = (): AccountDisplay[] => {
+        if (!bank) return []
+        
+        return bank.bankStatements
+            .filter(statement => parseFloat(statement.endingBalance) >= 0) // Include zero and positive balances
+            .map(statement => ({
+                id: statement.id,
+                accountNumber: statement.accountNumber,
+                balance: formatCurrency(parseFloat(statement.endingBalance), statement.accountCurrency || undefined),
+                type: statement.accountType || 'Bank Account',
+                currency: statement.accountCurrency || 'USD',
+                interestRate: 'N/A',
+                lastUpdate: `${formatDate(statement.statementPeriodStart)} - ${formatDate(statement.statementPeriodEnd)}`
+            }))
+    }
+
+    // Process bank statements into facilities display format (NEGATIVE balances only)
+    const processFacilitiesData = (): FacilityDisplay[] => {
+        if (!bank) return []
+        
+        return bank.bankStatements
+            .filter(statement => parseFloat(statement.endingBalance) < 0) // Only negative balances
+            .map(statement => ({
+                id: statement.id,
+                facilityType: statement.accountType || 'Credit Facility',
+                limit: 'N/A',
+                used: formatCurrency(Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined),
+                available: 'N/A',
+                interestRate: 'N/A',
+                expiryDate: 'N/A'
+            }))
+    }
+
+    // Process transactions for display (latest 10)
+    const processTransactionsData = (): TransactionDisplay[] => {
+        if (!bank) return []
+        
+        // Flatten all transactions from all statements
+        const allTransactions = bank.bankStatements.flatMap(statement =>
+            statement.transactions.map(transaction => ({
+                id: transaction.id,
+                date: formatDate(transaction.transactionDate),
+                account: statement.accountNumber,
+                description: transaction.description || 'No description',
+                amount: transaction.creditAmount 
+                    ? formatCurrency(parseFloat(transaction.creditAmount), statement.accountCurrency || undefined)
+                    : formatCurrency(parseFloat(transaction.debitAmount || '0'), statement.accountCurrency || undefined),
+                type: (transaction.creditAmount && parseFloat(transaction.creditAmount) > 0) ? 'credit' as const : 'debit' as const
+            }))
+        )
+
+        // Sort by date (newest first) and take top 10
+        return allTransactions
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 10)
+    }
+
+    // Process transactions for cash flow chart
+    const processCashFlowData = () => {
+        if (!bank) return { labels: [], inflows: [], outflows: [] }
+        
+        // Collect all transactions from all statements
+        const allTransactions = bank.bankStatements.flatMap(statement =>
+            statement.transactions.map(transaction => ({
+                ...transaction,
+                accountCurrency: statement.accountCurrency || 'USD'
+            }))
+        )
+
+        // Group transactions by month
+        const monthlyData: { [key: string]: { inflows: number, outflows: number } } = {}
+        
+        allTransactions.forEach(transaction => {
+            const date = new Date(transaction.transactionDate)
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = { inflows: 0, outflows: 0 }
+            }
+            
+            const creditAmount = parseFloat(transaction.creditAmount || '0')
+            const debitAmount = parseFloat(transaction.debitAmount || '0')
+            
+            if (creditAmount > 0) {
+                monthlyData[monthKey].inflows += creditAmount
+            }
+            if (debitAmount > 0) {
+                monthlyData[monthKey].outflows += debitAmount
+            }
+        })
+
+        // Sort months and prepare chart data
+        const sortedMonths = Object.keys(monthlyData).sort()
+        const labels = sortedMonths.map(month => {
+            const [year, monthNum] = month.split('-')
+            const date = new Date(parseInt(year), parseInt(monthNum) - 1)
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        })
+        
+        const inflows = sortedMonths.map(month => monthlyData[month].inflows)
+        const outflows = sortedMonths.map(month => monthlyData[month].outflows)
+        
+        return { labels, inflows, outflows }
+    }
+
+    // Calculate financial metrics
+    const calculateFinancialMetrics = () => {
+        if (!bank) return { totalCashBalance: 0, currentOutstanding: 0 }
+        
+        const totalCashBalance = bank.bankStatements
+            .filter(statement => parseFloat(statement.endingBalance) > 0)
+            .reduce((sum, statement) => sum + parseFloat(statement.endingBalance), 0)
+        
+        const currentOutstanding = bank.bankStatements
+            .filter(statement => parseFloat(statement.endingBalance) < 0)
+            .reduce((sum, statement) => sum + Math.abs(parseFloat(statement.endingBalance)), 0)
+        
+        return { totalCashBalance, currentOutstanding }
+    }
 
     // If still loading, show a loading state
     if (isLoading) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading bank data...</p>
-          </div>
-        </div>
-      );
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Loading bank data...</p>
+                </div>
+            </div>
+        )
     }
-    
+
     // If there's an error or no data, show error state
-    if (error || !bankData) {
-      return (
-        <div className="text-center p-6 bg-red-50 rounded-lg">
-          <p className="text-red-700">{error || "Failed to load bank data"}</p>
-          <Link href="/dashboard/banks" className="mt-4 inline-block text-blue-600 hover:underline">
-            Return to Banks Overview
-          </Link>
-        </div>
-      );
+    if (error || !bank) {
+        return (
+            <div className="text-center p-6 bg-red-50 rounded-lg">
+                <p className="text-red-700">{error || "Bank not found"}</p>
+                <Link href="/dashboard/banks" className="mt-4 inline-block text-blue-600 hover:underline">
+                    Return to Banks Overview
+                </Link>
+            </div>
+        )
     }
-    
-    const bank = bankData;
 
-    // Calculate metrics
-    const totalBalance = bank.accounts.reduce((sum: number, account: any) => {
-        let balance = account.balance.replace(/[^0-9.-]+/g, '')
-        return sum + parseFloat(balance)
-    }, 0)
-
-    const totalCredit = bank.facilities.reduce((sum: number, facility: any) => {
-        let limit = facility.limit.replace(/[^0-9.-]+/g, '')
-        if (isNaN(parseFloat(limit))) return sum;
-        return sum + parseFloat(limit)
-    }, 0)
-
-    const totalOutstanding = bank.facilities.reduce((sum: number, facility: any) => {
-        let used = facility.used.replace(/[^0-9.-]+/g, '')
-        return sum + parseFloat(used)
-    }, 0)
-    
-    // Get cash flow data for the chart
-    const cashFlowData = generateCashFlowData();
+    const accounts = processAccountsData()
+    const facilities = processFacilitiesData()
+    const transactions = processTransactionsData()
+    const cashFlowData = processCashFlowData()
+    const financialMetrics = calculateFinancialMetrics()
 
     return (
         <div>
@@ -418,43 +309,29 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             {/* Bank Summary Card */}
             <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
                 <div className="p-6 flex items-start">
-                    <div className={`flex-shrink-0 h-16 w-16 rounded-full ${bank.logoBackground} flex items-center justify-center`}>
+                    <div className="flex-shrink-0 h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
                         <BuildingLibraryIcon className="h-10 w-10 text-blue-600" aria-hidden="true" />
                     </div>
                     <div className="ml-6">
                         <h2 className="text-xl font-medium text-gray-900">{bank.name}</h2>
                         <div className="mt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
                             <div>
-                                <dt className="text-gray-500">Relationship Manager</dt>
-                                <dd className="font-medium text-gray-900">{bank.relationshipManager}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500">Email</dt>
-                                <dd className="font-medium text-gray-900">{bank.email}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500">Phone</dt>
-                                <dd className="font-medium text-gray-900">{bank.phone}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500">Relationship</dt>
-                                <dd className="font-medium text-gray-900">Since {bank.relationshipSince}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500">Banking Fees</dt>
-                                <dd className="font-medium text-gray-900">{bank.bankingFees}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-gray-500">Next Review</dt>
-                                <dd className="font-medium text-gray-900">{bank.nextReviewDate}</dd>
-                            </div>
-                            <div>
                                 <dt className="text-gray-500">Total Accounts</dt>
-                                <dd className="font-medium text-gray-900">{bank.accounts.length}</dd>
+                                <dd className="font-medium text-gray-900">{accounts.length}</dd>
                             </div>
                             <div>
                                 <dt className="text-gray-500">Credit Facilities</dt>
-                                <dd className="font-medium text-gray-900">{bank.facilities.length}</dd>
+                                <dd className="font-medium text-gray-900">{facilities.length}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-gray-500">Bank Statements</dt>
+                                <dd className="font-medium text-gray-900">{bank.bankStatements.length}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-gray-500">Total Transactions</dt>
+                                <dd className="font-medium text-gray-900">
+                                    {bank.bankStatements.reduce((sum, statement) => sum + statement.transactions.length, 0)}
+                                </dd>
                             </div>
                         </div>
                     </div>
@@ -484,7 +361,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                             'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
                         )}
                     >
-                        Accounts
+                        Accounts ({accounts.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('facilities')}
@@ -495,7 +372,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                             'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
                         )}
                     >
-                        Facilities
+                        Facilities ({facilities.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('transactions')}
@@ -507,17 +384,6 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                         )}
                     >
                         Transactions
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('notes')}
-                        className={clsx(
-                            activeTab === 'notes'
-                                ? 'border-[#595CFF] text-[#595CFF]'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-                            'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
-                        )}
-                    >
-                        Notes
                     </button>
                 </nav>
             </div>
@@ -535,9 +401,9 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                     </div>
                                     <div className="ml-5 w-0 flex-1">
                                         <dl>
-                                            <dt className="truncate text-sm font-medium text-gray-500">Total Cash Balance</dt>
+                                            <dt className="truncate text-sm font-medium text-gray-500">Current Cash Balance</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{`$${totalBalance.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</div>
+                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetrics.totalCashBalance)}</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -554,7 +420,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                         <dl>
                                             <dt className="truncate text-sm font-medium text-gray-500">Total Credit Limit</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{`$${totalCredit.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</div>
+                                                <div className="text-lg font-medium text-gray-900">N/A</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -569,9 +435,9 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                     </div>
                                     <div className="ml-5 w-0 flex-1">
                                         <dl>
-                                            <dt className="truncate text-sm font-medium text-gray-500">Available Credit</dt>
+                                            <dt className="truncate text-sm font-medium text-gray-500">Current Outstanding</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{`$${totalOutstanding.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</div>
+                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetrics.currentOutstanding)}</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -580,90 +446,170 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                         </div>
                     </div>
 
-                    {/* Cash Flow Forecast Chart */}
+                    {/* Cash Flow Chart */}
                     <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
                         <div className="px-6 py-5 border-b border-gray-200">
-                            <h3 className="text-lg font-medium leading-6 text-gray-900">Cash Flow</h3>
+                            <h3 className="text-lg font-medium leading-6 text-gray-900">Cash Flow - {bank.name}</h3>
                         </div>
                         <div className="p-6">
-                            <div className="h-64">
-                                <Bar
-                                    data={{
-                                        labels: cashFlowData.map(month => month.month),
-                                        datasets: [
-                                            {
-                                                label: 'Cash Inflows',
-                                                data: cashFlowData.map(month => month.inflows),
-                                                backgroundColor: 'rgba(34, 197, 94, 0.5)',
-                                                borderColor: 'rgb(34, 197, 94)',
-                                                borderWidth: 1,
-                                            },
-                                            {
-                                                label: 'Cash Outflows',
-                                                data: cashFlowData.map(month => month.outflows),
-                                                backgroundColor: 'rgba(239, 68, 68, 0.5)',
-                                                borderColor: 'rgb(239, 68, 68)',
-                                                borderWidth: 1,
-                                            },
-                                        ],
-                                    }}
-                                    options={{
-                                        responsive: true,
-                                        maintainAspectRatio: false,
-                                        plugins: {
-                                            legend: {
-                                                position: 'bottom',
-                                            },
-                                            title: {
-                                                display: false,
-                                            },
-                                            tooltip: {
-                                                callbacks: {
-                                                    footer: (tooltipItems) => {
-                                                        const datasetIndex = tooltipItems[0].datasetIndex;
-                                                        const index = tooltipItems[0].dataIndex;
-
-                                                        if (datasetIndex === 0 || datasetIndex === 1) {
-                                                            const inflow = cashFlowData[index].inflows;
-                                                            const outflow = cashFlowData[index].outflows;
-                                                            const netFlow = inflow - outflow;
-                                                            return `Net Flow: ${netFlow >= 0 ? '+' : ''}$${netFlow.toLocaleString()}`;
-                                                        }
-                                                        return '';
-                                                    },
-                                                },
-                                            },
-                                        },
-                                        scales: {
-                                            x: {
-                                                grid: {
-                                                    display: false,
-                                                },
-                                            },
-                                            y: {
-                                                beginAtZero: true,
-                                                ticks: {
-                                                    callback: function (value) {
-                                                        return '$' + (value).toLocaleString();
-                                                    }
-                                                },
-                                            },
-                                        },
-                                    }}
-                                />
-                            </div>
-                            <div className="flex justify-between items-center mt-4 border-t border-gray-100 pt-4">
-                                <div className="text-sm text-gray-500">
-                                    <span className="font-medium">Total Inflows:</span> ${cashFlowData.reduce((acc, month) => acc + month.inflows, 0).toLocaleString()}
+                            {cashFlowData.labels.length > 0 ? (
+                                <div className="space-y-6">
+                                    {/* Chart Legend */}
+                                    <div className="flex items-center justify-center space-x-6 text-sm">
+                                        <div className="flex items-center">
+                                            <div className="w-3 h-3 bg-green-500 rounded mr-2"></div>
+                                            <span>Inflows</span>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <div className="w-3 h-3 bg-red-500 rounded mr-2"></div>
+                                            <span>Outflows</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Bar Chart */}
+                                    <div className="relative">
+                                        {/* Calculate max value for scaling */}
+                                        {(() => {
+                                            const maxValue = Math.max(
+                                                ...cashFlowData.inflows,
+                                                ...cashFlowData.outflows,
+                                                1 // Minimum value to avoid division by zero
+                                            );
+                                            const chartHeight = 300; // Fixed chart height in pixels
+                                            
+                                            return (
+                                                <div className="relative">
+                                                    {/* Y-axis labels */}
+                                                    <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 pr-2" style={{ width: '60px' }}>
+                                                        <span>{formatCurrency(maxValue)}</span>
+                                                        <span>{formatCurrency(maxValue * 0.75)}</span>
+                                                        <span>{formatCurrency(maxValue * 0.5)}</span>
+                                                        <span>{formatCurrency(maxValue * 0.25)}</span>
+                                                        <span>$0</span>
+                                                    </div>
+                                                    
+                                                    {/* Chart area */}
+                                                    <div className="ml-16">
+                                                        {/* Grid lines */}
+                                                        <div className="relative" style={{ height: `${chartHeight}px` }}>
+                                                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="absolute w-full border-t border-gray-200"
+                                                                    style={{ top: `${ratio * 100}%` }}
+                                                                />
+                                                            ))}
+                                                            
+                                                            {/* Bars */}
+                                                            <div className="absolute inset-0 flex items-end justify-between px-2">
+                                                                {cashFlowData.labels.map((label, index) => {
+                                                                    const inflow = cashFlowData.inflows[index];
+                                                                    const outflow = cashFlowData.outflows[index];
+                                                                    const inflowHeight = (inflow / maxValue) * chartHeight;
+                                                                    const outflowHeight = (outflow / maxValue) * chartHeight;
+                                                                    const barWidth = Math.max(40, (100 / cashFlowData.labels.length) - 10); // Responsive bar width
+                                                                    
+                                                                    return (
+                                                                        <div key={index} className="flex flex-col items-center" style={{ width: `${barWidth}px` }}>
+                                                                            {/* Bars container */}
+                                                                            <div className="flex items-end space-x-1 mb-2" style={{ height: `${chartHeight}px` }}>
+                                                                                {/* Inflow bar */}
+                                                                                <div className="relative group">
+                                                                                    <div
+                                                                                        className="bg-green-500 rounded-t transition-all duration-200 hover:bg-green-600"
+                                                                                        style={{
+                                                                                            width: `${barWidth / 2 - 2}px`,
+                                                                                            height: `${inflowHeight}px`,
+                                                                                            minHeight: inflow > 0 ? '2px' : '0px'
+                                                                                        }}
+                                                                                    />
+                                                                                    {/* Tooltip for inflow */}
+                                                                                    {inflow > 0 && (
+                                                                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                                                            Inflow: {formatCurrency(inflow)}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                
+                                                                                {/* Outflow bar */}
+                                                                                <div className="relative group">
+                                                                                    <div
+                                                                                        className="bg-red-500 rounded-t transition-all duration-200 hover:bg-red-600"
+                                                                                        style={{
+                                                                                            width: `${barWidth / 2 - 2}px`,
+                                                                                            height: `${outflowHeight}px`,
+                                                                                            minHeight: outflow > 0 ? '2px' : '0px'
+                                                                                        }}
+                                                                                    />
+                                                                                    {/* Tooltip for outflow */}
+                                                                                    {outflow > 0 && (
+                                                                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                                                                            Outflow: {formatCurrency(outflow)}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                            {/* X-axis label */}
+                                                                            <div className="text-xs text-gray-600 text-center transform -rotate-45 origin-center mt-2">
+                                                                                {label}
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* X-axis line */}
+                                                        <div className="border-t border-gray-300 mt-8"></div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                    
+                                    {/* Summary */}
+                                    <div className="mt-6 pt-4 border-t border-gray-200">
+                                        <div className="grid grid-cols-3 gap-4 text-center">
+                                            <div>
+                                                <p className="text-sm text-gray-500">Total Inflows</p>
+                                                <p className="text-lg font-semibold text-green-600">
+                                                    {formatCurrency(cashFlowData.inflows.reduce((sum, val) => sum + val, 0))}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Total Outflows</p>
+                                                <p className="text-lg font-semibold text-red-600">
+                                                    {formatCurrency(cashFlowData.outflows.reduce((sum, val) => sum + val, 0))}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-gray-500">Net Cash Flow</p>
+                                                <p className={`text-lg font-semibold ${
+                                                    (cashFlowData.inflows.reduce((sum, val) => sum + val, 0) - 
+                                                     cashFlowData.outflows.reduce((sum, val) => sum + val, 0)) >= 0 
+                                                        ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                    {formatCurrency(
+                                                        cashFlowData.inflows.reduce((sum, val) => sum + val, 0) - 
+                                                        cashFlowData.outflows.reduce((sum, val) => sum + val, 0)
+                                                    )}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="text-sm text-gray-500">
-                                    <span className="font-medium">Total Outflows:</span> ${cashFlowData.reduce((acc, month) => acc + month.outflows, 0).toLocaleString()}
+                            ) : (
+                                <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                                    <div className="text-center">
+                                        <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                        <p className="text-gray-500">No transaction data available for cash flow analysis</p>
+                                        <p className="text-sm text-gray-400 mt-2">
+                                            Upload bank statements to see cash flow trends
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="text-sm text-gray-900 font-medium">
-                                    <span>Net Flow:</span> $
-                                    {cashFlowData.reduce((acc, month) => acc + (month.inflows - month.outflows), 0).toLocaleString()}
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -675,83 +621,65 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                     <div className="px-6 py-5 border-b border-gray-200">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">Bank Accounts</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            All accounts with {bank.name}
+                            All accounts with positive or zero balances from {bank.name}
                         </p>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Account Number
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Type
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Currency
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Balance
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Interest Rate
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Last Updated
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {bank.accounts.map((account) => (
-                                    <tr key={account.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {account.accountNumber}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {account.type}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {account.currency}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                            {account.balance}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {account.interestRate}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {account.lastUpdate}
-                                        </td>
+                    {accounts.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Account Number
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Type
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Currency
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Balance
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Interest Rate
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Statement Period
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Account Actions */}
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <div className="flex space-x-3">
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Transfer Funds
-                            </button>
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Download Statement
-                            </button>
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Refresh Data
-                            </button>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {accounts.map((account) => (
+                                        <tr key={account.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {account.accountNumber}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {account.type}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {account.currency}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                                {account.balance}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {account.interestRate}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {account.lastUpdate}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="px-6 py-4 text-center text-sm text-gray-500">
+                            No accounts with positive or zero balances found for this bank.
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -761,89 +689,59 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                     <div className="px-6 py-5 border-b border-gray-200">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">Credit Facilities</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            All credit facilities with {bank.name}
+                            All accounts with negative balances (credit facilities) from {bank.name}
                         </p>
                     </div>
-                    {bank.facilities.length > 0 ? (
-                        <>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Type
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Limit
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Used
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Available
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Interest Rate
-                                            </th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Expiry Date
-                                            </th>
+                    {facilities.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Facility Type
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Amount Used
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Available
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Interest Rate
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Expiry Date
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {facilities.map((facility) => (
+                                        <tr key={facility.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {facility.facilityType}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {facility.used}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {facility.available}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {facility.interestRate}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {facility.expiryDate}
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {bank.facilities.map((facility) => (
-                                            <tr key={facility.id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {facility.facilityType}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {facility.limit}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {facility.used}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {facility.available}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {facility.interestRate}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {facility.expiryDate}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                                <h4 className="text-sm font-medium text-gray-900">Covenants</h4>
-                                <p className="mt-1 text-sm text-gray-700">{bank.facilities[0]?.covenants || "No covenants"}</p>
-                            </div>
-                        </>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     ) : (
                         <div className="px-6 py-4 text-center text-sm text-gray-500">
-                            No credit facilities available for this bank.
+                            No credit facilities (negative balances) found for this bank.
                         </div>
                     )}
-
-                    {/* Facility Actions */}
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <div className="flex space-x-3">
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Request New Facility
-                            </button>
-                            <button
-                                type="button"
-                                className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Review Covenants
-                            </button>
-                        </div>
-                    </div>
                 </div>
             )}
 
@@ -853,120 +751,98 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                     <div className="px-6 py-5 border-b border-gray-200">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Transactions</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            Last 30 days of transaction history.
+                            Latest transactions from all accounts at {bank.name}
                         </p>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Date
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Account
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Description
-                                    </th>
-                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Amount
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {bank.transactions.map((transaction) => (
-                                    <tr key={transaction.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {new Date(transaction.date).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {transaction.account}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900">
-                                            {transaction.description}
-                                        </td>
-                                        <td className={clsx(
-                                            "px-6 py-4 whitespace-nowrap text-sm font-medium text-right",
-                                            transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                                        )}>
-                                            {transaction.type === 'credit' ? '+' : '-'} {transaction.amount}
-                                        </td>
+                    {transactions.length > 0 ? (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Date
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Account
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Description
+                                        </th>
+                                        <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Amount
+                                        </th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {transactions.map((transaction) => (
+                                        <tr key={transaction.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {transaction.date}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {transaction.account}
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-900">
+                                                {transaction.description}
+                                            </td>
+                                            <td className={clsx(
+                                                "px-6 py-4 whitespace-nowrap text-sm font-medium text-right",
+                                                transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                                            )}>
+                                                {transaction.type === 'credit' ? '+' : '-'} {transaction.amount}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <div className="px-6 py-4 text-center text-sm text-gray-500">
+                            No transactions found for this bank.
+                        </div>
+                    )}
 
-                    {/* Transaction Analysis */}
-                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                        <h4 className="text-sm font-medium text-gray-900">Transaction Summary</h4>
-                        <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <div className="bg-white p-3 rounded shadow-sm">
-                                <p className="text-xs text-gray-500">Total Credits</p>
-                                <p className="text-lg font-medium text-green-600">
-                                    ${bank.transactions
-                                        .filter(t => t.type === 'credit')
-                                        .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
-                                        .toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                            <div className="bg-white p-3 rounded shadow-sm">
-                                <p className="text-xs text-gray-500">Total Debits</p>
-                                <p className="text-lg font-medium text-red-600">
-                                    ${bank.transactions
-                                        .filter(t => t.type === 'debit')
-                                        .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
-                                        .toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                                </p>
-                            </div>
-                            <div className="bg-white p-3 rounded shadow-sm">
-                                <p className="text-xs text-gray-500">Net Flow</p>
-                                <p className="text-lg font-medium text-gray-900">
-                                    ${(
-                                        bank.transactions
-                                            .filter(t => t.type === 'credit')
-                                            .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0) -
-                                        bank.transactions
-                                            .filter(t => t.type === 'debit')
-                                            .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
-                                    ).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                                </p>
+                    {/* Transaction Summary */}
+                    {transactions.length > 0 && (
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                            <h4 className="text-sm font-medium text-gray-900">Transaction Summary (Showing latest {transactions.length})</h4>
+                            <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                <div className="bg-white p-3 rounded shadow-sm">
+                                    <p className="text-xs text-gray-500">Total Credits</p>
+                                    <p className="text-lg font-medium text-green-600">
+                                        {formatCurrency(
+                                            transactions
+                                                .filter(t => t.type === 'credit')
+                                                .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
+                                        )}
+                                    </p>
+                                </div>
+                                <div className="bg-white p-3 rounded shadow-sm">
+                                    <p className="text-xs text-gray-500">Total Debits</p>
+                                    <p className="text-lg font-medium text-red-600">
+                                        {formatCurrency(
+                                            transactions
+                                                .filter(t => t.type === 'debit')
+                                                .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
+                                        )}
+                                    </p>
+                                </div>
+                                <div className="bg-white p-3 rounded shadow-sm">
+                                    <p className="text-xs text-gray-500">Net Flow</p>
+                                    <p className="text-lg font-medium text-gray-900">
+                                        {formatCurrency(
+                                            transactions
+                                                .filter(t => t.type === 'credit')
+                                                .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0) -
+                                            transactions
+                                                .filter(t => t.type === 'debit')
+                                                .reduce((sum, t) => sum + parseFloat(t.amount.replace(/[^0-9.-]+/g, '')), 0)
+                                        )}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Notes Tab */}
-            {activeTab === 'notes' && (
-                <div className="bg-white shadow rounded-lg overflow-hidden">
-                    <div className="px-6 py-5 border-b border-gray-200">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Bank Notes</h3>
-                    </div>
-                    <div className="p-6">
-                        <p className="text-gray-900">{bank.notes}</p>
-                        <div className="mt-6">
-                            <label htmlFor="new-note" className="block text-sm font-medium text-gray-700">Add a note</label>
-                            <div className="mt-1">
-                                <textarea
-                                    id="new-note"
-                                    name="new-note"
-                                    rows={4}
-                                    className="shadow-sm block w-full focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md"
-                                    placeholder="Add your notes about this banking relationship here..."
-                                ></textarea>
-                            </div>
-                            <div className="mt-3">
-                                <button
-                                    type="button"
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#595CFF] hover:bg-[#4749cc] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                >
-                                    Save Note
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>

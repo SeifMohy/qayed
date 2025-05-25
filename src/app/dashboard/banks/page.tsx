@@ -152,17 +152,17 @@ export default function BanksPage() {
   
   // Fetch bank statements from API
   useEffect(() => {
-    const fetchBankStatements = async () => {
+    const fetchBankData = async () => {
       try {
         setIsLoading(true);
         
-        // Fetch bank statements
-        const response = await fetch('/api/bank-statements');
+        // Fetch banks with their statements and transactions
+        const response = await fetch('/api/banks');
         const data = await response.json();
         
-        if (data.success && data.bankStatements) {
-          // Process the bank statements data
-          processBankStatementsData(data.bankStatements);
+        if (data.success && data.banks) {
+          // Process the banks data
+          processBanksData(data.banks);
         } else {
           // If no data is available, use default data
           setBankAccounts(defaultBankAccounts);
@@ -180,25 +180,15 @@ export default function BanksPage() {
       }
     };
     
-    fetchBankStatements();
+    fetchBankData();
     console.log(recentTransactions,'recentTransactions');
   }, []);
   
-  // Process bank statements data
-  const processBankStatementsData = (statements: any[]) => {
-    if (!statements || statements.length === 0) {
+  // Process banks data from the new API
+  const processBanksData = (banks: any[]) => {
+    if (!banks || banks.length === 0) {
       return;
     }
-    
-    // Group by bank name
-    const bankGroups = statements.reduce((acc: { [key: string]: any[] }, statement: any) => {
-      const bankName = statement.bankName || 'Unknown Bank';
-      if (!acc[bankName]) {
-        acc[bankName] = [];
-      }
-      acc[bankName].push(statement);
-      return acc;
-    }, {});
     
     // Process banks for display
     const processedBanks: Bank[] = [];
@@ -207,13 +197,14 @@ export default function BanksPage() {
     const allTransactions: any[] = [];
     const negativeBankStatements: any[] = [];
     
-    // Process each bank group
-    Object.entries(bankGroups).forEach(([bankName, bankStatements]) => {
+    // Process each bank
+    banks.forEach((bank: any) => {
       let totalCashBalance = 0;
+      let bankNegativeBalance = 0; // Track negative balance per bank
       let latestUpdate = new Date(0);
       
-      // Process each statement
-      bankStatements.forEach((statement: any) => {
+      // Process each bank statement
+      bank.bankStatements.forEach((statement: any) => {
         const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
         
         // Add to cash balance or negative balance
@@ -222,6 +213,7 @@ export default function BanksPage() {
           totalPositiveBalance += endingBalance;
         } else {
           const absBalance = Math.abs(endingBalance);
+          bankNegativeBalance += absBalance; // Track per bank
           totalNegativeBalance += absBalance;
           
           // Add to negative bank statements for credit facilities
@@ -240,19 +232,19 @@ export default function BanksPage() {
           statement.transactions.forEach((transaction: any) => {
             allTransactions.push({
               ...transaction,
-              bankName,
+              bankName: bank.name,
               statementId: statement.id
             });
           });
         }
       });
       
-      // Add bank to processed banks
+      // Add bank to processed banks using the actual bank ID
       processedBanks.push({
-        id: bankStatements[0].id,
-        name: bankName,
+        id: bank.id, // Use the actual bank ID instead of statement ID
+        name: bank.name,
         cashBalance: formatCurrency(totalCashBalance),
-        bankPayments: formatCurrency(totalNegativeBalance),
+        bankPayments: formatCurrency(bankNegativeBalance), // Use bank-specific negative balance
         lastUpdate: latestUpdate.toLocaleDateString()
       });
     });
