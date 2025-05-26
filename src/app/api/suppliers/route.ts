@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import type { Supplier, Invoice } from '@/generated/prisma';
+import type { Supplier, Invoice } from '@prisma/client';
 
 interface SupplierWithInvoices extends Supplier {
   Invoice: Invoice[];

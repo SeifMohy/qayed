@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -94,6 +93,17 @@ model BankStatement {
   
   rawTextContent String? @db.Text
   processingStatus String @default("processed")
+  
+  // New annotation-related fields
+  fileUrl          String?  // URL to original uploaded file
+  parsed           Boolean  @default(false)
+  validated        Boolean  @default(false)
+  validationStatus String   @default("pending") // "pending" | "passed" | "failed"
+  validationNotes  String?  // Optional notes from validator
+  validatedAt      DateTime?
+  validatedBy      String?  // User ID who validated
+  locked           Boolean  @default(false) // Prevent further edits after approval
+  googleSheetId    String?  // Google Sheets spreadsheet ID for syncing
   
   bankId        Int
   bank          Bank @relation(fields: [bankId], references: [id])

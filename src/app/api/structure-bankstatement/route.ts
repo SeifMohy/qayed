@@ -515,6 +515,10 @@ export async function POST(request: Request) {
                             endingBalance: endingBalance || new Decimal(0),
                             rawTextContent: statementText,
                             bankId: bank.id, // Link to the bank
+                            // New annotation fields
+                            parsed: true, // Mark as parsed since we just processed it
+                            validated: false, // Not yet validated
+                            validationStatus: 'pending', // Pending validation
                             // Create transactions in the same operation
                             transactions: {
                                 create: statement.transactions.map((transaction: TransactionData, index: number) => {

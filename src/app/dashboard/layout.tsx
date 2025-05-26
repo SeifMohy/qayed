@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Disclosure, Menu, Transition } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
-import { BanknotesIcon, UsersIcon, TruckIcon, ChartBarIcon, UserCircleIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+import { BanknotesIcon, UsersIcon, TruckIcon, ChartBarIcon, UserCircleIcon, CreditCardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 
 // Define a shared key for localStorage
@@ -35,6 +35,7 @@ const navigationItems = [
   { name: 'Customers', href: '/dashboard/customers', icon: UsersIcon },
   { name: 'Suppliers', href: '/dashboard/suppliers', icon: TruckIcon },
   { name: 'Expenses', href: '/dashboard/expenses', icon: CreditCardIcon },
+  { name: 'Annotation', href: '/dashboard/annotation/statements', icon: ClipboardDocumentCheckIcon },
 ]
 
 const userNavigation = [

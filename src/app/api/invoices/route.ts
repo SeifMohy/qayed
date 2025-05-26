@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '../../../generated/prisma';
+import { prisma } from '@/lib/prisma';
 
 // Initialize Prisma client directly in this file to ensure we use the correct client
 // with all the models properly generated
-const prisma = new PrismaClient();
 const CURRENT_CUSTOMER_NAMES = ['شركهكانلصناعهوتعبئهالعلب', 'شركةكان', 'شركةكانلصناعةوتعبئةالعلب', 'كانلصناعةوتعبئةالعلب', "شركهكانلصناعهوتعبيئهالعلب"];
 const CURRENT_CUSTOMER_ETAID = "204942527";
 
