@@ -2,6 +2,51 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createTransactionSheet, getGoogleSheetsConfig, syncSheetToDatabase } from '@/lib/googleSheets';
 import type { TransactionRow } from '@/lib/googleSheets';
+import { Decimal } from '@prisma/client/runtime/library';
+
+// Helper function to perform balance validation
+function performBalanceValidation(statement: any): {
+  status: 'passed' | 'failed';
+  notes: string;
+} {
+  const startingBalance = Number(statement.startingBalance);
+  const endingBalance = Number(statement.endingBalance);
+  const transactions = statement.transactions;
+
+  // Calculate totals
+  let totalCredits = 0;
+  let totalDebits = 0;
+
+  transactions.forEach((transaction: any) => {
+    if (transaction.creditAmount) {
+      totalCredits += Number(transaction.creditAmount);
+    }
+    if (transaction.debitAmount) {
+      totalDebits += Number(transaction.debitAmount);
+    }
+  });
+
+  // Calculate expected ending balance
+  const calculatedBalance = startingBalance + totalCredits - totalDebits;
+  const discrepancy = Math.abs(calculatedBalance - endingBalance);
+
+  // Determine validation status
+  const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+  const status = discrepancy <= tolerance ? 'passed' : 'failed';
+
+  // Generate notes
+  let notes = '';
+  if (status === 'passed') {
+    notes = `Auto-validation passed after sync. Starting balance (${startingBalance.toFixed(2)}) + Credits (${totalCredits.toFixed(2)}) - Debits (${totalDebits.toFixed(2)}) = Ending balance (${endingBalance.toFixed(2)})`;
+  } else {
+    notes = `Auto-validation failed after sync. Expected ending balance: ${calculatedBalance.toFixed(2)}, Actual: ${endingBalance.toFixed(2)}, Discrepancy: ${discrepancy.toFixed(2)}`;
+  }
+
+  return {
+    status,
+    notes
+  };
+}
 
 export async function POST(
   request: Request,
@@ -201,12 +246,33 @@ export async function PUT(
       });
     }
 
-    // Reset validation status since data has changed
+    // Get the updated statement with new transactions for validation
+    const updatedStatement = await prisma.bankStatement.findUnique({
+      where: { id },
+      include: {
+        transactions: {
+          orderBy: {
+            transactionDate: 'asc'
+          }
+        }
+      }
+    });
+
+    if (!updatedStatement) {
+      throw new Error('Failed to fetch updated statement for validation');
+    }
+
+    // Perform automatic validation after sync
+    const validationResult = performBalanceValidation(updatedStatement);
+
+    // Update statement with validation result
     await prisma.bankStatement.update({
       where: { id },
       data: {
-        validated: false,
-        validationStatus: 'pending'
+        validated: validationResult.status === 'passed',
+        validationStatus: validationResult.status,
+        validationNotes: validationResult.notes,
+        validatedAt: validationResult.status === 'passed' ? new Date() : null
       }
     });
 
@@ -214,7 +280,9 @@ export async function PUT(
       success: true,
       data: {
         transactionCount: transactionsToCreate.length,
-        message: 'Transactions synced successfully from Google Sheets'
+        message: 'Transactions synced successfully from Google Sheets',
+        validationStatus: validationResult.status,
+        validationNotes: validationResult.notes
       }
     });
 

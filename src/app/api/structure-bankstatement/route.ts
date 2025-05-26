@@ -14,6 +14,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import fs from 'fs';
+import path from 'path';
 
 // --- Type definitions ---
 type StatementPeriod = {
@@ -378,6 +380,50 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
     throw new Error("All models failed");
 }
 
+// Helper function to perform balance validation
+function performAutoValidation(statement: any): {
+  status: 'passed' | 'failed';
+  notes: string;
+} {
+  const startingBalance = Number(statement.startingBalance);
+  const endingBalance = Number(statement.endingBalance);
+  const transactions = statement.transactions;
+
+  // Calculate totals
+  let totalCredits = 0;
+  let totalDebits = 0;
+
+  transactions.forEach((transaction: any) => {
+    if (transaction.creditAmount) {
+      totalCredits += Number(transaction.creditAmount);
+    }
+    if (transaction.debitAmount) {
+      totalDebits += Number(transaction.debitAmount);
+    }
+  });
+
+  // Calculate expected ending balance
+  const calculatedBalance = startingBalance + totalCredits - totalDebits;
+  const discrepancy = Math.abs(calculatedBalance - endingBalance);
+
+  // Determine validation status
+  const tolerance = 0.01; // Allow 1 cent tolerance for rounding
+  const status = discrepancy <= tolerance ? 'passed' : 'failed';
+
+  // Generate notes
+  let notes = '';
+  if (status === 'passed') {
+    notes = `Auto-validation passed during processing. Starting balance (${startingBalance.toFixed(2)}) + Credits (${totalCredits.toFixed(2)}) - Debits (${totalDebits.toFixed(2)}) = Ending balance (${endingBalance.toFixed(2)})`;
+  } else {
+    notes = `Auto-validation failed during processing. Expected ending balance: ${calculatedBalance.toFixed(2)}, Actual: ${endingBalance.toFixed(2)}, Discrepancy: ${discrepancy.toFixed(2)}`;
+  }
+
+  return {
+    status,
+    notes
+  };
+}
+
 // --- API Route Handler ---
 export async function POST(request: Request) {
     console.log("=== BANK STATEMENT PROCESSING STARTED ===");
@@ -547,6 +593,44 @@ export async function POST(request: Request) {
                 } catch (error) {
                     console.error('Error saving bank statement:', error);
                     throw error;
+                }
+            }
+
+            // Perform automatic validation on all saved statements
+            for (const statement of savedStatements) {
+                try {
+                    // Get the statement with transactions for validation
+                    const statementWithTransactions = await prisma.bankStatement.findUnique({
+                        where: { id: statement.id },
+                        include: {
+                            transactions: {
+                                orderBy: {
+                                    transactionDate: 'asc'
+                                }
+                            }
+                        }
+                    });
+
+                    if (statementWithTransactions) {
+                        // Perform balance validation
+                        const validationResult = performAutoValidation(statementWithTransactions);
+
+                        // Update statement with validation result
+                        await prisma.bankStatement.update({
+                            where: { id: statement.id },
+                            data: {
+                                validated: validationResult.status === 'passed',
+                                validationStatus: validationResult.status,
+                                validationNotes: validationResult.notes,
+                                validatedAt: validationResult.status === 'passed' ? new Date() : null
+                            }
+                        });
+
+                        console.log(`Auto-validation for statement ${statement.id}: ${validationResult.status}`);
+                    }
+                } catch (validationError) {
+                    console.error(`Error during auto-validation for statement ${statement.id}:`, validationError);
+                    // Don't fail the entire process if validation fails
                 }
             }
 
