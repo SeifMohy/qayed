@@ -433,9 +433,10 @@ export async function POST(request: Request) {
 
     try {
         const data = await request.json();
-        const { statementText, fileName } = data;
+        const { statementText, fileName, fileUrl } = data;
         
         console.log(`Request received with filename: ${fileName || 'unnamed'}`);
+        console.log(`File URL: ${fileUrl || 'not provided'}`);
         console.log(`Statement text length: ${statementText ? statementText.length : 0} characters`);
 
         if (!statementText) {
@@ -551,6 +552,7 @@ export async function POST(request: Request) {
                     const bankStatement = await prisma.bankStatement.create({
                         data: {
                             fileName,
+                            fileUrl,
                             bankName: statement.bank_name,
                             accountNumber: statement.account_number,
                             statementPeriodStart: convertToDate(statement.statement_period.start_date),

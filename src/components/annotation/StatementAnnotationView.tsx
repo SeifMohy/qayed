@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import StatementMetadataForm from './StatementMetadataForm';
 import ValidationCheck from './ValidationCheck';
-import DocumentViewer from './DocumentViewer';
 import TransactionManager from './TransactionManager';
 
 interface BankStatement {
@@ -132,6 +131,12 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
     fetchStatement();
   };
 
+  const handleViewDocument = () => {
+    if (statement?.fileUrl) {
+      window.open(statement.fileUrl, '_blank');
+    }
+  };
+
   if (loading) {
     return (
       <div className="animate-pulse">
@@ -239,6 +244,17 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {statement?.fileUrl && (
+              <button
+                onClick={handleViewDocument}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                View Document
+              </button>
+            )}
             {getStatusBadge(statement.validationStatus)}
             {statement.locked && (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
@@ -250,9 +266,8 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Forms and Validation */}
-        <div className="space-y-6">
+      <div className="w-full">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Statement Metadata Form */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-6 py-4 border-b">
@@ -279,8 +294,8 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
             />
           </div>
 
-          {/* Transaction Management */}
-          <div className="bg-white shadow rounded-lg">
+          {/* Transaction Management - Full Width */}
+          <div className="bg-white shadow rounded-lg xl:col-span-2">
             <div className="px-6 py-4 border-b">
               <h2 className="text-lg font-medium text-gray-900">Transaction Management</h2>
             </div>
@@ -292,17 +307,6 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
               googleSheetId={statement.googleSheetId}
             />
           </div>
-        </div>
-
-        {/* Right Column - Document Viewer */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-medium text-gray-900">Original Document</h2>
-          </div>
-          <DocumentViewer
-            fileUrl={statement.fileUrl}
-            fileName={statement.fileName}
-          />
         </div>
       </div>
     </div>
