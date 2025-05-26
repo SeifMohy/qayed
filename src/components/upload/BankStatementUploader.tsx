@@ -2,12 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { uploadBankStatementFile } from '@/lib/supabase';
 
 type ParsedDocument = {
   fileName: string;
   success: boolean;
   extractedText?: string;
   error?: string;
+  fileUrl?: string;
 };
 
 type ParseResponse = {
@@ -116,6 +118,27 @@ export default function BankStatementUploader({
       setProcessedDocs([]);
       onProcessingStart?.();
       
+      // Step 1: Upload files to Supabase Storage
+      console.log('Uploading files to Supabase Storage...');
+      const uploadedFiles: { file: File; fileUrl: string }[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(`Uploading file ${i + 1} of ${files.length}: ${file.name}`);
+        
+        try {
+          const fileUrl = await uploadBankStatementFile(file, file.name);
+          uploadedFiles.push({ file, fileUrl });
+          console.log(`Uploaded ${file.name} to Supabase: ${fileUrl}`);
+        } catch (uploadError: any) {
+          console.error(`Failed to upload ${file.name}:`, uploadError);
+          throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        }
+      }
+      
+      // Step 2: Parse text from uploaded files (using original files)
+      console.log('Extracting text from documents...');
+      
       // Create form data
       const formData = new FormData();
       files.forEach(file => {
@@ -135,12 +158,19 @@ export default function BankStatementUploader({
         throw new Error(result.error || 'Failed to process the bank statements.');
       }
       
-      setProcessedDocs(result.results);
+      // Merge file URLs with parsing results
+      const resultsWithUrls = result.results.map((parseResult, index) => ({
+        ...parseResult,
+        fileUrl: uploadedFiles[index]?.fileUrl
+      }));
       
-      // Now process each successfully parsed document with structure-bankstatement
+      setProcessedDocs(resultsWithUrls);
+      
+      // Step 3: Structure and save to database (now with file URLs)
+      console.log('Structuring and saving to database...');
       setIsProcessing(true);
       
-      const successful = result.results.filter(doc => doc.success && doc.extractedText);
+      const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
       
       if (successful.length === 0) {
         throw new Error('No documents were successfully parsed.');
@@ -157,7 +187,8 @@ export default function BankStatementUploader({
             },
             body: JSON.stringify({
               statementText: doc.extractedText,
-              fileName: doc.fileName
+              fileName: doc.fileName,
+              fileUrl: doc.fileUrl // Include the Supabase file URL
             }),
           });
           
@@ -380,7 +411,19 @@ export const processBankStatements = async (files: File[]) => {
     throw new Error(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
   }
   
-  // Create form data
+  // Step 1: Upload files to Supabase Storage
+  const uploadedFiles: { file: File; fileUrl: string }[] = [];
+  
+  for (const file of files) {
+    try {
+      const fileUrl = await uploadBankStatementFile(file, file.name);
+      uploadedFiles.push({ file, fileUrl });
+    } catch (uploadError: any) {
+      throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+    }
+  }
+  
+  // Step 2: Parse text from files
   const formData = new FormData();
   files.forEach(file => {
     formData.append('files', file);
@@ -399,7 +442,14 @@ export const processBankStatements = async (files: File[]) => {
     throw new Error(result.error || 'Failed to process the bank statements.');
   }
   
-  const successful = result.results.filter(doc => doc.success && doc.extractedText);
+  // Merge file URLs with parsing results
+  const resultsWithUrls = result.results.map((parseResult, index) => ({
+    ...parseResult,
+    fileUrl: uploadedFiles[index]?.fileUrl
+  }));
+
+  // Step 3: Structure and save to database
+  const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
   
   if (successful.length === 0) {
     throw new Error('No documents were successfully parsed.');
@@ -416,7 +466,8 @@ export const processBankStatements = async (files: File[]) => {
         },
         body: JSON.stringify({
           statementText: doc.extractedText,
-          fileName: doc.fileName
+          fileName: doc.fileName,
+          fileUrl: doc.fileUrl
         }),
       });
       
@@ -441,5 +492,9 @@ export const processBankStatements = async (files: File[]) => {
     }
   }
   
-  return results;
+  return {
+    ...result,
+    results: resultsWithUrls,
+    structureResults: results
+  };
 }; 
