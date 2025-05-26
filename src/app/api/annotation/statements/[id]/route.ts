@@ -171,10 +171,90 @@ export async function PUT(
       }, { status: 403 });
     }
 
-    // Prepare update data
+    // Handle bank name updates specially - update both Bank record and all related statements
+    if (bankName !== undefined && bankName !== existingStatement.bankName) {
+      const trimmedBankName = bankName.trim();
+      
+      if (trimmedBankName.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'Bank name cannot be empty'
+        }, { status: 400 });
+      }
+
+      // Use a transaction to update bank name across all related records
+      const result = await prisma.$transaction(async (tx) => {
+        // Find or create the bank with the new name
+        let targetBank = await tx.bank.findUnique({
+          where: { name: trimmedBankName }
+        });
+
+        if (!targetBank) {
+          // Create new bank if it doesn't exist
+          targetBank = await tx.bank.create({
+            data: { name: trimmedBankName }
+          });
+        }
+
+        // Update all bank statements that have the same bankId as the current statement
+        const updatedStatements = await tx.bankStatement.updateMany({
+          where: { bankId: existingStatement.bankId },
+          data: { 
+            bankName: trimmedBankName,
+            bankId: targetBank.id
+          }
+        });
+
+        // Now update the current statement with any other changes
+        const updateData: any = {};
+        if (accountNumber !== undefined) updateData.accountNumber = accountNumber;
+        if (statementPeriodStart !== undefined) updateData.statementPeriodStart = new Date(statementPeriodStart);
+        if (statementPeriodEnd !== undefined) updateData.statementPeriodEnd = new Date(statementPeriodEnd);
+        if (accountType !== undefined) updateData.accountType = accountType;
+        if (accountCurrency !== undefined) updateData.accountCurrency = accountCurrency;
+        if (startingBalance !== undefined) updateData.startingBalance = new Decimal(startingBalance);
+        if (endingBalance !== undefined) updateData.endingBalance = new Decimal(endingBalance);
+        if (validationStatus !== undefined) updateData.validationStatus = validationStatus;
+        if (validationNotes !== undefined) updateData.validationNotes = validationNotes;
+        if (validated !== undefined) {
+          updateData.validated = validated;
+          if (validated) {
+            updateData.validatedAt = new Date();
+            if (validatedBy) updateData.validatedBy = validatedBy;
+          }
+        }
+
+        const updatedStatement = await tx.bankStatement.update({
+          where: { id },
+          data: updateData,
+          include: {
+            bank: true,
+            transactions: {
+              orderBy: {
+                transactionDate: 'asc'
+              }
+            },
+            Customer: true,
+            Supplier: true
+          }
+        });
+
+        return {
+          statement: updatedStatement,
+          updatedStatementsCount: updatedStatements.count
+        };
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: convertDecimalsToNumbers(result.statement),
+        message: `Bank name updated. ${result.updatedStatementsCount} statements updated with the new bank name.`
+      });
+    }
+
+    // Handle regular updates (no bank name change)
     const updateData: any = {};
     
-    if (bankName !== undefined) updateData.bankName = bankName;
     if (accountNumber !== undefined) updateData.accountNumber = accountNumber;
     if (statementPeriodStart !== undefined) updateData.statementPeriodStart = new Date(statementPeriodStart);
     if (statementPeriodEnd !== undefined) updateData.statementPeriodEnd = new Date(statementPeriodEnd);
@@ -215,6 +295,31 @@ export async function PUT(
 
   } catch (error: any) {
     console.error('Error updating statement:', error);
+    
+    // Handle unique constraint violations
+    if (error.code === 'P2002') {
+      return NextResponse.json({
+        success: false,
+        error: 'A bank with this name already exists'
+      }, { status: 409 });
+    }
+    
+    // Handle foreign key constraint violations
+    if (error.code === 'P2003') {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid reference to related data'
+      }, { status: 400 });
+    }
+    
+    // Handle record not found errors
+    if (error.code === 'P2025') {
+      return NextResponse.json({
+        success: false,
+        error: 'Record not found'
+      }, { status: 404 });
+    }
+
     return NextResponse.json({
       success: false,
       error: error.message || 'Failed to update statement'
