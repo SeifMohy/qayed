@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 
 // --- Model and API Key Configuration ---
-const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
+const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const API_KEY = process.env.GEMINI_API_KEY;
 
 if (!API_KEY) {

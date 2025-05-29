@@ -49,7 +49,7 @@ type StructuredData = {
 };
 
 // --- Model and API Key Configuration ---
-const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
+const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const FALLBACK_MODEL = "gemini-1.5-flash";
 const API_KEY = process.env.GEMINI_API_KEY;
 

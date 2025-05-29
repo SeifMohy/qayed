@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET handler to retrieve all bank statements
+// GET handler to retrieve all bank statements grouped by banks
 export async function GET(request: Request) {
   try {
     // Parse URL to check for query parameters
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId');
     const supplierId = searchParams.get('supplierId');
+    const groupByBank = searchParams.get('groupByBank') === 'true';
     
     // Base query
     const whereClause: any = {};
@@ -20,49 +21,113 @@ export async function GET(request: Request) {
     if (supplierId) {
       whereClause.supplierId = parseInt(supplierId, 10);
     }
-    
-    // Get bank statements with the appropriate filters
-    const bankStatements = await prisma.bankStatement.findMany({
-      where: whereClause,
-      include: {
-        Customer: {
-          select: {
-            id: true,
-            name: true
+
+    if (groupByBank) {
+      // Get banks with their statements for the matching page
+      const banks = await prisma.bank.findMany({
+        include: {
+          bankStatements: {
+            where: whereClause,
+            include: {
+              Customer: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              Supplier: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              },
+              _count: {
+                select: {
+                  transactions: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
           }
         },
-        Supplier: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        transactions: {
-          orderBy: {
-            transactionDate: 'desc'
-          }
+        orderBy: {
+          name: 'asc'
         }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-    
-    // Process statements and include transaction counts
-    const statementsWithCounts = bankStatements.map((statement) => {
-      // Don't include raw text content in the response to reduce payload size
-      const { rawTextContent, ...statementWithoutText } = statement;
+      });
+
+      // Process banks and their statements
+      const banksWithStatements = banks
+        .filter(bank => bank.bankStatements.length > 0) // Only include banks with statements
+        .map((bank) => {
+          const statements = bank.bankStatements.map((statement) => {
+            const { rawTextContent, _count, ...statementWithoutText } = statement;
+            return {
+              ...statementWithoutText,
+              transactionCount: _count.transactions
+            };
+          });
+
+          return {
+            id: bank.id,
+            name: bank.name,
+            createdAt: bank.createdAt,
+            updatedAt: bank.updatedAt,
+            bankStatements: statements,
+            totalStatements: statements.length,
+            totalTransactions: statements.reduce((sum, stmt) => sum + stmt.transactionCount, 0)
+          };
+        });
+
+      return NextResponse.json({
+        success: true,
+        banks: banksWithStatements
+      });
+    } else {
+      // Original functionality - get bank statements with transaction counts
+      const bankStatements = await prisma.bankStatement.findMany({
+        where: whereClause,
+        include: {
+          Customer: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          Supplier: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          _count: {
+            select: {
+              transactions: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
       
-      return {
-        ...statementWithoutText,
-        transactionCount: statement.transactions.length
-      };
-    });
-    
-    return NextResponse.json({
-      success: true,
-      bankStatements: statementsWithCounts
-    });
+      // Process statements and include transaction counts
+      const statementsWithCounts = bankStatements.map((statement) => {
+        // Don't include raw text content in the response to reduce payload size
+        const { rawTextContent, _count, ...statementWithoutText } = statement;
+        
+        return {
+          ...statementWithoutText,
+          transactionCount: _count.transactions
+        };
+      });
+      
+      return NextResponse.json({
+        success: true,
+        bankStatements: statementsWithCounts
+      });
+    }
     
   } catch (error: any) {
     console.error('Error fetching bank statements:', error);
