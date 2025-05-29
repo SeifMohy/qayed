@@ -11,8 +11,9 @@ if (!API_KEY) {
   console.error('Error: GEMINI_API_KEY environment variable is not set.');
 }
 
-// --- Classification Types ---
-type ClassificationResult = {
+// --- Updated Types for Batch Processing ---
+type BatchClassificationResult = {
+  transactionId: number;
   category: string;
   confidence: number;
   reason: string;
@@ -20,6 +21,10 @@ type ClassificationResult = {
   extractedReferences: string[];
   currency: string | null;
   alternativeCategories: string[];
+};
+
+type BatchClassificationResponse = {
+  results: BatchClassificationResult[];
 };
 
 // --- Helper function to map string category to enum ---
@@ -36,6 +41,8 @@ function mapCategoryToEnum(categoryString: string): TransactionCategory {
       return TransactionCategory.INTERNAL_TRANSFER;
     case 'BANK_CHARGES':
       return TransactionCategory.BANK_CHARGES;
+    case 'BANK_PAYMENTS':
+      return TransactionCategory.BANK_PAYMENTS;
     case 'OTHER':
       return TransactionCategory.OTHER;
     default:
@@ -44,30 +51,37 @@ function mapCategoryToEnum(categoryString: string): TransactionCategory {
   }
 }
 
-// --- Helper Function for Gemini API Call ---
-async function classifyTransaction(transaction: any): Promise<ClassificationResult> {
+// --- Helper Function for Batch Gemini API Call ---
+async function classifyTransactionsBatch(transactions: any[]): Promise<BatchClassificationResult[]> {
   if (!API_KEY) {
     throw new Error('Gemini API key not configured');
   }
 
-  const prompt = `You are a financial transaction classifier. Analyze this bank transaction and classify it into one of these categories:
+  // Format transactions for the prompt
+  const transactionsList = transactions.map((transaction, index) => {
+    return `Transaction ${index + 1} (ID: ${transaction.id}):
+- Date: ${transaction.transactionDate}
+- Credit Amount: ${transaction.creditAmount || 'N/A'}
+- Debit Amount: ${transaction.debitAmount || 'N/A'}
+- Description: ${transaction.description || 'N/A'}
+- Entity Name: ${transaction.entityName || 'N/A'}`;
+  }).join('\n\n');
+
+  const prompt = `You are a financial transaction classifier. Analyze these bank transactions and classify each into one of these categories:
 
 CATEGORIES:
 - CUSTOMER_PAYMENT: Incoming payment from a customer/client
 - SUPPLIER_PAYMENT: Outgoing payment to a supplier/vendor
 - INTERNAL_TRANSFER: Transfer between own accounts or bank-to-bank transfers
 - BANK_CHARGES: Bank fees, interest, penalties, charges
+- BANK_PAYMENTS: Disbursement or collection of funds by the bank
 - OTHER: Other legitimate business transactions
 
-TRANSACTION DETAILS:
-- Date: ${transaction.transactionDate}
-- Credit Amount: ${transaction.creditAmount || 'N/A'}
-- Debit Amount: ${transaction.debitAmount || 'N/A'}
-- Description: ${transaction.description || 'N/A'}
-- Entity Name: ${transaction.entityName || 'N/A'}
+TRANSACTIONS TO CLASSIFY:
+${transactionsList}
 
 INSTRUCTIONS:
-1. Analyze the transaction description and entity name
+1. Analyze each transaction's description and entity name
 2. Consider the credit/debit amounts to determine direction
 3. Extract any company/person names mentioned
 4. Extract any invoice numbers, reference numbers, or IDs
@@ -77,13 +91,19 @@ INSTRUCTIONS:
 
 RESPONSE FORMAT (JSON only, no other text):
 {
-  "category": "CATEGORY_NAME",
-  "confidence": 0.85,
-  "reason": "Brief explanation of classification reasoning",
-  "extractedEntities": ["entity1", "entity2"],
-  "extractedReferences": ["ref1", "ref2"],
-  "currency": "USD",
-  "alternativeCategories": ["CATEGORY2", "CATEGORY3"]
+  "results": [
+    {
+      "transactionId": ${transactions[0]?.id},
+      "category": "CATEGORY_NAME",
+      "confidence": 0.85,
+      "reason": "Brief explanation of classification reasoning",
+      "extractedEntities": ["entity1", "entity2"],
+      "extractedReferences": ["ref1", "ref2"],
+      "currency": "USD",
+      "alternativeCategories": ["CATEGORY2", "CATEGORY3"]
+    }
+    // ... repeat for each transaction
+  ]
 }
 
 RULES:
@@ -92,7 +112,9 @@ RULES:
 - extractedEntities should contain company/person names
 - extractedReferences should contain invoice numbers, reference numbers, or IDs
 - currency should be detected from description if mentioned, otherwise null
-- alternativeCategories should list other possible categories if uncertain`;
+- alternativeCategories should list other possible categories if uncertain
+- IMPORTANT: Return results for ALL ${transactions.length} transactions in the exact same order
+- IMPORTANT: Use the exact transactionId provided for each transaction`;
 
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
@@ -106,7 +128,7 @@ RULES:
         temperature: 0.1,
         topK: 1,
         topP: 0.95,
-        maxOutputTokens: 45000,
+        maxOutputTokens: 45000, // Increased for batch responses
       }
     });
 
@@ -115,7 +137,7 @@ RULES:
       throw new Error('Empty response from Gemini API');
     }
 
-    console.log(`Raw Gemini response for transaction ${transaction.id}:`, responseText);
+    console.log(`Raw Gemini batch response for ${transactions.length} transactions:`, responseText);
 
     // Try to extract JSON from the response
     let jsonText = responseText.trim();
@@ -131,26 +153,42 @@ RULES:
 
     // Parse the JSON response
     try {
-      const result = JSON.parse(jsonText) as ClassificationResult;
+      const batchResult = JSON.parse(jsonText) as BatchClassificationResponse;
       
       // Validate the response structure
-      if (!result.category || typeof result.confidence !== 'number') {
-        throw new Error('Invalid response structure from Gemini API');
+      if (!batchResult.results || !Array.isArray(batchResult.results)) {
+        throw new Error('Invalid batch response structure from Gemini API');
       }
 
-      // Ensure arrays are properly initialized
-      result.extractedEntities = result.extractedEntities || [];
-      result.extractedReferences = result.extractedReferences || [];
-      result.alternativeCategories = result.alternativeCategories || [];
+      // Ensure we have results for all transactions
+      if (batchResult.results.length !== transactions.length) {
+        console.warn(`Expected ${transactions.length} results, got ${batchResult.results.length}`);
+      }
 
-      return result;
+      // Validate and clean up each result
+      const cleanedResults = batchResult.results.map((result, index) => {
+        // Ensure arrays are properly initialized
+        result.extractedEntities = result.extractedEntities || [];
+        result.extractedReferences = result.extractedReferences || [];
+        result.alternativeCategories = result.alternativeCategories || [];
+        
+        // Ensure we have the correct transaction ID
+        if (!result.transactionId && transactions[index]) {
+          result.transactionId = transactions[index].id;
+        }
+
+        return result;
+      });
+
+      return cleanedResults;
     } catch (parseError) {
-      console.error('Failed to parse Gemini response:', responseText);
+      console.error('Failed to parse Gemini batch response:', responseText);
       console.error('Extracted JSON text:', jsonText);
       console.error('Parse error:', parseError);
       
-      // Return a fallback classification
-      return {
+      // Return fallback classifications for all transactions
+      return transactions.map(transaction => ({
+        transactionId: transaction.id,
         category: 'OTHER',
         confidence: 0.1,
         reason: 'Failed to parse AI response, defaulting to OTHER category',
@@ -158,10 +196,10 @@ RULES:
         extractedReferences: [],
         currency: null,
         alternativeCategories: []
-      };
+      }));
     }
   } catch (error: any) {
-    console.error('Error calling Gemini API:', error);
+    console.error('Error calling Gemini API for batch:', error);
     throw new Error(`Gemini API error: ${error.message}`);
   }
 }
@@ -215,58 +253,69 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    console.log(`Starting classification for ${allTransactions.length} transactions across ${bankStatements.length} statements for bank ${bankId}`);
+    console.log(`Starting batch classification for ${allTransactions.length} transactions across ${bankStatements.length} statements for bank ${bankId}`);
 
     let classifiedCount = 0;
     const errors: string[] = [];
 
-    // Process transactions in batches to avoid overwhelming the API
-    const batchSize = 50;
+    // Process transactions in larger batches since we're doing batch API calls
+    const batchSize = 50; // Can process more per API call now
     for (let i = 0; i < allTransactions.length; i += batchSize) {
       const batch = allTransactions.slice(i, i + batchSize);
       
-      // Process batch concurrently but with reasonable limits
-      const batchPromises = batch.map(async (transaction) => {
-        try {
-          const classificationResult = await classifyTransaction(transaction);
-          
-          // Map string category to enum
-          const categoryEnum = mapCategoryToEnum(classificationResult.category);
-          
-          // Update the transaction with classification results
-          await prisma.transaction.update({
-            where: { id: transaction.id },
-            data: {
-              category: categoryEnum,
-              confidence: classificationResult.confidence,
-              classificationReason: classificationResult.reason,
-              extractedEntities: classificationResult.extractedEntities,
-              extractedReferences: classificationResult.extractedReferences,
-              currency: classificationResult.currency,
-              alternativeCategories: classificationResult.alternativeCategories,
-              classifiedAt: new Date(),
-              classificationMethod: 'LLM',
-              llmModel: MODEL_NAME
-            }
-          });
+      try {
+        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}: ${batch.length} transactions`);
+        
+        // Get batch classification results
+        const batchResults = await classifyTransactionsBatch(batch);
+        
+        // Process each result in the batch
+        for (const result of batchResults) {
+          try {
+            // Map string category to enum
+            const categoryEnum = mapCategoryToEnum(result.category);
+            
+            // Update the transaction with classification results
+            await prisma.transaction.update({
+              where: { id: result.transactionId },
+              data: {
+                category: categoryEnum,
+                confidence: result.confidence,
+                classificationReason: result.reason,
+                extractedEntities: result.extractedEntities,
+                extractedReferences: result.extractedReferences,
+                currency: result.currency,
+                alternativeCategories: result.alternativeCategories,
+                classifiedAt: new Date(),
+                classificationMethod: 'LLM',
+                llmModel: MODEL_NAME
+              }
+            });
 
-          classifiedCount++;
-          console.log(`Classified transaction ${transaction.id}: ${categoryEnum} (${classificationResult.confidence})`);
-        } catch (error: any) {
-          console.error(`Error classifying transaction ${transaction.id}:`, error);
-          errors.push(`Transaction ${transaction.id}: ${error.message}`);
+            classifiedCount++;
+            console.log(`Classified transaction ${result.transactionId}: ${categoryEnum} (${result.confidence})`);
+          } catch (error: any) {
+            console.error(`Error updating transaction ${result.transactionId}:`, error);
+            errors.push(`Transaction ${result.transactionId}: ${error.message}`);
+          }
         }
-      });
+        
+      } catch (error: any) {
+        console.error(`Error processing batch starting at index ${i}:`, error);
+        // Add errors for all transactions in the failed batch
+        batch.forEach(transaction => {
+          errors.push(`Transaction ${transaction.id}: Batch processing failed - ${error.message}`);
+        });
+      }
 
-      await Promise.all(batchPromises);
-
-      // Add a small delay between batches to be respectful to the API
+      // Add a delay between batches to be respectful to the API
       if (i + batchSize < allTransactions.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`Completed batch. Waiting 2 seconds before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
-    console.log(`Classification complete for bank ${bankId}. Classified: ${classifiedCount}, Errors: ${errors.length}`);
+    console.log(`Batch classification complete for bank ${bankId}. Classified: ${classifiedCount}, Errors: ${errors.length}`);
 
     return NextResponse.json({
       success: true,
