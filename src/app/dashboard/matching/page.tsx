@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronRightIcon, PlayIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, PlayIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, DocumentTextIcon, CreditCardIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 interface BankStatement {
   id: number;
@@ -33,14 +33,34 @@ interface ClassificationStatus {
   };
 }
 
+interface MatchingStats {
+  totalInvoices: number;
+  totalTransactions: number;
+  unmatchedInvoices: number;
+  unmatchedTransactions: number;
+}
+
+interface MatchingStatus {
+  status: 'idle' | 'processing' | 'completed' | 'error';
+  message?: string;
+  progress?: number;
+  matches?: number;
+}
+
 export default function MatchingPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [classificationStatus, setClassificationStatus] = useState<ClassificationStatus>({});
   const [expandedBanks, setExpandedBanks] = useState<Set<number>>(new Set());
+  
+  // New state for AI matching
+  const [matchingStats, setMatchingStats] = useState<MatchingStats | null>(null);
+  const [matchingStatus, setMatchingStatus] = useState<MatchingStatus>({ status: 'idle' });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     fetchBanks();
+    fetchMatchingStats();
   }, []);
 
   const fetchBanks = async () => {
@@ -58,6 +78,24 @@ export default function MatchingPage() {
       console.error('Error fetching banks:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMatchingStats = async () => {
+    try {
+      setLoadingStats(true);
+      const response = await fetch('/api/matching/stats');
+      const data = await response.json();
+      
+      if (data.success) {
+        setMatchingStats(data.stats);
+      } else {
+        console.error('Failed to fetch matching stats:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching matching stats:', error);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -104,6 +142,83 @@ export default function MatchingPage() {
           message: 'An error occurred during classification' 
         }
       }));
+    }
+  };
+
+  const handleAIMatching = async () => {
+    setMatchingStatus({
+      status: 'processing',
+      message: 'Initializing AI matching with Gemini...',
+      progress: 0
+    });
+
+    try {
+      const response = await fetch('/api/matching/ai-gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const message = data.details ? 
+          `AI matching completed! Found ${data.totalMatches} potential matches from ${data.details.invoicesProcessed} invoices and ${data.details.transactionsAnalyzed} transactions.` :
+          `AI matching completed! Found ${data.totalMatches} potential matches.`;
+        
+        setMatchingStatus({
+          status: 'completed',
+          message,
+          matches: data.totalMatches
+        });
+        
+        // Show additional details in console for debugging
+        if (data.details) {
+          console.log('🎯 Matching Results:', {
+            invoicesProcessed: data.details.invoicesProcessed,
+            transactionsAnalyzed: data.details.transactionsAnalyzed,
+            matchesFound: data.details.matchesFound,
+            matchesSaved: data.details.matchesSaved,
+            duplicates: data.duplicateMatches || 0,
+            errors: data.errorMatches || 0
+          });
+        }
+        
+        // Refresh stats after matching
+        fetchMatchingStats();
+      } else {
+        let errorMessage = data.error || 'AI matching failed';
+        
+        // Handle specific error cases
+        if (errorMessage.includes('GEMINI_API_KEY')) {
+          errorMessage = 'Please set up your Gemini API key in the environment variables. Check the setup guide for instructions.';
+        } else if (errorMessage.includes('rate limit')) {
+          errorMessage = 'API rate limit reached. Please wait a moment and try again.';
+        } else if (errorMessage.includes('network')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        
+        setMatchingStatus({
+          status: 'error',
+          message: errorMessage
+        });
+        
+        // Log detailed error for debugging
+        console.error('AI Matching Error:', data);
+      }
+    } catch (error) {
+      console.error('Error during AI matching:', error);
+      
+      let errorMessage = 'An error occurred during AI matching';
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Unable to connect to the AI matching service. Please check if the server is running.';
+      }
+      
+      setMatchingStatus({
+        status: 'error',
+        message: errorMessage
+      });
     }
   };
 
@@ -163,8 +278,119 @@ export default function MatchingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Transaction Classification</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Intelligent Transaction Matching</h1>
         <p className="mt-2 text-gray-600">
+          Use AI-powered matching to automatically link invoices with bank transactions, and classify transactions for better organization.
+        </p>
+      </div>
+
+      {/* AI Invoice-Transaction Matching Section */}
+      <div className="mb-8">
+        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg p-6 text-white mb-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <SparklesIcon className="h-8 w-8" />
+            <h2 className="text-2xl font-bold">AI-Powered Invoice Matching</h2>
+          </div>
+          <p className="text-purple-100 mb-6">
+            Let our AI analyze your invoices and transactions to find potential matches using advanced pattern recognition.
+          </p>
+          
+          {/* Matching Stats */}
+          {loadingStats ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white/10 rounded-lg p-4">
+                  <div className="animate-pulse">
+                    <div className="h-4 bg-white/20 rounded w-3/4 mb-2"></div>
+                    <div className="h-6 bg-white/20 rounded w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : matchingStats && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <DocumentTextIcon className="h-5 w-5 text-purple-200" />
+                  <span className="text-sm text-purple-200">Total Invoices</span>
+                </div>
+                <p className="text-2xl font-bold">{matchingStats.totalInvoices.toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <CreditCardIcon className="h-5 w-5 text-purple-200" />
+                  <span className="text-sm text-purple-200">Total Transactions</span>
+                </div>
+                <p className="text-2xl font-bold">{matchingStats.totalTransactions.toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-200" />
+                  <span className="text-sm text-purple-200">Unmatched Invoices</span>
+                </div>
+                <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedInvoices.toLocaleString()}</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-yellow-200" />
+                  <span className="text-sm text-purple-200">Unmatched Transactions</span>
+                </div>
+                <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedTransactions.toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Matching Status and Button */}
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              {matchingStatus.message && (
+                <div className="mb-2">
+                  <p className={`text-sm ${
+                    matchingStatus.status === 'error' ? 'text-red-200' : 
+                    matchingStatus.status === 'completed' ? 'text-green-200' : 'text-purple-200'
+                  }`}>
+                    {matchingStatus.message}
+                  </p>
+                  {matchingStatus.progress !== undefined && matchingStatus.status === 'processing' && (
+                    <div className="mt-2 bg-white/20 rounded-full h-2">
+                      <div 
+                        className="bg-white rounded-full h-2 transition-all duration-300"
+                        style={{ width: `${matchingStatus.progress}%` }}
+                      ></div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleAIMatching}
+              disabled={matchingStatus.status === 'processing'}
+              className={`ml-4 inline-flex items-center px-6 py-3 border border-white/20 rounded-lg text-sm font-medium transition-all ${
+                matchingStatus.status === 'processing'
+                  ? 'bg-white/10 cursor-not-allowed'
+                  : 'bg-white/20 hover:bg-white/30 cursor-pointer'
+              }`}
+            >
+              {matchingStatus.status === 'processing' ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  Start AI Matching
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction Classification Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Transaction Classification by Bank</h2>
+        <p className="text-gray-600 mb-6">
           Classify transactions in your bank statements using AI-powered categorization. Organize by bank for efficient processing.
         </p>
       </div>
