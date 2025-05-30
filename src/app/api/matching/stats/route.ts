@@ -27,11 +27,53 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Get match counts by status
+    const pendingMatches = await prisma.transactionMatch.count({
+      where: { status: 'PENDING' }
+    });
+
+    const approvedMatches = await prisma.transactionMatch.count({
+      where: { status: 'APPROVED' }
+    });
+
+    const rejectedMatches = await prisma.transactionMatch.count({
+      where: { status: 'REJECTED' }
+    });
+
+    const disputedMatches = await prisma.transactionMatch.count({
+      where: { status: 'DISPUTED' }
+    });
+
+    const totalMatches = await prisma.transactionMatch.count();
+
+    // Get average match score for pending matches
+    const avgMatchScore = await prisma.transactionMatch.aggregate({
+      where: { status: 'PENDING' },
+      _avg: { matchScore: true }
+    });
+
+    // Get high confidence matches (passed strict criteria)
+    const highConfidenceMatches = await prisma.transactionMatch.count({
+      where: { 
+        status: 'PENDING',
+        passedStrictCriteria: true 
+      }
+    });
+
     const stats = {
       totalInvoices,
       totalTransactions,
       unmatchedInvoices,
-      unmatchedTransactions
+      unmatchedTransactions,
+      matches: {
+        total: totalMatches,
+        pending: pendingMatches,
+        approved: approvedMatches,
+        rejected: rejectedMatches,
+        disputed: disputedMatches,
+        averageScore: avgMatchScore._avg.matchScore ? Number(avgMatchScore._avg.matchScore) : 0,
+        highConfidence: highConfidenceMatches
+      }
     };
 
     return NextResponse.json({

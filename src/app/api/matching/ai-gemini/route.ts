@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MatchType, MatchStatus, TransactionCategory } from '@prisma/client';
+import { CURRENT_CUSTOMER_NAMES } from '../../invoices/route';
 
 // Initialize Gemini AI with error checking
 if (!process.env.GEMINI_API_KEY) {
@@ -322,7 +323,7 @@ You are an expert financial analyst matching ${group.invoiceType} invoices to ba
 
 ENTITY: ${group.entityName}
 INVOICE TYPE: ${group.invoiceType}
-
+CURRENT CUSTOMER NAMES: ${CURRENT_CUSTOMER_NAMES.join(', ')}
 INVOICES (${group.invoices.length} total):
 ${group.invoices.map((inv, idx) => `
 Invoice ${idx + 1}:
@@ -349,8 +350,11 @@ Transaction ${idx + 1}:
 `).join('')}
 
 MATCHING CRITERIA:
-1. **Entity Match**: If the transaction entity name matches the issuer (for customer invoices) or receiver (for supplier invoices) of the invoice, include it as a match regardless of amount or date.
-2. **Contextual Match**: If the transaction is consistent with the context of the invoice (e.g., similar amount, date, or description), include it as a potential match.
+1. **Entity Match**: If the transaction entity name matches the invoice counterparty — that is, the issuer for supplier invoices or the receiver for customer invoices — include it as a match regardless of amount or date.
+ - ⚠️ Do **not** consider matches to the the current customer names (${CURRENT_CUSTOMER_NAMES.join(', ')}) as valid entity matches, even if they appear in the transaction description.
+2. **Exact Amount Match**: If the invoice amount is **exactly equal** to the transaction amount (credit or debit depending on invoice type), consider it a match, even if other signals are weaker.
+3. **Contextual Match**: If the transaction is consistent with the context of the invoice (e.g., similar amount, date, or description), include it as a potential match.
+
 
 RESPONSE FORMAT:
 {
@@ -364,7 +368,7 @@ RESPONSE FORMAT:
     }
   ]
 }
-  
+
 *make sure you return the invoiceId and transactionId in the matches array as as without any other text*
 
 SCORING GUIDELINES:

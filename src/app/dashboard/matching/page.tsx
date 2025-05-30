@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronRightIcon, PlayIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, DocumentTextIcon, CreditCardIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { ChevronRightIcon, PlayIcon, CheckCircleIcon, ExclamationTriangleIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, DocumentTextIcon, CreditCardIcon, SparklesIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface BankStatement {
   id: number;
@@ -38,6 +38,15 @@ interface MatchingStats {
   totalTransactions: number;
   unmatchedInvoices: number;
   unmatchedTransactions: number;
+  matches: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    disputed: number;
+    averageScore: number;
+    highConfidence: number;
+  };
 }
 
 interface MatchingStatus {
@@ -260,6 +269,11 @@ export default function MatchingPage() {
     }
   };
 
+  const handleMatchUpdate = () => {
+    // Refresh stats when matches are updated
+    fetchMatchingStats();
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -308,36 +322,80 @@ export default function MatchingPage() {
               ))}
             </div>
           ) : matchingStats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <DocumentTextIcon className="h-5 w-5 text-purple-200" />
-                  <span className="text-sm text-purple-200">Total Invoices</span>
+            <>
+              {/* Basic Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <DocumentTextIcon className="h-5 w-5 text-purple-200" />
+                    <span className="text-sm text-purple-200">Total Invoices</span>
+                  </div>
+                  <p className="text-2xl font-bold">{matchingStats.totalInvoices.toLocaleString()}</p>
                 </div>
-                <p className="text-2xl font-bold">{matchingStats.totalInvoices.toLocaleString()}</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <CreditCardIcon className="h-5 w-5 text-purple-200" />
-                  <span className="text-sm text-purple-200">Total Transactions</span>
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <CreditCardIcon className="h-5 w-5 text-purple-200" />
+                    <span className="text-sm text-purple-200">Total Transactions</span>
+                  </div>
+                  <p className="text-2xl font-bold">{matchingStats.totalTransactions.toLocaleString()}</p>
                 </div>
-                <p className="text-2xl font-bold">{matchingStats.totalTransactions.toLocaleString()}</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-200" />
-                  <span className="text-sm text-purple-200">Unmatched Invoices</span>
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-200" />
+                    <span className="text-sm text-purple-200">Unmatched Invoices</span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedInvoices.toLocaleString()}</p>
                 </div>
-                <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedInvoices.toLocaleString()}</p>
-              </div>
-              <div className="bg-white/10 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-yellow-200" />
-                  <span className="text-sm text-purple-200">Unmatched Transactions</span>
+                <div className="bg-white/10 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-yellow-200" />
+                    <span className="text-sm text-purple-200">Unmatched Transactions</span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedTransactions.toLocaleString()}</p>
                 </div>
-                <p className="text-2xl font-bold text-yellow-200">{matchingStats.unmatchedTransactions.toLocaleString()}</p>
               </div>
-            </div>
+
+              {/* Match Stats */}
+              {matchingStats.matches.total > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="h-4 w-4 text-green-200" />
+                      <span className="text-xs text-purple-200">Pending Review</span>
+                    </div>
+                    <p className="text-lg font-bold text-green-200">{matchingStats.matches.pending}</p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="h-4 w-4 text-green-300" />
+                      <span className="text-xs text-purple-200">Approved</span>
+                    </div>
+                    <p className="text-lg font-bold text-green-300">{matchingStats.matches.approved}</p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <XMarkIcon className="h-4 w-4 text-red-200" />
+                      <span className="text-xs text-purple-200">Rejected</span>
+                    </div>
+                    <p className="text-lg font-bold text-red-200">{matchingStats.matches.rejected}</p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <ExclamationTriangleIcon className="h-4 w-4 text-yellow-200" />
+                      <span className="text-xs text-purple-200">Disputed</span>
+                    </div>
+                    <p className="text-lg font-bold text-yellow-200">{matchingStats.matches.disputed}</p>
+                  </div>
+                  <div className="bg-white/10 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <SparklesIcon className="h-4 w-4 text-blue-200" />
+                      <span className="text-xs text-purple-200">High Confidence</span>
+                    </div>
+                    <p className="text-lg font-bold text-blue-200">{matchingStats.matches.highConfidence}</p>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Matching Status and Button */}
