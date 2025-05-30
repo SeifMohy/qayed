@@ -96,8 +96,6 @@ export async function GET(
             transactionDate: 'asc'
           }
         },
-        Customer: true,
-        Supplier: true
       }
     });
 
@@ -234,8 +232,6 @@ export async function PUT(
                 transactionDate: 'asc'
               }
             },
-            Customer: true,
-            Supplier: true
           }
         });
 
@@ -283,8 +279,6 @@ export async function PUT(
             transactionDate: 'asc'
           }
         },
-        Customer: true,
-        Supplier: true
       }
     });
 

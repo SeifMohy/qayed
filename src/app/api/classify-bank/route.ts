@@ -223,16 +223,11 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Fetch all bank statements for this bank and their unclassified transactions
+    // Fetch all bank statements for this bank and their transactions
     const bankStatements = await prisma.bankStatement.findMany({
       where: { bankId: bankId },
       include: {
-        transactions: {
-          where: {
-            // Only classify transactions that haven't been classified yet
-            category: null
-          }
-        }
+        transactions: true // Remove the filter - get ALL transactions
       }
     });
 
@@ -243,13 +238,13 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
-    // Collect all unclassified transactions from all statements
+    // Collect all transactions from all statements
     const allTransactions = bankStatements.flatMap(statement => statement.transactions);
 
     if (allTransactions.length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'No unclassified transactions found for this bank'
+        error: 'No transactions found for this bank'
       }, { status: 400 });
     }
 

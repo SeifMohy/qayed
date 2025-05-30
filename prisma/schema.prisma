@@ -45,7 +45,6 @@ model Customer {
   country       String?
   etaId         String?
   paymentTerms  Int?
-  BankStatement BankStatement[]
   Invoice       Invoice[]
 }
 
@@ -57,7 +56,6 @@ model Supplier {
   country       String?
   etaId         String?
   paymentTerms  Int?
-  BankStatement BankStatement[]
   Invoice       Invoice[]
 }
 
@@ -84,8 +82,6 @@ model BankStatement {
   endingBalance        Decimal
   rawTextContent       String?
   processingStatus     String            @default("processed")
-  customerId           Int?
-  supplierId           Int?
   bankId               Int
   fileUrl              String?
   locked               Boolean           @default(false)
@@ -97,9 +93,6 @@ model BankStatement {
   validationStatus     String            @default("pending")
   googleSheetId        String?
   bank                 Bank              @relation(fields: [bankId], references: [id])
-  Customer             Customer?         @relation(fields: [customerId], references: [id])
-  Supplier             Supplier?         @relation(fields: [supplierId], references: [id])
-  MatchingSession      MatchingSession[]
   transactions         Transaction[]
 }
 
@@ -137,53 +130,11 @@ model Transaction {
   manuallyOverridden        Boolean                    @default(false)
   processingTime            Int?
   bankStatement             BankStatement              @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
-  TransactionClassification TransactionClassification? @relation(fields: [classificationId], references: [id])
   TransactionMatch          TransactionMatch[]
 }
 
-model MatchingSession {
-  id                   Int           @id @default(autoincrement())
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime
-  bankStatementId      Int
-  startedBy            String
-  completedAt          DateTime?
-  totalTransactions    Int
-  eligibleTransactions Int
-  unknownTransactions  Int
-  automaticMatches     Int
-  suggestedMatches     Int
-  potentialMatches     Int
-  manualMatches        Int
-  passedStrictCriteria Int
-  status               SessionStatus @default(IN_PROGRESS)
-  BankStatement        BankStatement @relation(fields: [bankStatementId], references: [id])
-}
 
-model TransactionClassification {
-  id                    Int                  @id @default(autoincrement())
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime
-  category              TransactionCategory
-  isEligible            Boolean
-  confidence            Float
-  reason                String
-  extractedEntities     String[]
-  extractedReferences   String[]
-  currency              String?
-  classificationMethod  String               @default("LLM")
-  alternativeCategories String[]
-  requiresManualReview  Boolean              @default(false)
-  manuallyOverridden    Boolean              @default(false)
-  manualClassification  TransactionCategory?
-  manualNotes           String?
-  manuallyClassifiedAt  DateTime?
-  manuallyClassifiedBy  String?
-  llmModel              String?
-  llmPromptVersion      String?
-  processingTime        Int?
-  Transaction           Transaction[]
-}
+
 
 model TransactionMatch {
   id                       Int                 @id @default(autoincrement())

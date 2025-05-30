@@ -12,8 +12,6 @@ interface BankStatement {
   statementPeriodEnd: string;
   transactionCount: number;
   createdAt: string;
-  Customer?: { id: number; name: string } | null;
-  Supplier?: { id: number; name: string } | null;
 }
 
 interface Bank {
@@ -553,16 +551,6 @@ export default function MatchingPage() {
                                 <p className="text-sm font-medium text-gray-900 truncate">
                                   {statement.fileName || `${statement.bankName} Statement`}
                                 </p>
-                                {statement.Customer && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Customer: {statement.Customer.name}
-                                  </span>
-                                )}
-                                {statement.Supplier && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    Supplier: {statement.Supplier.name}
-                                  </span>
-                                )}
                               </div>
                               <div className="mt-1">
                                 <p className="text-xs text-gray-500">

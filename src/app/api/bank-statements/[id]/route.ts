@@ -19,20 +19,6 @@ export async function GET(
     const bankStatement = await prisma.bankStatement.findUnique({
       where: { id },
       include: {
-        Customer: {
-          select: {
-            id: true,
-            name: true,
-            country: true
-          }
-        },
-        Supplier: {
-          select: {
-            id: true,
-            name: true,
-            country: true
-          }
-        },
         transactions: {
           orderBy: {
             transactionDate: 'desc'

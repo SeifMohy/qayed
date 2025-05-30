@@ -6,41 +6,14 @@ export async function GET(request: Request) {
   try {
     // Parse URL to check for query parameters
     const { searchParams } = new URL(request.url);
-    const customerId = searchParams.get('customerId');
-    const supplierId = searchParams.get('supplierId');
     const groupByBank = searchParams.get('groupByBank') === 'true';
-    
-    // Base query
-    const whereClause: any = {};
-    
-    // Add filters if provided
-    if (customerId) {
-      whereClause.customerId = parseInt(customerId, 10);
-    }
-    
-    if (supplierId) {
-      whereClause.supplierId = parseInt(supplierId, 10);
-    }
 
     if (groupByBank) {
       // Get banks with their statements for the matching page
       const banks = await prisma.bank.findMany({
         include: {
           bankStatements: {
-            where: whereClause,
             include: {
-              Customer: {
-                select: {
-                  id: true,
-                  name: true
-                }
-              },
-              Supplier: {
-                select: {
-                  id: true,
-                  name: true
-                }
-              },
               _count: {
                 select: {
                   transactions: true
@@ -59,9 +32,9 @@ export async function GET(request: Request) {
 
       // Process banks and their statements
       const banksWithStatements = banks
-        .filter(bank => bank.bankStatements.length > 0) // Only include banks with statements
-        .map((bank) => {
-          const statements = bank.bankStatements.map((statement) => {
+        .filter((bank: any) => bank.bankStatements.length > 0) // Only include banks with statements
+        .map((bank: any) => {
+          const statements = bank.bankStatements.map((statement: any) => {
             const { rawTextContent, _count, ...statementWithoutText } = statement;
             return {
               ...statementWithoutText,
@@ -76,7 +49,7 @@ export async function GET(request: Request) {
             updatedAt: bank.updatedAt,
             bankStatements: statements,
             totalStatements: statements.length,
-            totalTransactions: statements.reduce((sum, stmt) => sum + stmt.transactionCount, 0)
+            totalTransactions: statements.reduce((sum: number, stmt: any) => sum + stmt.transactionCount, 0)
           };
         });
 
@@ -87,20 +60,7 @@ export async function GET(request: Request) {
     } else {
       // Original functionality - get bank statements with transaction counts
       const bankStatements = await prisma.bankStatement.findMany({
-        where: whereClause,
         include: {
-          Customer: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
-          Supplier: {
-            select: {
-              id: true,
-              name: true
-            }
-          },
           _count: {
             select: {
               transactions: true
@@ -111,27 +71,26 @@ export async function GET(request: Request) {
           createdAt: 'desc'
         }
       });
-      
+
       // Process statements and include transaction counts
-      const statementsWithCounts = bankStatements.map((statement) => {
+      const statementsWithCounts = bankStatements.map((statement: any) => {
         // Don't include raw text content in the response to reduce payload size
         const { rawTextContent, _count, ...statementWithoutText } = statement;
-        
+
         return {
           ...statementWithoutText,
           transactionCount: _count.transactions
         };
       });
-      
+
       return NextResponse.json({
         success: true,
         bankStatements: statementsWithCounts
       });
     }
-    
   } catch (error: any) {
     console.error('Error fetching bank statements:', error);
-    
+
     return NextResponse.json({
       success: false,
       error: error.message || 'An unexpected error occurred while fetching bank statements'
