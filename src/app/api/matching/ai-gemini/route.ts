@@ -67,9 +67,23 @@ export async function POST(request: NextRequest) {
     // Get unmatched invoices (limit for processing efficiency)
     const rawInvoices = await prisma.invoice.findMany({
       where: {
-        TransactionMatch: {
-          none: {}
-        }
+        // Include invoices that have no matches OR only rejected/disputed matches
+        OR: [
+          {
+            TransactionMatch: {
+              none: {}
+            }
+          },
+          {
+            TransactionMatch: {
+              every: {
+                status: {
+                  in: ['REJECTED', 'DISPUTED']
+                }
+              }
+            }
+          }
+        ]
       },
       take: 100, // Process in batches for efficiency
       orderBy: {
@@ -97,17 +111,39 @@ export async function POST(request: NextRequest) {
     // Get unmatched transactions with category filtering and classification info
     const rawTransactions = await prisma.transaction.findMany({
       where: {
-        TransactionMatch: {
-          none: {}
-        },
-        // Only include transactions that have amounts and relevant categories
-        OR: [
-          { creditAmount: { not: null } },
-          { debitAmount: { not: null } }
-        ],
-        category: {
-          in: ['CUSTOMER_PAYMENT', 'SUPPLIER_PAYMENT']
-        }
+        AND: [
+          {
+            // Include transactions that have no matches OR only rejected/disputed matches
+            OR: [
+              {
+                TransactionMatch: {
+                  none: {}
+                }
+              },
+              {
+                TransactionMatch: {
+                  every: {
+                    status: {
+                      in: ['REJECTED', 'DISPUTED']
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            // Only include transactions that have amounts and relevant categories
+            OR: [
+              { creditAmount: { not: null } },
+              { debitAmount: { not: null } }
+            ]
+          },
+          {
+            category: {
+              in: ['CUSTOMER_PAYMENT', 'SUPPLIER_PAYMENT']
+            }
+          }
+        ]
       },
       take: 500, // Increase limit since we're filtering by category
       orderBy: {
@@ -209,16 +245,32 @@ export async function POST(request: NextRequest) {
 
     for (const match of matches) {
       try {
-        // Check for existing match to avoid duplicates
-        const existingMatch = await prisma.transactionMatch.findFirst({
+        // Check for existing approved match to avoid duplicates
+        const existingApprovedMatch = await prisma.transactionMatch.findFirst({
           where: {
             transactionId: match.transactionId,
-            invoiceId: match.invoiceId
+            invoiceId: match.invoiceId,
+            status: 'APPROVED'
           }
         });
 
-        if (existingMatch) {
-          console.log(`⏭️  Match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId}`);
+        if (existingApprovedMatch) {
+          console.log(`⏭️  Approved match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId}`);
+          duplicateMatches++;
+          continue;
+        }
+
+        // Check for existing pending match to avoid creating multiple pending matches
+        const existingPendingMatch = await prisma.transactionMatch.findFirst({
+          where: {
+            transactionId: match.transactionId,
+            invoiceId: match.invoiceId,
+            status: 'PENDING'
+          }
+        });
+
+        if (existingPendingMatch) {
+          console.log(`⏭️  Pending match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId}`);
           duplicateMatches++;
           continue;
         }

@@ -9,21 +9,47 @@ export async function GET(request: NextRequest) {
     // Get total transactions
     const totalTransactions = await prisma.transaction.count();
 
-    // Get invoices that don't have any matches
+    // Get invoices that don't have any matches OR only have rejected/disputed matches
     const unmatchedInvoices = await prisma.invoice.count({
       where: {
-        TransactionMatch: {
-          none: {}
-        }
+        OR: [
+          {
+            TransactionMatch: {
+              none: {}
+            }
+          },
+          {
+            TransactionMatch: {
+              every: {
+                status: {
+                  in: ['REJECTED', 'DISPUTED']
+                }
+              }
+            }
+          }
+        ]
       }
     });
 
-    // Get transactions that don't have any matches
+    // Get transactions that don't have any matches OR only have rejected/disputed matches
     const unmatchedTransactions = await prisma.transaction.count({
       where: {
-        TransactionMatch: {
-          none: {}
-        }
+        OR: [
+          {
+            TransactionMatch: {
+              none: {}
+            }
+          },
+          {
+            TransactionMatch: {
+              every: {
+                status: {
+                  in: ['REJECTED', 'DISPUTED']
+                }
+              }
+            }
+          }
+        ]
       }
     });
 
