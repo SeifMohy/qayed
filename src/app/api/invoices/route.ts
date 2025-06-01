@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
                 name: rawInvoice.receiverName,
                 country: receiverCountry,
                 etaId: invoiceData.receiverEtaId || null, // Store sanitized etaId or null
-                paymentTerms: null, 
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -147,7 +146,6 @@ export async function POST(request: NextRequest) {
                 name: rawInvoice.issuerName,
                 country: issuerCountry,
                 etaId: invoiceData.issuerEtaId || null, // Store sanitized etaId or null
-                paymentTerms: null, 
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },

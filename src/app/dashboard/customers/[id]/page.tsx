@@ -2,18 +2,32 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ArrowLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid'
-import { UserGroupIcon, ClockIcon, CurrencyDollarIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ChevronRightIcon, PencilIcon } from '@heroicons/react/20/solid'
+import { UserGroupIcon, ClockIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
+import PaymentTermsEditor from '@/components/shared/PaymentTermsEditor'
+import type { PaymentTermsData } from '@/types/paymentTerms'
 
-interface InvoiceHistory {
+interface InvoiceWithMatches {
   id: number;
-  date: string;
-  invoice: string;
-  amount: string;
-  status: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  total: number;
+  invoiceStatus: string;
   dueDate: string;
+  paidAmount: number;
+  remainingAmount: number;
   paidDate: string | null;
+}
+
+interface MatchedTransaction {
+  id: number;
+  transactionDate: string;
+  amount: number;
+  description: string | null;
+  bankName: string;
+  matchScore: number;
+  invoiceNumber: string;
 }
 
 interface CustomerDetail {
@@ -25,15 +39,19 @@ interface CustomerDetail {
   industry: string;
   relationshipSince: string;
   salesPastYear: string;
-  grantedFacilities: string;
-  paymentTerms: string;
-  percentOfTotalSales: string;
+  paymentTerms: number;
+  paymentTermsData: PaymentTermsData | null;
   paymentStatus: string;
   creditScore: string;
-  history: InvoiceHistory[];
+  country: string;
+  totalReceivables: number;
+  averagePaymentTime: number | null;
+  onTimePaymentPercentage: number | null;
+  recentPayments: number;
+  invoices: InvoiceWithMatches[];
+  matchedTransactions: MatchedTransaction[];
   notes: string;
-  averageInvoiceAmount?: string;
-  country?: string;
+  averageInvoiceAmount: string;
 }
 
 export default function CustomerProfile({ params }: { params: { id: string } }) {
@@ -42,6 +60,12 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isEditingPaymentTerms, setIsEditingPaymentTerms] = useState(false)
+  const [paymentTermsData, setPaymentTermsData] = useState<PaymentTermsData>({
+    paymentPeriod: 'Net 30',
+    downPayment: { required: false, dueDate: 'Due on signing' },
+    installments: []
+  })
 
   // Fetch customer data
   useEffect(() => {
@@ -54,6 +78,19 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
         }
         const data = await response.json()
         setCustomer(data)
+        
+        // Initialize payment terms data
+        if (data.paymentTermsData) {
+          setPaymentTermsData(data.paymentTermsData)
+        } else {
+          // Convert legacy payment terms to new structure
+          const legacyTerms = data.paymentTerms || 30
+          setPaymentTermsData({
+            paymentPeriod: `Net ${legacyTerms}`,
+            downPayment: { required: false, dueDate: 'Due on signing' },
+            installments: []
+          })
+        }
       } catch (err) {
         console.error('Error fetching customer data:', err)
         setError('Could not load customer data. Please try again later.')
@@ -64,6 +101,60 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
 
     fetchCustomerData()
   }, [customerId])
+
+  const handlePaymentTermsUpdate = async () => {
+    try {
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ paymentTermsData }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update payment terms')
+      }
+
+      if (customer) {
+        setCustomer({ 
+          ...customer, 
+          paymentTermsData,
+          // Update legacy field for backward compatibility
+          paymentTerms: paymentTermsData.paymentPeriod.includes('Net ') 
+            ? parseInt(paymentTermsData.paymentPeriod.replace('Net ', '')) || 30
+            : paymentTermsData.paymentPeriod === 'Due on receipt' ? 0 : 30
+        })
+      }
+      setIsEditingPaymentTerms(false)
+    } catch (err) {
+      console.error('Error updating payment terms:', err)
+    }
+  }
+
+  const getPaymentTermsDisplay = () => {
+    if (!customer?.paymentTermsData) {
+      return `${customer?.paymentTerms || 30} days`
+    }
+    
+    const terms = customer.paymentTermsData
+    let display = terms.paymentPeriod
+    
+    if (terms.downPayment?.required) {
+      const amount = terms.downPayment.percentage 
+        ? `${terms.downPayment.percentage}%` 
+        : terms.downPayment.amount 
+          ? `$${terms.downPayment.amount}` 
+          : 'TBD'
+      display += ` + ${amount} down payment`
+    }
+    
+    if (terms.installments && terms.installments.length > 0) {
+      display += ` + ${terms.installments.length} installments`
+    }
+    
+    return display
+  }
 
   if (isLoading) {
     return (
@@ -89,41 +180,47 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
   const renderOverviewContent = () => {
     if (!customer) return null;
     
-    // Calculate metrics
-    const totalInvoiced = customer.history.reduce(
-      (sum, invoice) => sum + parseFloat(invoice.amount.replace(/[$,]/g, '')), 
-      0
-    );
+    // Calculate due next 30 days
+    const now = new Date();
+    const thirtyDaysLater = new Date(now);
+    thirtyDaysLater.setDate(now.getDate() + 30);
     
-    // Calculate payment stats based on bank data when it becomes available
-    // For now, show placeholders with explanations where relevant
+    const dueNext30Days = customer.invoices?.reduce((sum, invoice) => {
+      const dueDate = new Date(invoice.dueDate);
+      if (dueDate >= now && dueDate <= thirtyDaysLater && invoice.remainingAmount > 0) {
+        return sum + invoice.remainingAmount;
+      }
+      return sum;
+    }, 0) || 0;
     
     return (
       <div>
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-1">Total Purchases</h3>
-            <p className="text-2xl font-bold text-gray-900">{customer.salesPastYear}</p>
-            <p className="mt-1 text-sm text-gray-500">Lifetime value</p>
-          </div>
-          
-          <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-1">Average Invoice</h3>
-            <p className="text-2xl font-bold text-gray-900">{customer.averageInvoiceAmount || 'N/A'}</p>
-            <p className="mt-1 text-sm text-gray-500">Based on {customer.history.length} invoices</p>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Due Next 30 Days</h3>
+            <p className="text-2xl font-bold text-gray-900">
+              ${dueNext30Days.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">Expected payments</p>
           </div>
           
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Average Payment Time</h3>
-            <p className="text-2xl font-bold text-gray-900">N/A</p>
-            <p className="mt-1 text-sm text-gray-500">Requires bank statement data</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {customer.averagePaymentTime !== null ? `${customer.averagePaymentTime} days` : 'N/A'}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              {customer.averagePaymentTime !== null ? 'From invoice to payment' : 'No payment data yet'}
+            </p>
           </div>
-          
+
           <div className="bg-white shadow rounded-lg p-6">
-            <h3 className="text-base font-semibold text-gray-900 mb-1">On-Time Payments</h3>
-            <p className="text-2xl font-bold text-gray-900">N/A</p>
-            <p className="mt-1 text-sm text-gray-500">Requires bank statement data</p>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Total Receivables</h3>
+            <p className="text-2xl font-bold text-gray-900">
+              ${customer.totalReceivables.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </p>
+            <p className="mt-1 text-sm text-gray-500">Outstanding amount</p>
           </div>
         </div>
         
@@ -133,37 +230,45 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Date</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Due Date</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {customer.history.slice(0, 5).map((invoice) => (
+              {customer.invoices?.slice(0, 5).map((invoice) => (
                 <tr key={invoice.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoice}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.amount}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                    ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                    ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={clsx(
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      invoice.status === 'Paid' ? 'bg-green-100 text-green-800' : 
-                      invoice.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                      invoice.remainingAmount <= 0.01 ? 'bg-green-100 text-green-800' : 
+                      invoice.invoiceStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-gray-100 text-gray-800'
                     )}>
-                      {invoice.status}
+                      {invoice.remainingAmount <= 0.01 ? 'Paid' : invoice.invoiceStatus}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{invoice.paidDate ? new Date(invoice.paidDate).toLocaleDateString() : 'N/A'}</td>
                 </tr>
-              ))}
+              )) || []}
             </tbody>
           </table>
-          {customer.history.length > 5 && (
+          {(customer.invoices?.length || 0) > 5 && (
             <div className="bg-gray-50 px-6 py-3 text-right">
               <button
                 type="button"
@@ -189,41 +294,110 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
               <h3 className="text-base font-semibold leading-6 text-gray-900">Invoice History</h3>
-              <p className="text-sm text-gray-500">{customer?.history.length || 0} total invoices</p>
+              <p className="text-sm text-gray-500">{customer?.invoices?.length || 0} total invoices</p>
+            </div>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {customer?.invoices?.map((invoice) => (
+                  <tr key={invoice.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                      ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                      ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={clsx(
+                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                        invoice.remainingAmount <= 0.01 ? 'bg-green-100 text-green-800' : 
+                        invoice.invoiceStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      )}>
+                        {invoice.remainingAmount <= 0.01 ? 'Paid' : invoice.invoiceStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {invoice.paidDate ? new Date(invoice.paidDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                  </tr>
+                )) || []}
+              </tbody>
+            </table>
+          </div>
+        );
+      case 'transactions':
+        return (
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
+              <h3 className="text-base font-semibold leading-6 text-gray-900">Matched Transactions</h3>
+              <p className="text-sm text-gray-500">{customer?.matchedTransactions?.length || 0} transactions</p>
             </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid Date</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bank</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Match Score</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {customer?.history.map((invoice) => (
-                  <tr key={invoice.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoice}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.amount}</td>
+                {customer?.matchedTransactions?.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(transaction.transactionDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      ${transaction.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                      {transaction.description || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {transaction.bankName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {transaction.invoiceNumber}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={clsx(
                         'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                        invoice.status === 'Paid' ? 'bg-green-100 text-green-800' : 
-                        invoice.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-gray-100 text-gray-800'
+                        transaction.matchScore >= 90 ? 'bg-green-100 text-green-800' :
+                        transaction.matchScore >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                       )}>
-                        {invoice.status}
+                        {transaction.matchScore}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{invoice.paidDate ? new Date(invoice.paidDate).toLocaleDateString() : 'N/A'}</td>
                   </tr>
-                ))}
+                )) || []}
               </tbody>
             </table>
+            {(!customer?.matchedTransactions || customer.matchedTransactions.length === 0) && (
+              <div className="px-6 py-12 text-center">
+                <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
+                <p className="mt-1 text-sm text-gray-500">Transactions will appear here once bank statements are matched with invoices.</p>
+              </div>
+            )}
           </div>
         );
       case 'notes':
@@ -262,93 +436,112 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <div className="flex-shrink-0 h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
             <UserGroupIcon className="h-10 w-10 text-blue-600" aria-hidden="true" />
           </div>
-          <div className="ml-6">
-            <h2 className="text-xl font-medium text-gray-900">{customer.name}</h2>
-            <div className="mt-1 grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
+          <div className="ml-6 flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <dt className="text-gray-500">Contact</dt>
-                <dd className="font-medium text-gray-900">{customer.contact}</dd>
+                <dt className="text-sm font-medium text-gray-500">Contact</dt>
+                <dd className="mt-1 text-sm text-gray-900">{customer.contact}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Email</dt>
-                <dd className="font-medium text-gray-900">{customer.email}</dd>
+                <dt className="text-sm font-medium text-gray-500">Country</dt>
+                <dd className="mt-1 text-sm text-gray-900">{customer.country}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Phone</dt>
-                <dd className="font-medium text-gray-900">{customer.phone}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Industry</dt>
-                <dd className="font-medium text-gray-900">{customer.industry}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Relationship</dt>
-                <dd className="font-medium text-gray-900">Since {customer.relationshipSince}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Payment Terms</dt>
-                <dd className="font-medium text-gray-900">{customer.paymentTerms}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Credit Score</dt>
-                <dd className="font-medium text-gray-900">{customer.creditScore}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Payment Status</dt>
-                <dd className={clsx(
-                  "font-medium",
-                  customer.paymentStatus.includes('On Time') 
-                    ? 'text-green-600' 
-                    : 'text-yellow-600'
-                )}>
-                  {customer.paymentStatus}
+                <dt className="text-sm font-medium text-gray-500">Payment Terms</dt>
+                <dd className="mt-1 text-sm text-gray-900 flex items-center">
+                  {!isEditingPaymentTerms ? (
+                    <div className="flex items-center space-x-1">
+                      <span>{getPaymentTermsDisplay()}</span>
+                      <button
+                        onClick={() => setIsEditingPaymentTerms(true)}
+                        className="p-1 text-gray-400 hover:text-gray-600"
+                      >
+                        <PencilIcon className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : null}
                 </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Since</dt>
+                <dd className="mt-1 text-sm text-gray-900">{customer.relationshipSince}</dd>
               </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Payment Terms Editor Modal/Overlay */}
+      {isEditingPaymentTerms && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Edit Payment Terms</h3>
+              <button
+                onClick={() => setIsEditingPaymentTerms(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="sr-only">Close</span>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <PaymentTermsEditor
+              value={paymentTermsData}
+              onChange={setPaymentTermsData}
+              className="mb-6"
+            />
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setIsEditingPaymentTerms(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#595CFF]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePaymentTermsUpdate}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#595CFF] hover:bg-[#484adb] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#595CFF]"
+              >
+                Save Payment Terms
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={clsx(
-              activeTab === 'overview'
-                ? 'border-[#595CFF] text-[#595CFF]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-              'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
-            )}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('invoices')}
-            className={clsx(
-              activeTab === 'invoices'
-                ? 'border-[#595CFF] text-[#595CFF]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-              'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
-            )}
-          >
-            Invoice History
-          </button>
-          <button
-            onClick={() => setActiveTab('notes')}
-            className={clsx(
-              activeTab === 'notes'
-                ? 'border-[#595CFF] text-[#595CFF]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-              'whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm'
-            )}
-          >
-            Notes
-          </button>
-        </nav>
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            {[
+              { id: 'overview', label: 'Overview', icon: ClockIcon },
+              { id: 'invoices', label: 'Invoices', icon: DocumentTextIcon },
+              { id: 'transactions', label: 'Transactions', icon: CurrencyDollarIcon },
+              { id: 'notes', label: 'Notes', icon: DocumentTextIcon },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={clsx(
+                  activeTab === tab.id
+                    ? 'border-[#595CFF] text-[#595CFF]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                  'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center'
+                )}
+                aria-current={activeTab === tab.id ? 'page' : undefined}
+              >
+                <tab.icon className="h-5 w-5 mr-2" />
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
-      {/* Render content based on active tab */}
+      {/* Tab Content */}
       {renderTabContent()}
     </div>
   )

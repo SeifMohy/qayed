@@ -38,25 +38,25 @@ model Invoice {
 }
 
 model Customer {
-  id            Int             @id @default(autoincrement())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime
-  name          String
-  country       String?
-  etaId         String?
-  paymentTerms  Int?
-  Invoice       Invoice[]
+  id               Int             @id @default(autoincrement())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  name             String
+  country          String?
+  etaId            String?
+  paymentTermsData Json?           // New comprehensive payment terms
+  Invoice          Invoice[]
 }
 
 model Supplier {
-  id            Int             @id @default(autoincrement())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime
-  name          String
-  country       String?
-  etaId         String?
-  paymentTerms  Int?
-  Invoice       Invoice[]
+  id               Int             @id @default(autoincrement())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  name             String
+  country          String?
+  etaId            String?
+  paymentTermsData Json?           // New comprehensive payment terms
+  Invoice          Invoice[]
 }
 
 model Bank {
@@ -132,9 +132,6 @@ model Transaction {
   bankStatement             BankStatement              @relation(fields: [bankStatementId], references: [id], onDelete: Cascade)
   TransactionMatch          TransactionMatch[]
 }
-
-
-
 
 model TransactionMatch {
   id                       Int                 @id @default(autoincrement())
