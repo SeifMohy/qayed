@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MatchType, MatchStatus, TransactionCategory } from '@prisma/client';
-import { CURRENT_CUSTOMER_NAMES } from '../../invoices/route';
+import { CURRENT_CUSTOMER_NAMES } from '@/lib/constants';
 
 // Initialize Gemini AI with error checking
 if (!process.env.GEMINI_API_KEY) {

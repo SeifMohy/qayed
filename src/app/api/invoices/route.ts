@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { CURRENT_CUSTOMER_NAMES, CURRENT_CUSTOMER_ETAID } from '@/lib/constants';
 
 // Initialize Prisma client directly in this file to ensure we use the correct client
 // with all the models properly generated
-export const CURRENT_CUSTOMER_NAMES = ['شركهكانلصناعهوتعبئهالعلب', 'شركةكان', 'شركةكانلصناعةوتعبئةالعلب', 'كانلصناعةوتعبئةالعلب', "شركهكانلصناعهوتعبيئهالعلب"];
-const CURRENT_CUSTOMER_ETAID = "204942527";
 
 export async function POST(request: NextRequest) {
   let processedCount = 0;

@@ -32,9 +32,11 @@ model Invoice {
   supplierId            Int?
   exactMatchingRequired Boolean            @default(false)
   matchingKeywords      String[]
+  expectedPaymentDates  Json?              // Phase 1: Expected payment dates based on payment terms
   Customer              Customer?          @relation(fields: [customerId], references: [id])
   Supplier              Supplier?          @relation(fields: [supplierId], references: [id])
   TransactionMatch      TransactionMatch[]
+  CashflowProjection    CashflowProjection[] // Phase 1: Link to cashflow projections
 }
 
 model Customer {
@@ -158,6 +160,50 @@ model TransactionMatch {
   @@unique([transactionId, invoiceId])
 }
 
+// Phase 1: Cashflow Projection System
+model CashflowProjection {
+  id              Int           @id @default(autoincrement())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  projectionDate  DateTime      // Date this projection is for
+  projectedAmount Decimal       // Positive for inflows, negative for outflows
+  actualAmount    Decimal?      // Actual amount when it occurs
+  type            CashflowType
+  status          CashflowStatus @default(PROJECTED)
+  confidence      Float         @default(1.0) // 0.0 to 1.0
+  description     String?
+  
+  // Phase 1: Only invoice relationships
+  invoiceId       Int?
+  Invoice         Invoice?      @relation(fields: [invoiceId], references: [id])
+  
+  @@index([projectionDate])
+  @@index([type, status])
+  @@index([invoiceId])
+}
+
+// Phase 1: Enums
+enum CashflowType {
+  CUSTOMER_RECEIVABLE
+  SUPPLIER_PAYABLE
+  // Phase 3: Additional types will be added later
+  // BANK_OBLIGATION
+  // INTERNAL_TRANSFER
+  // TAX_PAYMENT
+  // LOAN_PAYMENT
+  // OTHER_INCOME
+  // OTHER_EXPENSE
+}
+
+enum CashflowStatus {
+  PROJECTED
+  CONFIRMED
+  PARTIAL
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
 enum MatchStatus {
   PENDING
   APPROVED
@@ -173,12 +219,6 @@ enum MatchType {
   MANUAL
 }
 
-enum SessionStatus {
-  IN_PROGRESS
-  PENDING_REVIEW
-  COMPLETED
-  CANCELLED
-}
 
 enum TransactionCategory {
   CUSTOMER_PAYMENT
