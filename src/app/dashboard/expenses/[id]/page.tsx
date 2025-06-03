@@ -5,7 +5,7 @@ import { ArrowLeftIcon, ArrowPathIcon, DocumentArrowUpIcon } from '@heroicons/re
 import { CurrencyDollarIcon, CalendarIcon, HashtagIcon, ClockIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { useUploadedSources } from '../../layout'
+import { useUploadedSources } from '@/hooks/useUploadedSources'
 import { useParams } from 'next/navigation'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'

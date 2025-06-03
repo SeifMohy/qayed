@@ -22,7 +22,7 @@ type UploadedSourcesContextType = {
 export const UploadedSourcesContext = createContext<UploadedSourcesContextType | undefined>(undefined);
 
 // Custom hook for accessing the context
-export function useUploadedSources() {
+function useUploadedSources() {
   const context = useContext(UploadedSourcesContext);
   if (context === undefined) {
     throw new Error('useUploadedSources must be used within a UploadedSourcesProvider');

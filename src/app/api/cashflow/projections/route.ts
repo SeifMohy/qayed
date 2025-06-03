@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       confidence: p.confidence,
       description: p.description,
       invoiceId: p.invoiceId,
+      recurringPaymentId: p.recurringPaymentId,
       // Include related data if requested
       ...(includeRelated && {
         Invoice: p.Invoice ? {
@@ -57,6 +58,12 @@ export async function GET(request: NextRequest) {
           total: Number(p.Invoice.total),
           Customer: p.Invoice.Customer,
           Supplier: p.Invoice.Supplier
+        } : null,
+        RecurringPayment: p.RecurringPayment ? {
+          name: p.RecurringPayment.name,
+          category: p.RecurringPayment.category,
+          frequency: p.RecurringPayment.frequency,
+          isActive: p.RecurringPayment.isActive
         } : null
       })
     }));

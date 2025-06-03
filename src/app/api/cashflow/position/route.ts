@@ -42,7 +42,15 @@ export async function GET(request: NextRequest) {
     const service = new CashflowProjectionService();
     
     // Get daily cash positions
-    const positions = await service.calculateCashPosition(startDate, endDate);
+    const result = await service.calculateCashPosition(startDate, endDate);
+    const positions = result.positions;
+    const cashMetadata = result.metadata;
+    
+    console.log(`💰 Cash position calculation completed:`);
+    console.log(`   - Starting balance: ${cashMetadata.startingBalance.toLocaleString()}`);
+    console.log(`   - Latest balance date: ${cashMetadata.latestBalanceDate}`);
+    console.log(`   - Effective start date: ${cashMetadata.effectiveStartDate}`);
+    console.log(`   - Generated ${positions.length} daily positions`);
     
     // Calculate summary statistics
     const balances = positions.map(p => p.closingBalance);
@@ -54,7 +62,10 @@ export async function GET(request: NextRequest) {
       highestBalanceDate: '',
       cashPositiveDays: positions.filter(p => p.closingBalance > 0).length,
       cashNegativeDays: positions.filter(p => p.closingBalance < 0).length,
-      totalDays: positions.length
+      totalDays: positions.length,
+      startingBalance: cashMetadata.startingBalance,
+      latestBalanceDate: cashMetadata.latestBalanceDate,
+      effectiveStartDate: cashMetadata.effectiveStartDate
     };
 
     // Find dates for lowest and highest balances

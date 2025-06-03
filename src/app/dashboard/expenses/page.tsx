@@ -6,7 +6,7 @@ import { CurrencyDollarIcon, ReceiptPercentIcon, CreditCardIcon } from '@heroico
 import { clsx } from 'clsx'
 import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
-import { useUploadedSources } from '../layout'
+import { useUploadedSources } from '@/hooks/useUploadedSources'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'

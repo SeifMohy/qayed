@@ -177,15 +177,49 @@ model CashflowProjection {
   invoiceId       Int?
   Invoice         Invoice?      @relation(fields: [invoiceId], references: [id])
   
+  // Recurring payment relationship
+  recurringPaymentId Int?
+  RecurringPayment   RecurringPayment? @relation(fields: [recurringPaymentId], references: [id])
+  
   @@index([projectionDate])
   @@index([type, status])
   @@index([invoiceId])
+  @@index([recurringPaymentId])
+}
+
+// Recurring Payments Model
+model RecurringPayment {
+  id              Int                   @id @default(autoincrement())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  name            String                // e.g., "Monthly Salaries", "Office Rent"
+  description     String?               // Additional details
+  amount          Decimal               // Amount per occurrence
+  type            CashflowType          // INFLOW or OUTFLOW type
+  frequency       RecurrenceFrequency   // How often it occurs
+  startDate       DateTime              // When it starts
+  endDate         DateTime?             // When it ends (optional)
+  nextDueDate     DateTime              // Next occurrence date
+  dayOfMonth      Int?                  // For monthly: which day (1-31)
+  dayOfWeek       Int?                  // For weekly: which day (0-6, Sunday=0)
+  isActive        Boolean               @default(true)
+  category        String?               // e.g., "Payroll", "Rent", "Utilities"
+  currency        String                @default("USD")
+  confidence      Float                 @default(1.0) // 0.0 to 1.0
+  
+  // Generated projections
+  CashflowProjection CashflowProjection[]
+  
+  @@index([isActive, nextDueDate])
+  @@index([type, isActive])
 }
 
 // Phase 1: Enums
 enum CashflowType {
   CUSTOMER_RECEIVABLE
   SUPPLIER_PAYABLE
+  RECURRING_INFLOW     // For recurring income like subscriptions
+  RECURRING_OUTFLOW    // For recurring expenses like salaries, rent
   // Phase 3: Additional types will be added later
   // BANK_OBLIGATION
   // INTERNAL_TRANSFER
@@ -219,6 +253,15 @@ enum MatchType {
   MANUAL
 }
 
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY       // Every 2 weeks
+  MONTHLY
+  QUARTERLY      // Every 3 months
+  SEMIANNUALLY   // Every 6 months
+  ANNUALLY
+}
 
 enum TransactionCategory {
   CUSTOMER_PAYMENT

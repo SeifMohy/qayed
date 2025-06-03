@@ -4,14 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
-import {
+import type {
   PaymentTermsData,
   PaymentTermsInstallment,
   PaymentTermsDownPayment,
-  PAYMENT_PERIOD_OPTIONS,
-  DOWN_PAYMENT_DUE_OPTIONS,
   PaymentPeriodOption,
   DownPaymentDueOption
+} from '@/types/paymentTerms'
+import {
+  PAYMENT_PERIOD_OPTIONS,
+  DOWN_PAYMENT_DUE_OPTIONS
 } from '@/types/paymentTerms'
 
 interface PaymentTermsEditorProps {

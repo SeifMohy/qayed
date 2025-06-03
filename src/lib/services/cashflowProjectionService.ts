@@ -368,6 +368,14 @@ export class CashflowProjectionService {
             Customer: { select: { name: true } },
             Supplier: { select: { name: true } }
           }
+        },
+        RecurringPayment: {
+          select: {
+            name: true,
+            category: true,
+            frequency: true,
+            isActive: true
+          }
         }
       },
       orderBy: { projectionDate: 'asc' }
@@ -375,55 +383,210 @@ export class CashflowProjectionService {
   }
 
   /**
+   * Get the latest cash balance from bank statements
+   * This matches the logic used on the banks page for calculating total cash on hand
+   */
+  async getLatestCashBalance(): Promise<{ balance: number; date: Date; statementId?: number }> {
+    try {
+      console.log('🔍 Searching for latest cash balance from bank statements...');
+      
+      // Get all validated and processed bank statements (matching banks page logic)
+      const allStatements = await prisma.bankStatement.findMany({
+        where: {
+          validated: true,
+          processingStatus: 'processed'
+        },
+        include: {
+          transactions: {
+            orderBy: { transactionDate: 'desc' },
+            take: 1,
+            select: {
+              balance: true,
+              transactionDate: true
+            }
+          }
+        },
+        orderBy: { statementPeriodEnd: 'desc' }
+      });
+
+      console.log(`📋 Found ${allStatements.length} validated bank statements`);
+
+      if (allStatements.length === 0) {
+        console.warn('⚠️  No bank statements found, using balance of 0');
+        return {
+          balance: 0,
+          date: new Date(),
+          statementId: undefined
+        };
+      }
+
+      // Calculate total cash balance by summing all positive ending balances (matching banks page)
+      let totalCashBalance = 0;
+      let latestDate = new Date(0); // Start with earliest possible date
+      let latestStatementId: number | undefined;
+
+      allStatements.forEach(statement => {
+        const endingBalance = Number(statement.endingBalance || 0);
+        
+        // Only include positive balances in cash total (matching banks page logic)
+        if (endingBalance > 0) {
+          totalCashBalance += endingBalance;
+          console.log(`💰 Adding statement ${statement.id}: ${endingBalance.toLocaleString()} (Period: ${statement.statementPeriodStart.toISOString().split('T')[0]} to ${statement.statementPeriodEnd.toISOString().split('T')[0]})`);
+        }
+        
+        // Track the most recent statement end date
+        if (statement.statementPeriodEnd > latestDate) {
+          latestDate = statement.statementPeriodEnd;
+          latestStatementId = statement.id;
+        }
+      });
+
+      console.log(`💰 Total cash balance calculated: ${totalCashBalance.toLocaleString()}`);
+      console.log(`📅 Latest statement date: ${latestDate.toISOString().split('T')[0]}`);
+      console.log(`🏦 Most recent statement ID: ${latestStatementId}`);
+
+      // If we have a positive total, use it with the latest date
+      if (totalCashBalance > 0) {
+        return {
+          balance: totalCashBalance,
+          date: latestDate,
+          statementId: latestStatementId
+        };
+      }
+
+      // Fallback: if no positive balances, try to use the latest transaction balance from the most recent statement
+      const latestStatement = allStatements[0]; // Already sorted by statementPeriodEnd desc
+      if (latestStatement && latestStatement.transactions.length > 0) {
+        const latestTransaction = latestStatement.transactions[0];
+        console.log(`💰 Using latest transaction balance as fallback: ${Number(latestTransaction.balance || 0)} on ${latestTransaction.transactionDate.toISOString().split('T')[0]}`);
+        return {
+          balance: Number(latestTransaction.balance || 0),
+          date: latestTransaction.transactionDate,
+          statementId: latestStatement.id
+        };
+      }
+
+      // Final fallback: use the latest statement's ending balance even if negative
+      if (latestStatement) {
+        console.log(`💰 Using latest statement ending balance as final fallback: ${Number(latestStatement.endingBalance || 0)} on ${latestStatement.statementPeriodEnd.toISOString().split('T')[0]}`);
+        return {
+          balance: Number(latestStatement.endingBalance || 0),
+          date: latestStatement.statementPeriodEnd,
+          statementId: latestStatement.id
+        };
+      }
+
+      // Absolute fallback
+      console.warn('⚠️  No usable bank statements found, using balance of 0');
+      return {
+        balance: 0,
+        date: new Date(),
+        statementId: undefined
+      };
+    } catch (error) {
+      console.error('❌ Error getting latest cash balance:', error);
+      return {
+        balance: 0,
+        date: new Date(),
+        statementId: undefined
+      };
+    }
+  }
+
+  /**
    * Calculate daily cash position for a date range
    */
   async calculateCashPosition(startDate: Date, endDate: Date) {
-    const projections = await this.getProjections(startDate, endDate);
+    // Get the actual starting balance from latest bank statements
+    const { balance: startingBalance, date: latestBalanceDate } = await this.getLatestCashBalance();
+    
+    console.log(`💰 Starting cash position calculation:`);
+    console.log(`   - Starting balance: ${startingBalance.toLocaleString()}`);
+    console.log(`   - Latest balance date: ${latestBalanceDate.toISOString().split('T')[0]}`);
+    console.log(`   - Projection range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+
+    // Adjust start date to be at least from the latest balance date
+    const effectiveStartDate = startDate < latestBalanceDate ? latestBalanceDate : startDate;
+    
+    const projections = await this.getProjections(effectiveStartDate, endDate);
     
     // Group projections by date
     const dailyPositions = new Map<string, any>();
-    let runningBalance = 0; // TODO: Get actual current balance from bank statements
+    let runningBalance = startingBalance;
     
+    // Create a complete date range from effective start to end date
+    const currentDate = new Date(effectiveStartDate);
+    while (currentDate <= endDate) {
+      const dateKey = currentDate.toISOString().split('T')[0];
+      dailyPositions.set(dateKey, {
+        date: dateKey,
+        openingBalance: runningBalance,
+        totalInflows: 0,
+        totalOutflows: 0,
+        netCashflow: 0,
+        projectionCount: 0,
+        confidenceSum: 0,
+        projections: []
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Apply projections to their respective dates
     projections.forEach(projection => {
       const dateKey = projection.projectionDate.toISOString().split('T')[0];
-      
-      if (!dailyPositions.has(dateKey)) {
-        dailyPositions.set(dateKey, {
-          date: dateKey,
-          openingBalance: runningBalance,
-          totalInflows: 0,
-          totalOutflows: 0,
-          netCashflow: 0,
-          projectionCount: 0,
-          confidenceSum: 0,
-          projections: []
-        });
-      }
-      
       const position = dailyPositions.get(dateKey);
-      const amount = Number(projection.projectedAmount);
       
-      position.projectionCount++;
-      position.confidenceSum += projection.confidence;
-      position.projections.push(projection);
-      
-      if (amount > 0) {
-        position.totalInflows += amount;
-      } else {
-        position.totalOutflows += Math.abs(amount);
+      if (position) {
+        const amount = Number(projection.projectedAmount);
+        
+        position.projectionCount++;
+        position.confidenceSum += projection.confidence;
+        position.projections.push(projection);
+        
+        if (amount > 0) {
+          position.totalInflows += amount;
+        } else {
+          position.totalOutflows += Math.abs(amount);
+        }
+        
+        position.netCashflow += amount;
       }
-      
-      position.netCashflow += amount;
     });
     
-    // Calculate running balances
-    const positions = Array.from(dailyPositions.values()).map(day => ({
-      ...day,
-      closingBalance: day.openingBalance + day.netCashflow,
-      averageConfidence: day.projectionCount > 0 ? day.confidenceSum / day.projectionCount : 1.0
-    }));
+    // Calculate running balances for each day
+    const sortedDates = Array.from(dailyPositions.keys()).sort();
+    const positions = sortedDates.map(dateKey => {
+      const day = dailyPositions.get(dateKey);
+      const closingBalance = day.openingBalance + day.netCashflow;
+      
+      // Update running balance for next day
+      runningBalance = closingBalance;
+      
+      // Update opening balance for next day if it exists
+      const nextDateKey = sortedDates[sortedDates.indexOf(dateKey) + 1];
+      if (nextDateKey && dailyPositions.has(nextDateKey)) {
+        dailyPositions.get(nextDateKey).openingBalance = closingBalance;
+      }
+      
+      return {
+        ...day,
+        closingBalance,
+        averageConfidence: day.projectionCount > 0 ? day.confidenceSum / day.projectionCount : 1.0
+      };
+    });
     
-    return positions.sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      positions,
+      metadata: {
+        startingBalance,
+        latestBalanceDate: latestBalanceDate.toISOString().split('T')[0],
+        effectiveStartDate: effectiveStartDate.toISOString().split('T')[0],
+        projectionRange: {
+          start: startDate.toISOString().split('T')[0],
+          end: endDate.toISOString().split('T')[0]
+        }
+      }
+    };
   }
 
   /**

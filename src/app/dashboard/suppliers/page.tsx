@@ -5,7 +5,7 @@ import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, C
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
-import { useUploadedSources } from '../layout'
+import { useUploadedSources } from '@/hooks/useUploadedSources'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import UploadModal from '@/components/upload/upload-modal'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
