@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
-import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon } from '@heroicons/react/24/outline'
+import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon, CreditCardIcon, ChartBarIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
+import { isFacilityAccount, getFacilityDisplayType, isRegularAccount } from '@/utils/bankStatementUtils'
 
 // Define types based on Prisma schema
 type Transaction = {
@@ -28,6 +29,9 @@ type BankStatement = {
     statementPeriodEnd: string;
     startingBalance: string;
     endingBalance: string;
+    tenor: string | null;
+    availableLimit: string | null;
+    interestRate: string | null;
     transactions: Transaction[];
 }
 
@@ -57,7 +61,8 @@ type FacilityDisplay = {
     used: string;
     available: string;
     interestRate: string;
-    expiryDate: string;
+    tenor: string;
+    statementId: number;
 }
 
 type TransactionDisplay = {
@@ -69,11 +74,27 @@ type TransactionDisplay = {
     type: 'credit' | 'debit';
 }
 
+// Edit facility modal types
+type EditFacilityData = {
+    tenor: string;
+    availableLimit: string;
+    interestRate: string;
+}
+
 export default function BankProfile({ params }: { params: { id: string } }) {
     const [bank, setBank] = useState<Bank | null>(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    
+    // Edit facility state
+    const [editingFacility, setEditingFacility] = useState<number | null>(null)
+    const [editFacilityData, setEditFacilityData] = useState<EditFacilityData>({
+        tenor: '',
+        availableLimit: '',
+        interestRate: ''
+    })
+    const [isSaving, setIsSaving] = useState(false)
 
     // Load bank data
     useEffect(() => {
@@ -142,12 +163,46 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         })
     }
 
+    // Helper function to format interest rate
+    const formatInterestRate = (rate: string | null): string => {
+        if (!rate || rate.trim() === '') return 'N/A';
+        const cleanRate = rate.trim();
+        // Only add % if it doesn't already contain % or other symbols
+        if (cleanRate.includes('%') || cleanRate.includes('+') || cleanRate.toLowerCase().includes('prime') || cleanRate.toLowerCase().includes('libor') || cleanRate.toLowerCase().includes('variable')) {
+            return cleanRate;
+        }
+        // If it's just a number, add %
+        if (!isNaN(parseFloat(cleanRate))) {
+            return `${cleanRate}%`;
+        }
+        return cleanRate;
+    }
+
+    // Helper function to format tenor
+    const formatTenor = (tenor: string | null): string => {
+        if (!tenor || tenor.trim() === '') return 'N/A';
+        const cleanTenor = tenor.trim();
+        // Only add 'days' if it doesn't already contain time units
+        if (cleanTenor.toLowerCase().includes('day') || 
+            cleanTenor.toLowerCase().includes('month') || 
+            cleanTenor.toLowerCase().includes('year') || 
+            cleanTenor.toLowerCase().includes('week') ||
+            cleanTenor.toLowerCase().includes('revolving')) {
+            return cleanTenor;
+        }
+        // If it's just a number, add 'days'
+        if (!isNaN(parseFloat(cleanTenor))) {
+            return `${cleanTenor} days`;
+        }
+        return cleanTenor;
+    }
+
     // Process bank statements into accounts display format (POSITIVE and ZERO balances)
     const processAccountsData = (): AccountDisplay[] => {
         if (!bank) return []
         
         return bank.bankStatements
-            .filter(statement => parseFloat(statement.endingBalance) >= 0) // Include zero and positive balances
+            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance))) // Use new logic for regular accounts
             .map(statement => ({
                 id: statement.id,
                 accountNumber: statement.accountNumber,
@@ -159,20 +214,23 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             }))
     }
 
-    // Process bank statements into facilities display format (NEGATIVE balances only)
+    // Process bank statements into facilities display format (using new facility logic)
     const processFacilitiesData = (): FacilityDisplay[] => {
         if (!bank) return []
         
         return bank.bankStatements
-            .filter(statement => parseFloat(statement.endingBalance) < 0) // Only negative balances
+            .filter(statement => isFacilityAccount(statement.accountType, parseFloat(statement.endingBalance))) // Use new logic for facilities
             .map(statement => ({
                 id: statement.id,
-                facilityType: statement.accountType || 'Credit Facility',
-                limit: 'N/A',
+                facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance)),
+                limit: statement.availableLimit ? formatCurrency(parseFloat(statement.availableLimit), statement.accountCurrency || undefined) : 'N/A',
                 used: formatCurrency(Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined),
-                available: 'N/A',
-                interestRate: 'N/A',
-                expiryDate: 'N/A'
+                available: statement.availableLimit 
+                    ? formatCurrency(parseFloat(statement.availableLimit) - Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined)
+                    : 'N/A',
+                interestRate: formatInterestRate(statement.interestRate),
+                tenor: formatTenor(statement.tenor),
+                statementId: statement.id
             }))
     }
 
@@ -253,15 +311,74 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         if (!bank) return { totalCashBalance: 0, currentOutstanding: 0 }
         
         const totalCashBalance = bank.bankStatements
-            .filter(statement => parseFloat(statement.endingBalance) > 0)
+            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance)) && parseFloat(statement.endingBalance) > 0)
             .reduce((sum, statement) => sum + parseFloat(statement.endingBalance), 0)
         
         const currentOutstanding = bank.bankStatements
-            .filter(statement => parseFloat(statement.endingBalance) < 0)
+            .filter(statement => isFacilityAccount(statement.accountType, parseFloat(statement.endingBalance)))
             .reduce((sum, statement) => sum + Math.abs(parseFloat(statement.endingBalance)), 0)
         
         return { totalCashBalance, currentOutstanding }
     }
+
+    // Handle facility edit
+    const handleEditFacility = (facility: FacilityDisplay) => {
+        const statement = bank?.bankStatements.find(s => s.id === facility.statementId);
+        if (statement) {
+            setEditFacilityData({
+                tenor: statement.tenor || '',
+                availableLimit: statement.availableLimit || '',
+                interestRate: statement.interestRate || ''
+            });
+            setEditingFacility(facility.statementId);
+        }
+    };
+
+    const handleSaveFacility = async () => {
+        if (!editingFacility) return;
+        
+        setIsSaving(true);
+        try {
+            const response = await fetch(`/api/annotation/statements/${editingFacility}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    tenor: editFacilityData.tenor || null,
+                    availableLimit: editFacilityData.availableLimit ? parseFloat(editFacilityData.availableLimit) : null,
+                    interestRate: editFacilityData.interestRate || null
+                })
+            });
+            
+            if (response.ok) {
+                // Refresh bank data
+                const bankResponse = await fetch(`/api/banks/${params.id}`);
+                const bankData = await bankResponse.json();
+                if (bankData.success) {
+                    setBank(bankData.bank);
+                }
+                setEditingFacility(null);
+            } else {
+                const errorData = await response.json();
+                alert(`Error updating facility: ${errorData.error}`);
+            }
+        } catch (error) {
+            console.error('Error updating facility:', error);
+            alert('Error updating facility');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingFacility(null);
+        setEditFacilityData({
+            tenor: '',
+            availableLimit: '',
+            interestRate: ''
+        });
+    };
 
     // If still loading, show a loading state
     if (isLoading) {
@@ -621,7 +738,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                     <div className="px-6 py-5 border-b border-gray-200">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">Bank Accounts</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            All accounts with positive or zero balances from {bank.name}
+                            Regular bank accounts from {bank.name} (Checking, Savings, Business accounts, etc. - excluding credit facilities)
                         </p>
                     </div>
                     {accounts.length > 0 ? (
@@ -677,7 +794,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                         </div>
                     ) : (
                         <div className="px-6 py-4 text-center text-sm text-gray-500">
-                            No accounts with positive or zero balances found for this bank.
+                            No regular bank accounts found for this bank.
                         </div>
                     )}
                 </div>
@@ -689,7 +806,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                     <div className="px-6 py-5 border-b border-gray-200">
                         <h3 className="text-lg font-medium leading-6 text-gray-900">Credit Facilities</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                            All accounts with negative balances (credit facilities) from {bank.name}
+                            Credit facilities and overdraft accounts from {bank.name} (determined by account type: Overdraft, Short-term Loans, Long-term Loans, etc.)
                         </p>
                     </div>
                     {facilities.length > 0 ? (
@@ -704,13 +821,16 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                             Amount Used
                                         </th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Available
+                                            Available Limit
                                         </th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Interest Rate
                                         </th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Expiry Date
+                                            Tenor
+                                        </th>
+                                        <th scope="col" className="relative px-6 py-3">
+                                            <span className="sr-only">Edit</span>
                                         </th>
                                     </tr>
                                 </thead>
@@ -724,13 +844,71 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                                 {facility.used}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {facility.available}
+                                                {editingFacility === facility.statementId ? (
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        value={editFacilityData.availableLimit}
+                                                        onChange={(e) => setEditFacilityData(prev => ({ ...prev, availableLimit: e.target.value }))}
+                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        placeholder="Available limit"
+                                                    />
+                                                ) : (
+                                                    facility.available
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {facility.interestRate}
+                                                {editingFacility === facility.statementId ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editFacilityData.interestRate}
+                                                        onChange={(e) => setEditFacilityData(prev => ({ ...prev, interestRate: e.target.value }))}
+                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        placeholder="e.g., 5.25% or Prime + 2%"
+                                                    />
+                                                ) : (
+                                                    facility.interestRate
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                {facility.expiryDate}
+                                                {editingFacility === facility.statementId ? (
+                                                    <input
+                                                        type="text"
+                                                        value={editFacilityData.tenor}
+                                                        onChange={(e) => setEditFacilityData(prev => ({ ...prev, tenor: e.target.value }))}
+                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                        placeholder="e.g., 12 months, 2 years"
+                                                    />
+                                                ) : (
+                                                    facility.tenor
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                {editingFacility === facility.statementId ? (
+                                                    <div className="flex space-x-2">
+                                                        <button
+                                                            onClick={handleSaveFacility}
+                                                            disabled={isSaving}
+                                                            className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                                                        >
+                                                            {isSaving ? 'Saving...' : 'Save'}
+                                                        </button>
+                                                        <button
+                                                            onClick={handleCancelEdit}
+                                                            disabled={isSaving}
+                                                            className="text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleEditFacility(facility)}
+                                                        className="text-indigo-600 hover:text-indigo-900"
+                                                    >
+                                                        <PencilIcon className="h-4 w-4" />
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -739,7 +917,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                         </div>
                     ) : (
                         <div className="px-6 py-4 text-center text-sm text-gray-500">
-                            No credit facilities (negative balances) found for this bank.
+                            No credit facilities found for this bank.
                         </div>
                     )}
                 </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, BuildingLibraryIcon, BanknotesIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
@@ -9,7 +9,8 @@ import { useUploadedSources } from '@/hooks/useUploadedSources'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
-import BankStatementUploader, { processBankStatements } from '@/components/upload/BankStatementUploader'
+import { processBankStatements } from '@/components/upload/BankStatementUploader'
+import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatementUtils'
 
 type Bank = {
   id: number;
@@ -27,7 +28,7 @@ type CreditFacility = {
   used: string;
   available: string;
   interestRate: string;
-  expiryDate: string;
+  tenor: string;
 }
 
 type Transaction = {
@@ -73,7 +74,7 @@ const defaultCreditFacilities: CreditFacility[] = [
     used: '$350,000.00',
     available: '$650,000.00',
     interestRate: '5.25%',
-    expiryDate: 'Dec 31, 2024',
+    tenor: '5 years',
   },
   {
     id: 2,
@@ -83,7 +84,7 @@ const defaultCreditFacilities: CreditFacility[] = [
     used: '$500,000.00',
     available: '$0.00',
     interestRate: '4.75%',
-    expiryDate: 'Jun 30, 2025',
+    tenor: '3 years',
   },
 ]
 
@@ -148,6 +149,7 @@ export default function BanksPage() {
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [totalCash, setTotalCash] = useState<number>(0);
   const [totalObligations, setTotalObligations] = useState<number>(0);
+  const [totalCreditAvailable, setTotalCreditAvailable] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   // Fetch bank statements from API
@@ -194,30 +196,46 @@ export default function BanksPage() {
     const processedBanks: Bank[] = [];
     let totalPositiveBalance = 0;
     let totalNegativeBalance = 0;
+    let totalAvailableCredit = 0;
     const allTransactions: any[] = [];
-    const negativeBankStatements: any[] = [];
+    const facilityBankStatements: any[] = [];
     
     // Process each bank
     banks.forEach((bank: any) => {
       let totalCashBalance = 0;
-      let bankNegativeBalance = 0; // Track negative balance per bank
+      let bankFacilityBalance = 0; // Track facility balance per bank
       let latestUpdate = new Date(0);
       
       // Process each bank statement
       bank.bankStatements.forEach((statement: any) => {
         const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
         
-        // Add to cash balance or negative balance
-        if (endingBalance > 0) {
-          totalCashBalance += endingBalance;
-          totalPositiveBalance += endingBalance;
-        } else {
-          const absBalance = Math.abs(endingBalance);
-          bankNegativeBalance += absBalance; // Track per bank
-          totalNegativeBalance += absBalance;
+        // Determine if this is a facility account using the new logic
+        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
+        
+        if (isFacility) {
+          const facilityAmount = Math.abs(endingBalance);
+          bankFacilityBalance += facilityAmount;
+          totalNegativeBalance += facilityAmount;
           
-          // Add to negative bank statements for credit facilities
-          if (absBalance !== 0) negativeBankStatements.push(statement);
+          // Add to facility bank statements
+          if (facilityAmount !== 0) facilityBankStatements.push(statement);
+          
+          // Add available credit from facility available limit
+          if (statement.availableLimit) {
+            const availableLimit = parseFloat(statement.availableLimit?.toString() || '0');
+            if (availableLimit > 0) {
+              // Available credit = Total Limit - Used Amount
+              const availableCredit = Math.max(0, availableLimit - facilityAmount);
+              totalAvailableCredit += availableCredit;
+            }
+          }
+        } else {
+          // Regular account with positive balance contributes to cash
+          if (endingBalance > 0) {
+            totalCashBalance += endingBalance;
+            totalPositiveBalance += endingBalance;
+          }
         }
         
         // Track the latest update date
@@ -244,33 +262,37 @@ export default function BanksPage() {
         id: bank.id, // Use the actual bank ID instead of statement ID
         name: bank.name,
         cashBalance: formatCurrency(totalCashBalance),
-        bankPayments: formatCurrency(bankNegativeBalance), // Use bank-specific negative balance
+        bankPayments: formatCurrency(bankFacilityBalance), // Use bank-specific facility balance
         lastUpdate: latestUpdate.toLocaleDateString()
       });
     });
     
     console.log('All collected transactions:', allTransactions);
     
-    // Set total cash and obligations
+    // Set total cash, obligations, and available credit
     setTotalCash(totalPositiveBalance);
     setTotalObligations(totalNegativeBalance);
+    setTotalCreditAvailable(totalAvailableCredit);
     
     // Update banks state
     setBankAccounts(processedBanks);
     
-    // Process credit facilities from negative balance accounts
-    const processedFacilities: CreditFacility[] = negativeBankStatements.map((statement: any) => {
-      const negativeBalance = Math.abs(parseFloat(statement.endingBalance?.toString() || '0'));
+    // Process credit facilities from facility accounts
+    const processedFacilities: CreditFacility[] = facilityBankStatements.map((statement: any) => {
+      const facilityBalance = Math.abs(parseFloat(statement.endingBalance?.toString() || '0'));
+      const availableLimit = statement.availableLimit ? parseFloat(statement.availableLimit?.toString() || '0') : 0;
       
       return {
         id: statement.id,
         name: statement.bankName,
-        facilityType: statement.accountType || 'N/A',
-        limit: 'N/A',
-        used: formatCurrency(negativeBalance),
-        available: 'N/A',
-        interestRate: 'N/A',
-        expiryDate: 'N/A'
+        facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance?.toString() || '0')),
+        limit: availableLimit > 0 ? formatCurrency(availableLimit) : 'N/A',
+        used: formatCurrency(facilityBalance),
+        available: availableLimit > 0 
+          ? formatCurrency(Math.max(0, availableLimit - facilityBalance))
+          : 'N/A',
+        interestRate: formatInterestRate(statement.interestRate),
+        tenor: formatTenor(statement.tenor)
       };
     });
     
@@ -314,6 +336,40 @@ export default function BanksPage() {
   // Format currency
   const formatCurrency = (amount: number): string => {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Helper function to format interest rate
+  const formatInterestRate = (rate: string | null): string => {
+    if (!rate || rate.trim() === '') return 'N/A';
+    const cleanRate = rate.trim();
+    // Only add % if it doesn't already contain % or other symbols
+    if (cleanRate.includes('%') || cleanRate.includes('+') || cleanRate.toLowerCase().includes('prime') || cleanRate.toLowerCase().includes('libor') || cleanRate.toLowerCase().includes('variable')) {
+      return cleanRate;
+    }
+    // If it's just a number, add %
+    if (!isNaN(parseFloat(cleanRate))) {
+      return `${cleanRate}%`;
+    }
+    return cleanRate;
+  };
+
+  // Helper function to format tenor
+  const formatTenor = (tenor: string | null): string => {
+    if (!tenor || tenor.trim() === '') return 'N/A';
+    const cleanTenor = tenor.trim();
+    // Only add 'days' if it doesn't already contain time units
+    if (cleanTenor.toLowerCase().includes('day') || 
+        cleanTenor.toLowerCase().includes('month') || 
+        cleanTenor.toLowerCase().includes('year') || 
+        cleanTenor.toLowerCase().includes('week') ||
+        cleanTenor.toLowerCase().includes('revolving')) {
+      return cleanTenor;
+    }
+    // If it's just a number, add 'days'
+    if (!isNaN(parseFloat(cleanTenor))) {
+      return `${cleanTenor} days`;
+    }
+    return cleanTenor;
   };
   
   const handleFilesChange = (sourceId: string, files: File[]) => {
@@ -629,7 +685,7 @@ export default function BanksPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          ) : !isCreditFacilitiesVisible && (
+          ) : !isCreditFacilitiesVisible && totalCreditAvailable === 0 && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -643,7 +699,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Credit Available"
-            value="N/A"
+            value={totalCreditAvailable > 0 ? formatCurrency(totalCreditAvailable) : 'N/A'}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -779,7 +835,7 @@ export default function BanksPage() {
                   Interest Rate
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Expiry Date
+                  Tenor
                 </th>
               </tr>
             </thead>
@@ -794,7 +850,7 @@ export default function BanksPage() {
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.used}</td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.available}</td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.interestRate}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.expiryDate}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.tenor}</td>
                 </tr>
               ))}
             </tbody>

@@ -3,6 +3,7 @@ import { CashflowType, CashflowStatus } from '@prisma/client';
 import { PaymentTermsCalculator } from './paymentTermsCalculator';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 import { Decimal } from '@prisma/client/runtime/library';
+import { generateAllFacilityProjections } from './bankFacilityProjectionService';
 
 interface ProjectionItem {
   projectionDate: Date;
@@ -17,13 +18,13 @@ interface ProjectionItem {
 export class CashflowProjectionService {
   
   /**
-   * Generate cashflow projections from unpaid invoices within a date range
+   * Generate comprehensive cashflow projections from all sources within a date range
    */
   async generateProjectionsFromInvoices(startDate: Date, endDate: Date) {
-    console.log('🔄 Generating cashflow projections from invoices...');
+    console.log('🔄 Generating comprehensive cashflow projections...');
     console.log(`📅 Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
     
-    // Clear existing projections for the date range to avoid duplicates
+    // Clear ALL existing projections for the date range to avoid duplicates
     await this.clearExistingProjections(startDate, endDate);
     
     // Generate customer receivables and supplier payables
@@ -32,12 +33,12 @@ export class CashflowProjectionService {
       this.generateSupplierPayables(startDate, endDate)
     ]);
     
-    const allProjections = [...customerProjections, ...supplierProjections];
+    const invoiceProjections = [...customerProjections, ...supplierProjections];
     
-    if (allProjections.length > 0) {
-      // Insert projections in batches for better performance
+    if (invoiceProjections.length > 0) {
+      // Insert invoice projections in batches for better performance
       await prisma.cashflowProjection.createMany({
-        data: allProjections.map(p => ({
+        data: invoiceProjections.map(p => ({
           projectionDate: p.projectionDate,
           projectedAmount: new Decimal(p.projectedAmount),
           type: p.type,
@@ -48,16 +49,33 @@ export class CashflowProjectionService {
         }))
       });
       
-      console.log(`✅ Generated ${allProjections.length} cashflow projections`);
+      console.log(`✅ Generated ${invoiceProjections.length} invoice-based projections`);
       console.log(`   - Customer receivables: ${customerProjections.length}`);
       console.log(`   - Supplier payables: ${supplierProjections.length}`);
       
       // Update invoice expected payment dates
-      await this.updateInvoiceExpectedPayments(allProjections);
+      await this.updateInvoiceExpectedPayments(invoiceProjections);
     } else {
-      console.log('ℹ️  No projections generated - no unpaid invoices in date range');
+      console.log('ℹ️  No invoice projections generated - no unpaid invoices in date range');
     }
     
+    // Generate bank facility projections (handled separately to avoid conflicts)
+    try {
+      console.log('🏦 Generating bank facility projections...');
+      const facilityResults = await generateAllFacilityProjections();
+      console.log(`✅ Generated facility projections for ${facilityResults.length} facilities`);
+      
+      const totalFacilityProjections = facilityResults.reduce((sum, result) => sum + result.projectionsCreated, 0);
+      if (totalFacilityProjections > 0) {
+        console.log(`   - Total bank obligation projections: ${totalFacilityProjections}`);
+      }
+    } catch (error) {
+      console.error('❌ Error generating bank facility projections:', error);
+      // Don't fail the entire process if facility projections fail
+    }
+    
+    // Return combined count
+    const allProjections = [...invoiceProjections];
     return allProjections;
   }
 
@@ -319,20 +337,25 @@ export class CashflowProjectionService {
 
   /**
    * Clear existing projections for a date range to avoid duplicates
+   * This clears ALL projections (invoice, recurring, bank facility) to ensure clean regeneration
    */
   private async clearExistingProjections(startDate: Date, endDate: Date) {
+    console.log(`🗑️  Clearing ALL existing projections for date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    
     const deleted = await prisma.cashflowProjection.deleteMany({
       where: {
         projectionDate: {
           gte: startDate,
           lte: endDate
-        },
-        invoiceId: { not: null } // Only clear invoice-based projections
+        }
+        // Removed invoiceId filter - now clears ALL projections (invoice, bank facility, recurring)
       }
     });
     
     if (deleted.count > 0) {
-      console.log(`🗑️  Cleared ${deleted.count} existing projections for date range`);
+      console.log(`🗑️  Cleared ${deleted.count} existing projections (all types) for date range`);
+    } else {
+      console.log(`ℹ️  No existing projections found in date range to clear`);
     }
   }
 
@@ -375,6 +398,19 @@ export class CashflowProjectionService {
             category: true,
             frequency: true,
             isActive: true
+          }
+        },
+        BankStatement: {
+          select: {
+            id: true,
+            bankName: true,
+            accountType: true,
+            endingBalance: true,
+            bank: {
+              select: {
+                name: true
+              }
+            }
           }
         }
       },

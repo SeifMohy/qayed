@@ -15,8 +15,6 @@ import {
   Calendar,
   AlertTriangle,
   RefreshCw,
-  Download,
-  Settings,
   CalendarDays,
   Plus,
   ArrowLeft
@@ -33,7 +31,6 @@ interface CashflowSummary {
   totalItems: number;
   projectedItems: number;
   confirmedItems: number;
-  averageConfidence: number;
   dateRange: {
     start: string;
     end: string;
@@ -48,7 +45,6 @@ interface CashPosition {
   netCashflow: number;
   closingBalance: number;
   projectionCount: number;
-  averageConfidence: number;
 }
 
 interface CashPositionSummary {
@@ -329,6 +325,10 @@ export default function CashflowOverview() {
   const generateProjections = async () => {
     try {
       setGenerating(true);
+      
+      console.log('🚀 Starting comprehensive projection generation...');
+      
+      // Generate invoice-based projections first
       const response = await fetch('/api/cashflow/projections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -340,8 +340,40 @@ export default function CashflowOverview() {
       
       const data = await response.json();
       if (data.success) {
-        await fetchCashflowData(); // Refresh data
+        console.log('✅ Invoice projections generated successfully');
+      } else {
+        console.warn('⚠️ Invoice projections failed:', data.error);
       }
+      
+      // Generate bank facility projections separately to ensure they're included
+      try {
+        console.log('🏦 Generating bank facility projections...');
+        const facilityResponse = await fetch('/api/cashflow/bank-obligations?action=generate-all', {
+          method: 'GET'
+        });
+        
+        const facilityData = await facilityResponse.json();
+        if (facilityData.success) {
+          console.log('✅ Bank facility projections generated successfully');
+          console.log(`   - Facilities processed: ${facilityData.data?.length || 0}`);
+          
+          // Log details about generated projections
+          if (facilityData.data && facilityData.data.length > 0) {
+            const totalProjections = facilityData.data.reduce((sum: number, facility: any) => sum + (facility.projectionsCreated || 0), 0);
+            console.log(`   - Total facility projections created: ${totalProjections}`);
+          }
+        } else {
+          console.warn('⚠️ Bank facility projections failed:', facilityData.error);
+        }
+      } catch (facilityError) {
+        console.error('❌ Error generating bank facility projections:', facilityError);
+        // Don't fail the entire process if facility projections fail
+      }
+      
+      // Refresh all cashflow data to show updated projections
+      await fetchCashflowData();
+      console.log('✅ Cashflow data refreshed');
+      
     } catch (error) {
       console.error('Error generating projections:', error);
     } finally {
@@ -676,14 +708,6 @@ export default function CashflowOverview() {
             <RefreshCw className={`h-4 w-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
             {generating ? 'Generating...' : 'Refresh Projections'}
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button variant="outline">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
         </div>
       </div>
 
@@ -793,7 +817,7 @@ export default function CashflowOverview() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Inflows</CardTitle>
@@ -835,21 +859,6 @@ export default function CashflowOverview() {
               </div>
               <p className="text-xs text-gray-600">
                 {summary.netCashflow >= 0 ? 'Positive' : 'Negative'} position
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Confidence</CardTitle>
-              <Calendar className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
-                {Math.round(summary.averageConfidence * 100)}%
-              </div>
-              <p className="text-xs text-gray-600">
-                Average projection confidence
               </p>
             </CardContent>
           </Card>
@@ -947,14 +956,13 @@ export default function CashflowOverview() {
         <CardContent>
           {positions.length > 0 ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-7 gap-4 text-sm font-medium text-gray-600 border-b pb-2">
+              <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-600 border-b pb-2">
                 <div>Date</div>
                 <div>Inflows</div>
                 <div>Outflows</div>
                 <div>Net</div>
                 <div>Balance</div>
                 <div>Items</div>
-                <div>Confidence</div>
               </div>
               {(() => {
                 // Filter out days with zero projection items for better visibility
@@ -964,7 +972,7 @@ export default function CashflowOverview() {
                 return (
                   <>
                     {displayPositions.map((position) => (
-                      <div key={position.date} className="grid grid-cols-7 gap-4 text-sm py-2 border-b border-gray-100">
+                      <div key={position.date} className="grid grid-cols-6 gap-4 text-sm py-2 border-b border-gray-100">
                         <div className="font-medium">{formatDate(position.date)}</div>
                         <div className="text-green-600">
                           {position.totalInflows > 0 ? formatCurrency(position.totalInflows) : '-'}
@@ -979,7 +987,6 @@ export default function CashflowOverview() {
                           {formatCurrency(position.closingBalance)}
                         </div>
                         <div className="text-gray-600">{position.projectionCount}</div>
-                        <div className="text-gray-600">{Math.round(position.averageConfidence * 100)}%</div>
                       </div>
                     ))}
                     

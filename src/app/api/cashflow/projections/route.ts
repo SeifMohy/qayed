@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       description: p.description,
       invoiceId: p.invoiceId,
       recurringPaymentId: p.recurringPaymentId,
+      bankStatementId: p.bankStatementId,
       // Include related data if requested
       ...(includeRelated && {
         Invoice: p.Invoice ? {
@@ -64,9 +65,24 @@ export async function GET(request: NextRequest) {
           category: p.RecurringPayment.category,
           frequency: p.RecurringPayment.frequency,
           isActive: p.RecurringPayment.isActive
+        } : null,
+        BankStatement: p.BankStatement ? {
+          id: p.BankStatement.id,
+          bankName: p.BankStatement.bankName,
+          accountType: p.BankStatement.accountType,
+          endingBalance: Number(p.BankStatement.endingBalance)
         } : null
       })
     }));
+
+    console.log(`📊 Cashflow projections summary:`);
+    console.log(`   - Total projections: ${formattedProjections.length}`);
+    console.log(`   - Customer receivables: ${formattedProjections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length}`);
+    console.log(`   - Supplier payables: ${formattedProjections.filter(p => p.type === 'SUPPLIER_PAYABLE').length}`);
+    console.log(`   - Bank obligations: ${formattedProjections.filter(p => p.type === 'BANK_OBLIGATION').length}`);
+    console.log(`   - Loan payments: ${formattedProjections.filter(p => p.type === 'LOAN_PAYMENT').length}`);
+    console.log(`   - Recurring inflows: ${formattedProjections.filter(p => p.type === 'RECURRING_INFLOW').length}`);
+    console.log(`   - Recurring outflows: ${formattedProjections.filter(p => p.type === 'RECURRING_OUTFLOW').length}`);
 
     return NextResponse.json({
       success: true,
@@ -81,6 +97,14 @@ export async function GET(request: NextRequest) {
         filters: {
           type: typeFilter,
           status: statusFilter
+        },
+        typeCounts: {
+          customerReceivables: formattedProjections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length,
+          supplierPayables: formattedProjections.filter(p => p.type === 'SUPPLIER_PAYABLE').length,
+          bankObligations: formattedProjections.filter(p => p.type === 'BANK_OBLIGATION').length,
+          loanPayments: formattedProjections.filter(p => p.type === 'LOAN_PAYMENT').length,
+          recurringInflows: formattedProjections.filter(p => p.type === 'RECURRING_INFLOW').length,
+          recurringOutflows: formattedProjections.filter(p => p.type === 'RECURRING_OUTFLOW').length
         }
       }
     });

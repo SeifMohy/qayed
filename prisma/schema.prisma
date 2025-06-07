@@ -94,8 +94,15 @@ model BankStatement {
   validationNotes      String?
   validationStatus     String            @default("pending")
   googleSheetId        String?
+  
+  // Facility-specific fields
+  tenor                String?           // e.g., "12 months", "2 years", etc.
+  availableLimit       Decimal?          // Total available credit limit
+  interestRate         String?           // e.g., "5.25%", "Prime + 2%", etc.
+  
   bank                 Bank              @relation(fields: [bankId], references: [id])
   transactions         Transaction[]
+  CashflowProjection   CashflowProjection[] // Facility repayment projections
 }
 
 model Transaction {
@@ -181,10 +188,15 @@ model CashflowProjection {
   recurringPaymentId Int?
   RecurringPayment   RecurringPayment? @relation(fields: [recurringPaymentId], references: [id])
   
+  // Bank facility relationship for facility repayments
+  bankStatementId Int?
+  BankStatement   BankStatement? @relation(fields: [bankStatementId], references: [id])
+  
   @@index([projectionDate])
   @@index([type, status])
   @@index([invoiceId])
   @@index([recurringPaymentId])
+  @@index([bankStatementId])
 }
 
 // Recurring Payments Model
@@ -220,11 +232,11 @@ enum CashflowType {
   SUPPLIER_PAYABLE
   RECURRING_INFLOW     // For recurring income like subscriptions
   RECURRING_OUTFLOW    // For recurring expenses like salaries, rent
+  BANK_OBLIGATION      // For facility repayments
+  LOAN_PAYMENT         // For loan payments
   // Phase 3: Additional types will be added later
-  // BANK_OBLIGATION
   // INTERNAL_TRANSFER
   // TAX_PAYMENT
-  // LOAN_PAYMENT
   // OTHER_INCOME
   // OTHER_EXPENSE
 }

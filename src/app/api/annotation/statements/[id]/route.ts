@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { isFacilityAccount } from '@/utils/bankStatementUtils';
+import { updateFacilityProjections } from '@/lib/services/bankFacilityProjectionService';
 
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
@@ -147,7 +149,10 @@ export async function PUT(
       validationStatus,
       validationNotes,
       validated,
-      validatedBy
+      validatedBy,
+      tenor,
+      availableLimit,
+      interestRate
     } = body;
 
     // Check if statement exists and is not locked
@@ -168,6 +173,15 @@ export async function PUT(
         error: 'Statement is locked and cannot be modified'
       }, { status: 403 });
     }
+
+    // Track if facility-related fields are being updated
+    const isFacilityFieldsUpdate = (
+      tenor !== undefined || 
+      availableLimit !== undefined || 
+      interestRate !== undefined ||
+      accountType !== undefined ||
+      endingBalance !== undefined
+    );
 
     // Handle bank name updates specially - update both Bank record and all related statements
     if (bankName !== undefined && bankName !== existingStatement.bankName) {
@@ -214,6 +228,9 @@ export async function PUT(
         if (endingBalance !== undefined) updateData.endingBalance = new Decimal(endingBalance);
         if (validationStatus !== undefined) updateData.validationStatus = validationStatus;
         if (validationNotes !== undefined) updateData.validationNotes = validationNotes;
+        if (tenor !== undefined) updateData.tenor = tenor;
+        if (availableLimit !== undefined) updateData.availableLimit = availableLimit ? new Decimal(availableLimit) : null;
+        if (interestRate !== undefined) updateData.interestRate = interestRate;
         if (validated !== undefined) {
           updateData.validated = validated;
           if (validated) {
@@ -241,6 +258,22 @@ export async function PUT(
         };
       });
 
+      // Update facility projections if this is a facility account and facility fields were updated
+      if (isFacilityFieldsUpdate) {
+        const updatedEndingBalance = endingBalance !== undefined ? parseFloat(endingBalance.toString()) : parseFloat(result.statement.endingBalance.toString());
+        const updatedAccountType = accountType !== undefined ? accountType : result.statement.accountType;
+        
+        if (isFacilityAccount(updatedAccountType, updatedEndingBalance)) {
+          try {
+            await updateFacilityProjections(id);
+            console.log(`Updated facility projections for facility ${id} after bank name change`);
+          } catch (error) {
+            console.error(`Error updating facility projections for facility ${id}:`, error);
+            // Don't fail the main operation if projection update fails
+          }
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: convertDecimalsToNumbers(result.statement),
@@ -260,6 +293,9 @@ export async function PUT(
     if (endingBalance !== undefined) updateData.endingBalance = new Decimal(endingBalance);
     if (validationStatus !== undefined) updateData.validationStatus = validationStatus;
     if (validationNotes !== undefined) updateData.validationNotes = validationNotes;
+    if (tenor !== undefined) updateData.tenor = tenor;
+    if (availableLimit !== undefined) updateData.availableLimit = availableLimit ? new Decimal(availableLimit) : null;
+    if (interestRate !== undefined) updateData.interestRate = interestRate;
     if (validated !== undefined) {
       updateData.validated = validated;
       if (validated) {
@@ -281,6 +317,20 @@ export async function PUT(
         },
       }
     });
+
+    // Update facility projections if this is a facility account and facility fields were updated
+    if (isFacilityFieldsUpdate) {
+      const updatedEndingBalance = parseFloat(updatedStatement.endingBalance.toString());
+      if (isFacilityAccount(updatedStatement.accountType, updatedEndingBalance)) {
+        try {
+          await updateFacilityProjections(id);
+          console.log(`Updated facility projections for facility ${id}`);
+        } catch (error) {
+          console.error(`Error updating facility projections for facility ${id}:`, error);
+          // Don't fail the main operation if projection update fails
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,

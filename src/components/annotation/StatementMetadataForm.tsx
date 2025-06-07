@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ALL_ACCOUNT_TYPES, REGULAR_ACCOUNT_TYPES, FACILITY_ACCOUNT_TYPES } from '@/utils/bankStatementUtils';
 
 interface BankStatement {
   id: number;
@@ -180,6 +181,11 @@ export default function StatementMetadataForm({
     return `${baseClass} ${errorClass} ${disabledClass}`;
   };
 
+  // Helper function to check if account type is in predefined list
+  const isStandardAccountType = (accountType: string) => {
+    return ALL_ACCOUNT_TYPES.includes(accountType as any) || accountType === '';
+  };
+
   return (
     <div className="p-6">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -268,12 +274,33 @@ export default function StatementMetadataForm({
             className={inputClassName('accountType')}
           >
             <option value="">Select account type</option>
-            <option value="Checking">Checking</option>
-            <option value="Savings">Savings</option>
-            <option value="Business">Business</option>
-            <option value="Credit">Credit</option>
+            
+            {/* Show extracted value if it doesn't match predefined options */}
+            {formData.accountType && !isStandardAccountType(formData.accountType) && (
+              <optgroup label="Extracted from Statement">
+                <option value={formData.accountType}>{formData.accountType} (Extracted)</option>
+              </optgroup>
+            )}
+            
+            <optgroup label="Regular Accounts">
+              {REGULAR_ACCOUNT_TYPES.map(accountType => (
+                <option key={accountType} value={accountType}>{accountType}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Credit Facilities">
+              {FACILITY_ACCOUNT_TYPES.map(accountType => (
+                <option key={accountType} value={accountType}>{accountType}</option>
+              ))}
+            </optgroup>
             <option value="Other">Other</option>
           </select>
+          
+          {/* Show a note if the current value is extracted and not in standard list */}
+          {formData.accountType && !isStandardAccountType(formData.accountType) && (
+            <p className="mt-1 text-sm text-blue-600">
+              This account type was extracted from the bank statement. You can keep it or select a standard option from the dropdown.
+            </p>
+          )}
         </div>
 
         {/* Account Currency */}
