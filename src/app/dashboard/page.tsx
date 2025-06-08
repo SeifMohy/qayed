@@ -1,607 +1,608 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowDownIcon, ArrowUpIcon, ArrowPathIcon } from '@heroicons/react/20/solid'
-import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon } from '@heroicons/react/20/solid'
+import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
-import { useUploadedSources } from '@/hooks/useUploadedSources'
-import MultiFileUpload from '@/components/upload/multi-file-upload'
-import UploadModal from '@/components/upload/upload-modal'
-import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
 
-const stats = [
-    {
-        title: 'Total Cash On Hand',
-        value: '$1,423,982',
-        change: '3.2%',
-        changeType: 'increase' as ChangeType,
-        icon: CurrencyDollarIcon,
-        iconColor: 'bg-green-500',
-        dataSource: 'bankStatements'
-    },
-    {
-        title: 'Outstanding Payables (30 days)',
-        value: '$459,871',
-        change: '1.8%',
-        changeType: 'decrease' as ChangeType,
-        icon: BanknotesIcon,
-        iconColor: 'bg-red-500',
-        interpretation: 'positive' as const,
-        dataSource: 'accountsPayable'
-    },
-    {
-        title: 'Outstanding Receivables (30 days)',
-        value: '$681,120',
-        change: '5.2%',
-        changeType: 'increase' as ChangeType,
-        icon: CreditCardIcon,
-        iconColor: 'bg-blue-500',
-        dataSource: 'accountsReceivable'
-    },
-    {
-        title: 'Outstanding Bank Payments',
-        value: '$181,000',
-        change: '2.3%',
-        changeType: 'increase' as ChangeType,
-        icon: ArrowTrendingUpIcon,
-        iconColor: 'bg-purple-500',
-        interpretation: 'negative' as const,
-        dataSource: 'bankPosition'
-    },
-]
+// Icon mapping
+const iconMap = {
+  CurrencyDollarIcon,
+  BanknotesIcon,
+  CreditCardIcon,
+  ArrowTrendingUpIcon
+}
 
-const supplierPayments = [
-    { id: 1, supplier: 'Tech Innovations Ltd', amount: '$42,000', dueDate: 'Jul 12, 2023', status: 'Pending' },
-    { id: 2, supplier: 'Global Shipping Co.', amount: '$18,500', dueDate: 'Jul 15, 2023', status: 'Pending' },
-    { id: 3, supplier: 'Office Supplies Inc.', amount: '$3,250', dueDate: 'Jul 20, 2023', status: 'Scheduled' },
-    { id: 4, supplier: 'Manufacturing Partners', amount: '$67,800', dueDate: 'Jul 28, 2023', status: 'Scheduled' },
-]
+interface DashboardStat {
+  title: string;
+  value: number;
+  change: number;
+  changeType: ChangeType;
+  icon: keyof typeof iconMap;
+  iconColor: string;
+  dataSource: string;
+  interpretation?: 'positive' | 'negative';
+}
 
-const customerPayments = [
-    { id: 1, customer: 'Enterprise Solutions', amount: '$86,000', dueDate: 'Jul 13, 2023', status: 'Scheduled' },
-    { id: 2, customer: 'Retail Chain Corp', amount: '$34,200', dueDate: 'Jul 18, 2023', status: 'Pending' },
-    { id: 3, customer: 'Digital Services LLC', amount: '$27,500', dueDate: 'Jul 22, 2023', status: 'Pending' },
-    { id: 4, customer: 'Financial Partners', amount: '$52,300', dueDate: 'Jul 30, 2023', status: 'Pending' },
-]
+interface TimelineItem {
+  id: number;
+  amount: number;
+  dueDate: string;
+  status?: string;
+  confidence?: number;
+  description?: string;
+}
 
-const bankingObligations = [
-    { id: 1, bank: 'First National Bank', amount: '$18,750', dueDate: 'Jul 15, 2023', type: 'Loan Payment' },
-    { id: 2, bank: 'Central Finance', amount: '$35,000', dueDate: 'Jul 22, 2023', type: 'Credit Line' },
-    { id: 3, bank: 'International Banking', amount: '$7,200', dueDate: 'Jul 25, 2023', type: 'Interest' },
-    { id: 4, bank: 'First National Bank', amount: '$120,000', dueDate: 'Aug 1, 2023', type: 'Facility Renewal' },
-]
+interface SupplierPayment extends TimelineItem {
+  supplier: string;
+}
 
-// Cash flow forecast data for 90 days
-const cashFlowData = {
-    labels: ['Current', 'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8', 'Week 9', 'Week 10', 'Week 11', 'Week 12'],
-    current: 1423982,
-    historicalValues: [1380000, 1395000, 1410000, 1423982],
-    projectedValues: [1423982, 1452000, 1478000, 1510000, 1545000, 1598000, 1635000, 1693000, 1724000, 1768000, 1825000, 1862000, 1892560]
+interface CustomerPayment extends TimelineItem {
+  customer: string;
+}
+
+interface BankPayment extends TimelineItem {
+  bank: string;
+  type: string;
+}
+
+interface CashPosition {
+  date: string;
+  openingBalance: number;
+  totalInflows: number;
+  totalOutflows: number;
+  netCashflow: number;
+  closingBalance: number;
+  transactionCount?: number;
+  projectionCount?: number;
+  isActual?: boolean;
+}
+
+interface DashboardMetadata {
+  referenceDate: string;
+  referenceDateFormatted: string;
+  bankName: string;
+  accountNumber?: string;
+  note: string;
 }
 
 export default function Dashboard() {
-    const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
-    const [isUploading, setIsUploading] = useState<string | null>(null);
-    const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-    const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
-    const [chartLoaded, setChartLoaded] = useState(false);
-    const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
-    
-    // Load chart.js when component mounts
-    useEffect(() => {
-      const loadChartJs = async () => {
-        const { 
-          Chart, 
-          CategoryScale, 
-          LinearScale, 
-          PointElement, 
-          LineElement, 
-          Title, 
-          Tooltip, 
-          Legend, 
-          Filler 
-        } = await import('chart.js');
-        
-        Chart.register(
-          CategoryScale, 
-          LinearScale, 
-          PointElement, 
-          LineElement, 
-          Title, 
-          Tooltip, 
-          Legend, 
-          Filler
-        );
-        
-        setChartLoaded(true);
-      };
+  const [stats, setStats] = useState<DashboardStat[]>([]);
+  const [timeline, setTimeline] = useState<{
+    suppliers: SupplierPayment[];
+    customers: CustomerPayment[];
+    banks: BankPayment[];
+  }>({ suppliers: [], customers: [], banks: [] });
+  const [historicalPositions, setHistoricalPositions] = useState<CashPosition[]>([]);
+  const [projectedPositions, setProjectedPositions] = useState<CashPosition[]>([]);
+  const [metadata, setMetadata] = useState<DashboardMetadata | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [chartLoaded, setChartLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load chart.js when component mounts
+  useEffect(() => {
+    const loadChartJs = async () => {
+      const { 
+        Chart, 
+        CategoryScale, 
+        LinearScale, 
+        PointElement, 
+        LineElement, 
+        Title, 
+        Tooltip, 
+        Legend, 
+        Filler 
+      } = await import('chart.js');
       
-      loadChartJs();
-    }, []);
-    
-    const handleFilesChange = (sourceId: string, files: File[]) => {
-        setSourceFiles(prev => ({
-            ...prev,
-            [sourceId]: files
-        }));
+      Chart.register(
+        CategoryScale, 
+        LinearScale, 
+        PointElement, 
+        LineElement, 
+        Title, 
+        Tooltip, 
+        Legend, 
+        Filler
+      );
+      
+      setChartLoaded(true);
     };
     
-    const handleSubmitFiles = () => {
-        // Get all source IDs that have files selected
-        const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
-        
-        if (sourceIds.length === 0) return;
-        
-        // Start uploading process
-        setIsUploading('processing');
-        
-        // Simulate processing delay
-        setTimeout(() => {
-            const newUploadedSources = { ...uploadedSources };
-            const newSourceFiles = { ...sourceFiles };
-            
-            // Mark all sources with selected files as uploaded
-            sourceIds.forEach(id => {
-                newUploadedSources[id] = true;
-                // Only clear the source files that were successfully uploaded
-                delete newSourceFiles[id];
-            });
-            
-            setUploadedSources(newUploadedSources);
-            setSourceFiles(newSourceFiles);
-            setIsUploading(null);
-            // Keep modal open to allow for more uploads
-            if (Object.keys(newSourceFiles).length === 0) {
-                setIsUploadModalOpen(false);
-            }
-        }, 2000);
-    };
-    
-    const areAllSourcesUploaded = PAGE_DATA_SOURCES.dashboard.every(source => isDataSourceUploaded(source.id));
-    
-    // Only require bank statements for the chart
-    const isChartVisible = isDataSourceUploaded('bankStatements') && chartLoaded;
-                         
-    const isSupplierPaymentsVisible = isDataSourceUploaded('accountsPayable');
-    const isCustomerPaymentsVisible = isDataSourceUploaded('accountsReceivable');
-    const isBankObligationsVisible = isDataSourceUploaded('bankPosition');
+    loadChartJs();
+  }, []);
 
-    const renderSourceContent = (source: { id: string, name: string }) => {
-        const hasUploadedFiles = isDataSourceUploaded(source.id);
-        const hasSelectedFiles = sourceFiles[source.id]?.length > 0;
-        
-        return (
-            <div className="mt-3">
-                {hasUploadedFiles && (
-                    <div className="mb-2 flex items-center">
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800 mr-3">
-                            Uploaded
-                        </span>
-                        <span className="text-sm text-gray-500">You can upload additional files if needed</span>
-                    </div>
-                )}
-                
-                <MultiFileUpload
-                    onFilesChange={(files) => handleFilesChange(source.id, files)}
-                    maxFiles={5}
-                    maxSize={10}
-                    accept=".xlsx,.xls,.csv"
-                    label=""
-                    buttonText={hasUploadedFiles ? "Upload More Files" : "Select Files"}
-                    disabled={isUploading === 'processing'}
-                    compact={hasUploadedFiles} // Use compact mode if already uploaded
-                />
-                
-                {hasSelectedFiles && (
-                    <div className="mt-2">
-                        <p className="text-sm text-gray-500">
-                            {sourceFiles[source.id].length} {sourceFiles[source.id].length === 1 ? 'file' : 'files'} selected
-                        </p>
-                    </div>
-                )}
-            </div>
-        );
-    };
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-    // Function to open modal with specific data sources
-    const openUploadModal = (componentId?: string) => {
-        if (componentId) {
-            // Get only the data sources required for this component
-            setActiveDataSources(getSourcesForComponent(componentId));
-        } else {
-            // Show all data sources when opening from the main "Upload Data Sources" button
-            setActiveDataSources([]);
+        // First fetch stats to get the reference date
+        const statsRes = await fetch('/api/dashboard/stats');
+        if (!statsRes.ok) {
+          throw new Error('Failed to fetch dashboard stats');
         }
-        // Keep the sourceFiles state intact when opening the modal
-        setIsUploadModalOpen(true);
-    };
-    
-    // Get the filtered data sources to display in the modal
-    const getFilteredDataSources = () => {
-        if (activeDataSources.length === 0) {
-            // Show all data sources if none specifically selected
-            return PAGE_DATA_SOURCES.dashboard;
+        
+        const statsData = await statsRes.json();
+        if (statsData.success) {
+          setStats(statsData.stats);
+          setMetadata(statsData.metadata);
         }
-        // Filter to show only the active data sources
-        return ALL_DATA_SOURCES.filter(source => 
-            activeDataSources.includes(source.id)
-        );
+
+        // Use the reference date from stats for projections
+        const referenceDate = statsData.metadata?.referenceDate || new Date().toISOString();
+        const nextDay = new Date(referenceDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        // Fetch remaining data in parallel
+        const [timelineRes, historicalRes, projectedRes] = await Promise.all([
+          fetch('/api/dashboard/timeline'),
+          fetch('/api/dashboard/historical-cashflow'),
+          fetch(`/api/cashflow/position?date=${nextDay.toISOString().split('T')[0]}&range=30d`)
+        ]);
+
+        if (!timelineRes.ok || !historicalRes.ok || !projectedRes.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const [timelineData, historicalData, projectedData] = await Promise.all([
+          timelineRes.json(),
+          historicalRes.json(),
+          projectedRes.json()
+        ]);
+
+        if (timelineData.success) {
+          setTimeline(timelineData.timeline);
+        }
+
+        if (historicalData.success) {
+          setHistoricalPositions(historicalData.positions);
+        }
+
+        if (projectedData.success) {
+          setProjectedPositions(projectedData.positions);
+        }
+
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
     };
 
+    fetchDashboardData();
+  }, []);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const prepareChartData = () => {
+    if (!chartLoaded || (historicalPositions.length === 0 && projectedPositions.length === 0)) {
+      return null;
+    }
+
+    // Get the Total Cash On Hand from stats
+    const totalCashOnHand = stats.find(stat => stat.title === 'Total Cash On Hand')?.value || 0;
+    
+    // Prepare historical data - adjust the last point to match Total Cash On Hand
+    let adjustedHistoricalPositions = [...historicalPositions];
+    if (adjustedHistoricalPositions.length > 0 && totalCashOnHand > 0) {
+      // Update the last historical data point to match Total Cash On Hand
+      const lastIndex = adjustedHistoricalPositions.length - 1;
+      adjustedHistoricalPositions[lastIndex] = {
+        ...adjustedHistoricalPositions[lastIndex],
+        closingBalance: totalCashOnHand
+      };
+    }
+
+    // Prepare projected data - start from Total Cash On Hand
+    let adjustedProjectedPositions = [...projectedPositions];
+    if (adjustedProjectedPositions.length > 0 && totalCashOnHand > 0) {
+      // Adjust all projected positions to start from Total Cash On Hand
+      const firstProjectedBalance = adjustedProjectedPositions[0]?.openingBalance || 0;
+      const adjustment = totalCashOnHand - firstProjectedBalance;
+      
+      adjustedProjectedPositions = adjustedProjectedPositions.map(position => ({
+        ...position,
+        openingBalance: position.openingBalance + adjustment,
+        closingBalance: position.closingBalance + adjustment
+      }));
+    }
+
+    // Combine and sort all positions
+    const allPositions = [...adjustedHistoricalPositions, ...adjustedProjectedPositions];
+    const sortedPositions = allPositions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Remove duplicates and ensure smooth transition
+    const uniquePositions = [];
+    let lastDate = '';
+    
+    for (const position of sortedPositions) {
+      if (position.date !== lastDate) {
+        uniquePositions.push(position);
+        lastDate = position.date;
+      }
+    }
+
+    const labels = uniquePositions.map(p => formatDate(p.date));
+    const balances = uniquePositions.map(p => p.closingBalance);
+    
+    // Split data into historical and projected segments
+    const historicalEndIndex = adjustedHistoricalPositions.length;
+    const historicalBalances = balances.slice(0, historicalEndIndex);
+    const projectedBalances = balances.slice(historicalEndIndex - 1); // Include overlap point
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Historical Cash Position',
+          data: [...historicalBalances, ...new Array(Math.max(0, projectedBalances.length - 1)).fill(null)],
+          borderColor: 'rgb(34, 197, 94)',
+          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          borderWidth: 3,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          tension: 0.1,
+          fill: false
+        },
+        {
+          label: 'Projected Cash Position',
+          data: [...new Array(Math.max(0, historicalEndIndex - 1)).fill(null), ...projectedBalances],
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          tension: 0.1,
+          fill: false
+        }
+      ]
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          padding: 20,
+          usePointStyle: true,
+          font: {
+            size: 14
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: 'Cash Flow Position - Historical & Projected',
+        font: {
+          size: 16,
+          weight: 'bold' as const
+        },
+        padding: {
+          top: 10,
+          bottom: 30
+        }
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        callbacks: {
+          label: function(context: any) {
+            return context.dataset.label + ': ' + formatCurrency(context.parsed.y);
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Date',
+          font: {
+            size: 14,
+            weight: 'bold' as const
+          }
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        },
+        ticks: {
+          maxTicksLimit: 15
+        }
+      },
+      y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Amount (USD)',
+          font: {
+            size: 14,
+            weight: 'bold' as const
+          }
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)'
+        },
+        ticks: {
+          callback: function(value: any) {
+            return formatCurrency(value);
+          }
+        }
+      }
+    },
+    interaction: {
+      mode: 'nearest' as const,
+      axis: 'x' as const,
+      intersect: false
+    },
+    elements: {
+      point: {
+        hoverRadius: 8
+      }
+    }
+  };
+
+  if (loading) {
     return (
-        <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+      <div className="flex justify-center items-center min-h-screen">
+        <ArrowPathIcon className="h-8 w-8 animate-spin text-indigo-600" />
+        <span className="ml-2 text-lg">Loading dashboard...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-800 mb-4">Dashboard Error</h1>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const chartData = prepareChartData();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="py-10">
+        <header>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Real-time overview of your financial position and upcoming obligations
+            </p>
             
-            {/* Data Upload and Refresh Buttons */}
-            <div className="mt-8 flex justify-end space-x-4">
-                <button
-                    type="button"
-                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#595CFF]"
-                    onClick={() => openUploadModal()}
-                >
-                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                    Upload Data Sources
-                </button>
-                <button
-                    type="button"
-                    className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
-                    disabled={!areAllSourcesUploaded}
-                >
-                    <ArrowPathIcon className="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" aria-hidden="true" />
-                    Refresh Data
-                </button>
-            </div>
-
-            {/* Upload Data Modal using the shared component */}
-            <UploadModal
-                isOpen={isUploadModalOpen}
-                onClose={() => {
-                    setIsUploadModalOpen(false);
-                    // Don't reset sourceFiles to keep state between modal opens
-                }}
-                title="Upload Data Sources"
-                description="Please upload your financial data sources below. You can upload multiple files for each data source."
-                dataSources={getFilteredDataSources()}
-                isUploading={isUploading}
-                onSubmit={handleSubmitFiles}
-                isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
-                renderSourceContent={renderSourceContent}
-            />
-
-            {/* KPI Cards */}
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                {stats.map((item) => (
-                    <div key={item.title} className="relative">
-                        {!isDataSourceUploaded(item.dataSource) && (
-                            <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        // Map dataSource to component ID
-                                        const componentId = item.dataSource === 'bankStatements' ? 'cashOnHandKPI' :
-                                                          item.dataSource === 'accountsPayable' ? 'outstandingPayablesKPI' :
-                                                          item.dataSource === 'accountsReceivable' ? 'outstandingReceivablesKPI' :
-                                                          item.dataSource === 'bankPosition' ? 'outstandingBankPaymentsKPI' : '';
-                                        openUploadModal(componentId);
-                                    }}
-                                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-                                >
-                                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload {PAGE_DATA_SOURCES.dashboard.find(s => s.id === item.dataSource)?.name}
-                                </button>
-                            </div>
-                        )}
-                        <KeyFigureCard
-                            title={item.title}
-                            value={item.value}
-                            icon={item.icon}
-                            iconColor={item.iconColor}
-                            change={item.change}
-                            changeType={item.changeType}
-                            interpretation={item.interpretation}
-                        />
-                    </div>
-                ))}
+            {/* Reference Date Information */}
+            {metadata && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">
+                      Data as of <span className="font-semibold">{metadata.referenceDateFormatted}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
+        <main>
+          <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
+            
+            {/* Key Statistics */}
+            <div className="mt-8">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {stats.map((stat, index) => {
+                  const IconComponent = iconMap[stat.icon];
+                  return (
+                    <KeyFigureCard
+                      key={index}
+                      title={stat.title}
+                      value={formatCurrency(stat.value)}
+                      change={`${Math.abs(stat.change).toFixed(1)}%`}
+                      changeType={stat.changeType}
+                      icon={IconComponent}
+                      iconColor={stat.iconColor}
+                      interpretation={stat.interpretation}
+                    />
+                  );
+                })}
+              </div>
             </div>
 
             {/* Cash Flow Chart */}
-            <div className="mt-8 bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-6">Cash Position & Forecast (90 Days)</h3>
-                
-                {!isChartVisible ? (
-                    <div className="h-80 flex items-center justify-center bg-gray-50 rounded-lg">
-                        <div className="text-center">
-                            <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-semibold text-gray-900">No data available</h3>
-                            <p className="mt-1 text-sm text-gray-500">Upload Bank Statements to view the forecast.</p>
-                            <div className="mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => openUploadModal('cashPositionChart')}
-                                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-                                >
-                                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload Bank Statements
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="h-80">
-                        <Line
-                            data={{
-                                labels: cashFlowData.labels,
-                                datasets: [
-                                    {
-                                        label: 'Historical Cash Position',
-                                        data: [...cashFlowData.historicalValues, ...Array(9).fill(null)],
-                                        borderColor: 'rgb(75, 192, 192)',
-                                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                                        borderWidth: 2,
-                                        pointBackgroundColor: 'rgb(75, 192, 192)',
-                                        pointRadius: 4,
-                                        pointHoverRadius: 6,
-                                        tension: 0.3,
-                                        fill: false
-                                    },
-                                    {
-                                        label: 'Projected Cash Position',
-                                        data: [...Array(4).fill(null), ...cashFlowData.projectedValues],
-                                        borderColor: 'rgb(89, 92, 255)',
-                                        backgroundColor: 'rgba(89, 92, 255, 0.1)',
-                                        borderWidth: 2,
-                                        pointBackgroundColor: 'rgb(89, 92, 255)',
-                                        pointRadius: 4,
-                                        pointHoverRadius: 6,
-                                        tension: 0.3,
-                                        fill: true
-                                    }
-                                ],
-                            }}
-                            options={{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        display: true,
-                                        position: 'top',
-                                        align: 'end',
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                let value = context.parsed.y;
-                                                return `Cash: $${value?.toLocaleString() || '0'}`;
-                                            }
-                                        }
-                                    }
-                                },
-                                scales: {
-                                    y: {
-                                        beginAtZero: false,
-                                        grid: {
-                                            color: 'rgba(0, 0, 0, 0.05)'
-                                        },
-                                        ticks: {
-                                            callback: function(value) {
-                                                return '$' + (value as number).toLocaleString();
-                                            }
-                                        },
-                                        min: Math.floor(cashFlowData.current * 0.9 / 100000) * 100000, // Round down to nearest 100k
-                                    },
-                                    x: {
-                                        grid: {
-                                            display: false
-                                        }
-                                    }
-                                },
-                            }}
-                        />
-                    </div>
-                )}
+            <div className="mt-8">
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Cash Flow Overview
+                    </h3>
+                    {metadata && (
+                      <div className="text-sm text-gray-500">
+                        Based on data through {metadata.referenceDateFormatted}
+                      </div>
+                    )}
+                  </div>
+                  <div className="h-[32rem] w-full">
+                    {chartData && chartLoaded ? (
+                      <Line data={chartData} options={chartOptions} />
+                    ) : (
+                      <div className="flex justify-center items-center h-full">
+                        <ArrowPathIcon className="h-8 w-8 animate-spin text-indigo-600" />
+                        <span className="ml-2">Loading chart...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Summary Cards */}
+            {/* Timeline Sections */}
             <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {/* Upcoming Supplier Payments */}
-                <div className="bg-white shadow rounded-lg overflow-hidden">
-                    <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Upcoming Supplier Payments</h3>
-                        {isSupplierPaymentsVisible && (
-                            <p className="mt-1 text-sm text-gray-500">Total: $131,550 due in the next 30 days</p>
-                        )}
-                    </div>
-                    
-                    {!isSupplierPaymentsVisible ? (
-                        <div className="px-4 py-12 sm:p-6 text-center">
-                            <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-semibold text-gray-900">No data available</h3>
-                            <p className="mt-1 text-sm text-gray-500">Upload Accounts Payable data to view upcoming payments.</p>
-                            <div className="mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => openUploadModal('supplierPayments')}
-                                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-                                >
-                                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload Accounts Payable
-                                </button>
-                            </div>
+              
+              {/* Supplier Payments */}
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Upcoming Supplier Payments
+                  </h3>
+                  <div className="space-y-4">
+                    {timeline.suppliers.length > 0 ? (
+                      timeline.suppliers.map((payment) => (
+                        <div key={payment.id} className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{payment.supplier}</p>
+                            <p className="text-xs text-gray-500">{formatDate(payment.dueDate)}</p>
+                            <p className="text-xs text-gray-400">{payment.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-red-600">
+                              -{formatCurrency(payment.amount)}
+                            </p>
+                            <span className={clsx(
+                              'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
+                              payment.status === 'Pending' 
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-blue-100 text-blue-800'
+                            )}>
+                              {payment.status}
+                            </span>
+                          </div>
                         </div>
+                      ))
                     ) : (
-                        <div className="px-4 py-5 sm:p-6">
-                            <div className="flow-root">
-                                <ul role="list" className="-mb-8">
-                                    {supplierPayments.map((payment, paymentIdx) => (
-                                        <li key={payment.id}>
-                                            <div className="relative pb-8">
-                                                {paymentIdx !== supplierPayments.length - 1 ? (
-                                                    <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                                                ) : null}
-                                                <div className="relative flex space-x-3">
-                                                    <div>
-                                                        <span className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center ring-8 ring-white">
-                                                            <BanknotesIcon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                        <div>
-                                                            <p className="text-sm text-gray-900">{payment.supplier}</p>
-                                                            <p className="text-sm text-gray-500">{payment.amount}</p>
-                                                        </div>
-                                                        <div className="whitespace-nowrap text-right text-sm">
-                                                            <time className="text-gray-500">{payment.dueDate}</time>
-                                                            <div className={clsx(
-                                                                'mt-1 text-xs font-medium',
-                                                                payment.status === 'Pending' ? 'text-yellow-600' : 'text-blue-600'
-                                                            )}>
-                                                                {payment.status}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No upcoming supplier payments
+                      </p>
                     )}
+                  </div>
                 </div>
+              </div>
 
-                {/* Customer Payments */}
-                <div className="bg-white shadow rounded-lg overflow-hidden">
-                    <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Customer Payments</h3>
-                        {isCustomerPaymentsVisible && (
-                            <p className="mt-1 text-sm text-gray-500">Total: $200,000 expected in the next 30 days</p>
-                        )}
-                    </div>
-                    
-                    {!isCustomerPaymentsVisible ? (
-                        <div className="px-4 py-12 sm:p-6 text-center">
-                            <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-semibold text-gray-900">No data available</h3>
-                            <p className="mt-1 text-sm text-gray-500">Upload Accounts Receivable data to view upcoming payments.</p>
-                            <div className="mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => openUploadModal('customerPayments')}
-                                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-                                >
-                                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload Accounts Receivable
-                                </button>
-                            </div>
+              {/* Customer Payments */}
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Expected Customer Payments
+                  </h3>
+                  <div className="space-y-4">
+                    {timeline.customers.length > 0 ? (
+                      timeline.customers.map((payment) => (
+                        <div key={payment.id} className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{payment.customer}</p>
+                            <p className="text-xs text-gray-500">{formatDate(payment.dueDate)}</p>
+                            <p className="text-xs text-gray-400">{payment.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-green-600">
+                              +{formatCurrency(payment.amount)}
+                            </p>
+                            <span className={clsx(
+                              'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
+                              payment.status === 'Pending' 
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-blue-100 text-blue-800'
+                            )}>
+                              {payment.status}
+                            </span>
+                          </div>
                         </div>
+                      ))
                     ) : (
-                        <div className="px-4 py-5 sm:p-6">
-                            <div className="flow-root">
-                                <ul role="list" className="-mb-8">
-                                    {customerPayments.map((payment, paymentIdx) => (
-                                        <li key={payment.id}>
-                                            <div className="relative pb-8">
-                                                {paymentIdx !== customerPayments.length - 1 ? (
-                                                    <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                                                ) : null}
-                                                <div className="relative flex space-x-3">
-                                                    <div>
-                                                        <span className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center ring-8 ring-white">
-                                                            <CreditCardIcon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                        <div>
-                                                            <p className="text-sm text-gray-900">{payment.customer}</p>
-                                                            <p className="text-sm text-gray-500">{payment.amount}</p>
-                                                        </div>
-                                                        <div className="whitespace-nowrap text-right text-sm">
-                                                            <time className="text-gray-500">{payment.dueDate}</time>
-                                                            <div className={clsx(
-                                                                'mt-1 text-xs font-medium',
-                                                                payment.status === 'Pending' ? 'text-yellow-600' : 'text-blue-600'
-                                                            )}>
-                                                                {payment.status}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No expected customer payments
+                      </p>
                     )}
+                  </div>
                 </div>
+              </div>
 
-                {/* Banking Obligations */}
-                <div className="bg-white shadow rounded-lg overflow-hidden">
-                    <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Banking Obligations</h3>
-                        {isBankObligationsVisible && (
-                            <p className="mt-1 text-sm text-gray-500">Total: $60,950 due in the next 30 days</p>
-                        )}
-                    </div>
-                    
-                    {!isBankObligationsVisible ? (
-                        <div className="px-4 py-12 sm:p-6 text-center">
-                            <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-semibold text-gray-900">No data available</h3>
-                            <p className="mt-1 text-sm text-gray-500">Upload Bank Position data to view upcoming obligations.</p>
-                            <div className="mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => openUploadModal('bankingObligations')}
-                                    className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-                                >
-                                    <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                                    Upload Bank Position
-                                </button>
-                            </div>
+              {/* Bank Payments */}
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Upcoming Bank Obligations
+                  </h3>
+                  <div className="space-y-4">
+                    {timeline.banks.length > 0 ? (
+                      timeline.banks.map((payment) => (
+                        <div key={payment.id} className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{payment.bank}</p>
+                            <p className="text-xs text-gray-500">{formatDate(payment.dueDate)}</p>
+                            <p className="text-xs text-gray-400">{payment.type}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-purple-600">
+                              -{formatCurrency(payment.amount)}
+                            </p>
+                            <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 px-2 py-1 text-xs font-medium">
+                              {payment.type}
+                            </span>
+                          </div>
                         </div>
+                      ))
                     ) : (
-                        <div className="px-4 py-5 sm:p-6">
-                            <div className="flow-root">
-                                <ul role="list" className="-mb-8">
-                                    {bankingObligations.map((obligation, obligationIdx) => (
-                                        <li key={obligation.id}>
-                                            <div className="relative pb-8">
-                                                {obligationIdx !== bankingObligations.length - 1 ? (
-                                                    <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                                                ) : null}
-                                                <div className="relative flex space-x-3">
-                                                    <div>
-                                                        <span className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center ring-8 ring-white">
-                                                            <BanknotesIcon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                        <div>
-                                                            <p className="text-sm text-gray-900">{obligation.bank}</p>
-                                                            <p className="text-sm text-gray-500">{obligation.type}</p>
-                                                        </div>
-                                                        <div className="whitespace-nowrap text-right text-sm">
-                                                            <time className="text-gray-500">{obligation.dueDate}</time>
-                                                            <p className="mt-1 text-sm font-medium text-gray-900">{obligation.amount}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No upcoming bank obligations
+                      </p>
                     )}
+                  </div>
                 </div>
+              </div>
             </div>
-        </div>
-    )
+          </div>
+        </main>
+      </div>
+    </div>
+  )
 } 
