@@ -1,61 +1,30 @@
 import { NextResponse } from 'next/server';
-import { 
-  generateAllFacilityProjections, 
-  generateFacilityProjections, 
-  updateFacilityProjections,
-  getFacilityProjectionsSummary 
-} from '@/lib/services/bankFacilityProjectionService';
+import { prisma } from '@/lib/prisma';
 
 /**
- * GET - Get facility projections summary or generate projections
+ * GET - Debug facility information and projections
  */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const action = url.searchParams.get('action');
-    const facilityId = url.searchParams.get('facilityId');
     const debug = url.searchParams.get('debug') === 'true';
     
-    if (action === 'cleanup-long-projections') {
-      // Clean up projections that extend too far into the future (likely due to tenor parsing issues)
-      const { prisma } = await import('@/lib/prisma');
-      
-      const cutoffDate = new Date();
-      cutoffDate.setFullYear(cutoffDate.getFullYear() + 5); // 5 years from now
-      
-      console.log(`🧹 Cleaning up facility projections beyond ${cutoffDate.toISOString().split('T')[0]}`);
-      
-      const deletedCount = await prisma.cashflowProjection.deleteMany({
-        where: {
-          type: { in: ['BANK_OBLIGATION', 'LOAN_PAYMENT'] },
-          projectionDate: { gt: cutoffDate }
-        }
-      });
-      
-      console.log(`🗑️ Deleted ${deletedCount.count} long-term projections`);
-      
-      // Regenerate all facility projections with corrected tenor parsing
-      const results = await generateAllFacilityProjections();
-      
-      return NextResponse.json({
-        success: true,
-        data: {
-          deletedProjections: deletedCount.count,
-          regeneratedFacilities: results.length,
-          facilities: results
-        },
-        message: `Cleaned up ${deletedCount.count} projections and regenerated for ${results.length} facilities`
-      });
-    }
-    
-    if (action === 'debug' || debug) {
+    if (debug) {
       // Debug: Show all facility projections and their details
-      const { prisma } = await import('@/lib/prisma');
-      
-      // Get all facility accounts
       const facilities = await prisma.bankStatement.findMany({
         where: {
-          accountType: { not: null }
+          AND: [
+            { endingBalance: { lt: 0 } }, // Outstanding debt
+            {
+              OR: [
+                { accountType: { contains: 'overdraft', mode: 'insensitive' } },
+                { accountType: { contains: 'loan', mode: 'insensitive' } },
+                { accountType: { contains: 'credit', mode: 'insensitive' } },
+                { accountType: { contains: 'facility', mode: 'insensitive' } },
+                { tenor: { not: null } }
+              ]
+            }
+          ]
         },
         include: {
           bank: true,
@@ -69,23 +38,18 @@ export async function GET(request: Request) {
       });
       
       console.log('🔍 DEBUGGING FACILITY PROJECTIONS:');
-      console.log(`Found ${facilities.length} bank statements`);
+      console.log(`Found ${facilities.length} facility accounts with outstanding balances`);
       
       const facilityDebug = facilities.map(facility => {
         const endingBalance = parseFloat(facility.endingBalance.toString());
-        const isFacility = facility.accountType && (
-          facility.accountType.toLowerCase().includes('overdraft') ||
-          facility.accountType.toLowerCase().includes('loan') ||
-          facility.accountType.toLowerCase().includes('credit') ||
-          endingBalance < 0
-        );
+        const outstandingAmount = Math.abs(endingBalance);
         
         return {
           id: facility.id,
           bankName: facility.bank.name,
           accountType: facility.accountType,
           endingBalance: endingBalance,
-          isFacilityAccount: isFacility,
+          outstandingAmount: outstandingAmount,
           tenor: facility.tenor,
           availableLimit: facility.availableLimit ? parseFloat(facility.availableLimit.toString()) : null,
           interestRate: facility.interestRate,
@@ -109,48 +73,40 @@ export async function GET(request: Request) {
         summary: {
           totalFacilities: facilities.length,
           facilitiesWithProjections: facilities.filter(f => f.CashflowProjection.length > 0).length,
-          totalProjections: facilities.reduce((sum, f) => sum + f.CashflowProjection.length, 0)
+          totalProjections: facilities.reduce((sum, f) => sum + f.CashflowProjection.length, 0),
+          totalOutstandingAmount: facilities.reduce((sum, f) => sum + Math.abs(parseFloat(f.endingBalance.toString())), 0)
+        },
+        message: 'Bank obligations are now managed by the centralized cashflow projection service. Use POST /api/cashflow/projections/refresh to generate projections.'
+      });
+    }
+    
+    // Default: return summary of current projections
+    const projections = await prisma.cashflowProjection.findMany({
+      where: {
+        type: { in: ['BANK_OBLIGATION', 'LOAN_PAYMENT'] }
+      },
+      include: {
+        BankStatement: {
+          include: {
+            bank: true
+          }
         }
-      });
-    }
+      },
+      orderBy: { projectionDate: 'asc' }
+    });
     
-    if (action === 'summary') {
-      // Get summary of all facility projections
-      const summary = await getFacilityProjectionsSummary();
-      return NextResponse.json({
-        success: true,
-        data: summary
-      });
-    }
+    const summary = {
+      totalProjections: projections.length,
+      totalProjectedAmount: projections.reduce((sum, p) => sum + parseFloat(p.projectedAmount.toString()), 0),
+      nextPaymentDate: projections.length > 0 ? projections[0].projectionDate : null,
+      nextPaymentAmount: projections.length > 0 ? parseFloat(projections[0].projectedAmount.toString()) : 0,
+      facilitiesWithProjections: new Set(projections.map(p => p.bankStatementId)).size
+    };
     
-    if (action === 'generate-all') {
-      // Generate projections for all facilities
-      const results = await generateAllFacilityProjections();
-      return NextResponse.json({
-        success: true,
-        data: results,
-        message: `Generated projections for ${results.length} facilities`
-      });
-    }
-    
-    if (facilityId) {
-      // Generate projections for specific facility
-      const result = await generateFacilityProjections({
-        facilityId: parseInt(facilityId),
-        generateForExisting: true,
-        generateForNewDisbursements: true
-      });
-      return NextResponse.json({
-        success: true,
-        data: result
-      });
-    }
-    
-    // Default: return summary
-    const summary = await getFacilityProjectionsSummary();
     return NextResponse.json({
       success: true,
-      data: summary
+      data: summary,
+      message: 'Bank obligations are managed by the centralized cashflow projection service. Use POST /api/cashflow/projections/refresh to generate projections.'
     });
     
   } catch (error: any) {
@@ -163,80 +119,21 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST - Generate or update facility projections
+ * POST - Redirect to centralized service
  */
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { action, facilityId, generateForExisting = true, generateForNewDisbursements = true } = body;
-    
-    if (action === 'generate-all') {
-      // Generate projections for all facilities
-      const results = await generateAllFacilityProjections();
-      return NextResponse.json({
-        success: true,
-        data: results,
-        message: `Generated projections for ${results.length} facilities`
-      });
-    }
-    
-    if (action === 'update' && facilityId) {
-      // Update projections for specific facility
-      const result = await updateFacilityProjections(facilityId);
-      return NextResponse.json({
-        success: true,
-        data: result,
-        message: `Updated projections for facility ${facilityId}`
-      });
-    }
-    
-    if (facilityId) {
-      // Generate projections for specific facility
-      const result = await generateFacilityProjections({
-        facilityId,
-        generateForExisting,
-        generateForNewDisbursements
-      });
-      return NextResponse.json({
-        success: true,
-        data: result,
-        message: `Generated projections for facility ${facilityId}`
-      });
-    }
-    
-    return NextResponse.json({
-      success: false,
-      error: 'Missing required parameters'
-    }, { status: 400 });
-    
-  } catch (error: any) {
-    console.error('Error generating facility projections:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to generate facility projections'
-    }, { status: 500 });
-  }
+  return NextResponse.json({
+    success: false,
+    error: 'Bank obligations are now managed by the centralized cashflow projection service',
+    message: 'Please use POST /api/cashflow/projections/refresh to generate all projections including bank obligations'
+  }, { status: 410 }); // 410 Gone - resource no longer available
 }
 
 /**
- * DELETE - Clean up facility projections
+ * DELETE - Clean up bank obligation projections only
  */
 export async function DELETE(request: Request) {
   try {
-    const url = new URL(request.url);
-    const facilityId = url.searchParams.get('facilityId');
-    
-    if (facilityId) {
-      // Delete projections for specific facility
-      await updateFacilityProjections(parseInt(facilityId)); // This clears and regenerates
-      return NextResponse.json({
-        success: true,
-        message: `Cleared and regenerated projections for facility ${facilityId}`
-      });
-    }
-    
-    // Delete all facility projections
-    const { prisma } = await import('@/lib/prisma');
     const deletedCount = await prisma.cashflowProjection.deleteMany({
       where: {
         type: { in: ['BANK_OBLIGATION', 'LOAN_PAYMENT'] }
@@ -245,14 +142,14 @@ export async function DELETE(request: Request) {
     
     return NextResponse.json({
       success: true,
-      message: `Deleted ${deletedCount.count} facility projections`
+      message: `Deleted ${deletedCount.count} bank obligation projections. Use POST /api/cashflow/projections/refresh to regenerate.`
     });
     
   } catch (error: any) {
-    console.error('Error deleting facility projections:', error);
+    console.error('Error deleting bank obligation projections:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to delete facility projections'
+      error: error.message || 'Failed to delete bank obligation projections'
     }, { status: 500 });
   }
 } 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CentralizedCashflowProjectionService } from '@/lib/services/centralizedCashflowProjectionService';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
 import { prisma } from '@/lib/prisma';
 import { CashflowType, CashflowStatus } from '@prisma/client';
@@ -27,14 +28,20 @@ export async function GET(request: NextRequest) {
     const typeFilter = typeParam ? typeParam.split(',') as CashflowType[] : undefined;
     const statusFilter = statusParam ? statusParam.split(',') as CashflowStatus[] : undefined;
 
-    const service = new CashflowProjectionService();
+    console.log('📊 Fetching projections using centralized service');
     
-    // Get projections with filters
-    const projections = await service.getProjections(startDate, endDate, typeFilter, statusFilter);
+    // Use the centralized service
+    const centralizedService = new CentralizedCashflowProjectionService();
     
-    // Generate summary
-    const summary = await service.generateSummary(startDate, endDate);
+    const projections = await centralizedService.getProjections(startDate, endDate, {
+      types: typeFilter,
+      statuses: statusFilter
+    });
 
+    // Generate summary using the old service for compatibility
+    const oldService = new CashflowProjectionService();
+    const summary = await oldService.generateSummary(startDate, endDate);
+    
     // Format response
     const formattedProjections = projections.map(p => ({
       id: p.id,
@@ -70,12 +77,13 @@ export async function GET(request: NextRequest) {
           id: p.BankStatement.id,
           bankName: p.BankStatement.bankName,
           accountType: p.BankStatement.accountType,
-          endingBalance: Number(p.BankStatement.endingBalance)
+          endingBalance: p.BankStatement.endingBalance ? Number(p.BankStatement.endingBalance) : null,
+          bank: p.BankStatement.bank
         } : null
       })
     }));
 
-    console.log(`📊 Cashflow projections summary:`);
+    console.log(`📊 Cashflow projections summary (centralized service):`);
     console.log(`   - Total projections: ${formattedProjections.length}`);
     console.log(`   - Customer receivables: ${formattedProjections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length}`);
     console.log(`   - Supplier payables: ${formattedProjections.filter(p => p.type === 'SUPPLIER_PAYABLE').length}`);
@@ -98,6 +106,7 @@ export async function GET(request: NextRequest) {
           type: typeFilter,
           status: statusFilter
         },
+        usedCentralizedService: true,
         typeCounts: {
           customerReceivables: formattedProjections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length,
           supplierPayables: formattedProjections.filter(p => p.type === 'SUPPLIER_PAYABLE').length,
@@ -142,28 +151,26 @@ export async function POST(request: NextRequest) {
       : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
     console.log(`🚀 Generating cashflow projections for ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`🔄 Using centralized service`);
 
-    const service = new CashflowProjectionService();
+    // Use the centralized service
+    const centralizedService = new CentralizedCashflowProjectionService();
     
-    // Generate projections from invoices
-    const projections = await service.generateProjectionsFromInvoices(startDate, endDate);
-    
-    // Get updated summary
-    const summary = await service.generateSummary(startDate, endDate);
+    const summary = await centralizedService.refreshAllProjections({
+      startDate,
+      endDate,
+      forceRecalculate: recalculate
+    });
 
     return NextResponse.json({
       success: true,
-      message: `Successfully generated ${projections.length} cashflow projections`,
-      generated: {
-        count: projections.length,
-        customerReceivables: projections.filter(p => p.type === CashflowType.CUSTOMER_RECEIVABLE).length,
-        supplierPayables: projections.filter(p => p.type === CashflowType.SUPPLIER_PAYABLE).length
-      },
-      summary,
+      message: `Successfully generated cashflow projections using centralized service`,
+      generated: summary,
       dateRange: {
         start: startDate.toISOString(),
         end: endDate.toISOString()
-      }
+      },
+      usedCentralizedService: true
     });
 
   } catch (error) {
@@ -199,27 +206,17 @@ export async function PUT(request: NextRequest) {
         ...(projectionDate && { projectionDate: new Date(projectionDate) }),
         ...(confidence !== undefined && { confidence }),
         ...(description !== undefined && { description }),
-        ...(status && { status }),
-        updatedAt: new Date()
-      },
-      include: {
-        Invoice: {
-          include: {
-            Customer: { select: { name: true } },
-            Supplier: { select: { name: true } }
-          }
-        }
+        ...(status && { status })
       }
     });
 
     return NextResponse.json({
       success: true,
-      projection: {
+      data: {
         ...updatedProjection,
         projectedAmount: Number(updatedProjection.projectedAmount),
         actualAmount: updatedProjection.actualAmount ? Number(updatedProjection.actualAmount) : null
-      },
-      message: 'Projection updated successfully'
+      }
     });
 
   } catch (error) {
@@ -227,7 +224,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to update projection',
+        error: 'Failed to update cashflow projection',
         details: error instanceof Error ? error.message : 'Unknown error'
       }, 
       { status: 500 }
@@ -237,7 +234,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
     if (!id) {
@@ -247,7 +244,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the projection
     await prisma.cashflowProjection.delete({
       where: { id: parseInt(id) }
     });
@@ -262,7 +258,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to delete projection',
+        error: 'Failed to delete cashflow projection',
         details: error instanceof Error ? error.message : 'Unknown error'
       }, 
       { status: 500 }

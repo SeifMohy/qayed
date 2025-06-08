@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
-import { updateFacilityProjections } from '@/lib/services/bankFacilityProjectionService';
 
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
@@ -264,13 +263,7 @@ export async function PUT(
         const updatedAccountType = accountType !== undefined ? accountType : result.statement.accountType;
         
         if (isFacilityAccount(updatedAccountType, updatedEndingBalance)) {
-          try {
-            await updateFacilityProjections(id);
-            console.log(`Updated facility projections for facility ${id} after bank name change`);
-          } catch (error) {
-            console.error(`Error updating facility projections for facility ${id}:`, error);
-            // Don't fail the main operation if projection update fails
-          }
+          console.log(`Facility ${id} updated - projections will be refreshed when centralized service is next run`);
         }
       }
 
@@ -322,13 +315,7 @@ export async function PUT(
     if (isFacilityFieldsUpdate) {
       const updatedEndingBalance = parseFloat(updatedStatement.endingBalance.toString());
       if (isFacilityAccount(updatedStatement.accountType, updatedEndingBalance)) {
-        try {
-          await updateFacilityProjections(id);
-          console.log(`Updated facility projections for facility ${id}`);
-        } catch (error) {
-          console.error(`Error updating facility projections for facility ${id}:`, error);
-          // Don't fail the main operation if projection update fails
-        }
+        console.log(`Facility ${id} updated - projections will be refreshed when centralized service is next run`);
       }
     }
 

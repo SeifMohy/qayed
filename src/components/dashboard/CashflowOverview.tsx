@@ -270,9 +270,9 @@ export default function CashflowOverview() {
     try {
       setLoading(true);
       
-      // Fetch projections summary with current date range
+      // Fetch projections summary with current date range (using centralized service)
       const projectionsResponse = await fetch(
-        `/api/cashflow/projections?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&includeRelated=true`
+        `/api/cashflow/projections?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&includeRelated=true&useCentralized=true`
       );
       const projectionsData = await projectionsResponse.json();
       
@@ -326,56 +326,50 @@ export default function CashflowOverview() {
     try {
       setGenerating(true);
       
-      console.log('🚀 Starting comprehensive projection generation...');
+      console.log('🚀 Starting centralized projection refresh...');
       
-      // Generate invoice-based projections first
-      const response = await fetch('/api/cashflow/projections', {
+      // Use the centralized refresh endpoint
+      const response = await fetch('/api/cashflow/projections/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           startDate: dateRange.startDate,
-          endDate: dateRange.endDate
+          endDate: dateRange.endDate,
+          forceRecalculate: true
         })
       });
       
       const data = await response.json();
+      
       if (data.success) {
-        console.log('✅ Invoice projections generated successfully');
-      } else {
-        console.warn('⚠️ Invoice projections failed:', data.error);
-      }
-      
-      // Generate bank facility projections separately to ensure they're included
-      try {
-        console.log('🏦 Generating bank facility projections...');
-        const facilityResponse = await fetch('/api/cashflow/bank-obligations?action=generate-all', {
-          method: 'GET'
-        });
+        console.log('✅ Centralized projection refresh completed successfully');
+        console.log('📊 Summary:', data.summary);
+        console.log('🔍 Verification:', data.verification);
         
-        const facilityData = await facilityResponse.json();
-        if (facilityData.success) {
-          console.log('✅ Bank facility projections generated successfully');
-          console.log(`   - Facilities processed: ${facilityData.data?.length || 0}`);
-          
-          // Log details about generated projections
-          if (facilityData.data && facilityData.data.length > 0) {
-            const totalProjections = facilityData.data.reduce((sum: number, facility: any) => sum + (facility.projectionsCreated || 0), 0);
-            console.log(`   - Total facility projections created: ${totalProjections}`);
-          }
-        } else {
-          console.warn('⚠️ Bank facility projections failed:', facilityData.error);
+        // Log detailed breakdown
+        const { summary, verification } = data;
+        console.log(`   - Total projections generated: ${summary.totalProjections}`);
+        console.log(`   - Recurring payments: ${summary.recurringPayments}`);
+        console.log(`   - Invoice projections: ${summary.invoiceProjections}`);
+        console.log(`   - Bank obligations: ${summary.bankObligations}`);
+        
+        if (verification.actualProjectionCount !== summary.totalProjections) {
+          console.warn(`⚠️ Projection count mismatch: Expected ${summary.totalProjections}, Found ${verification.actualProjectionCount}`);
         }
-      } catch (facilityError) {
-        console.error('❌ Error generating bank facility projections:', facilityError);
-        // Don't fail the entire process if facility projections fail
+        
+        // Refresh all cashflow data to show updated projections
+        await fetchCashflowData();
+        console.log('✅ Cashflow data refreshed with centralized projections');
+        
+      } else {
+        console.error('❌ Centralized projection refresh failed:', data.error);
+        console.error('Details:', data.details);
+        throw new Error(`Projection refresh failed: ${data.error}`);
       }
-      
-      // Refresh all cashflow data to show updated projections
-      await fetchCashflowData();
-      console.log('✅ Cashflow data refreshed');
       
     } catch (error) {
-      console.error('Error generating projections:', error);
+      console.error('❌ Error during centralized projection refresh:', error);
+      alert(`Failed to refresh projections: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setGenerating(false);
     }
@@ -704,9 +698,10 @@ export default function CashflowOverview() {
             onClick={generateProjections}
             disabled={generating}
             variant="outline"
+            className="relative"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${generating ? 'animate-spin' : ''}`} />
-            {generating ? 'Generating...' : 'Refresh Projections'}
+            {generating ? 'Refreshing Projections...' : 'Refresh Projections'}
           </Button>
         </div>
       </div>

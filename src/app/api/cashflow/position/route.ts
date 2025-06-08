@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
-import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    
-    // Parse query parameters
+    const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
     const range = searchParams.get('range') || '30d';
     const customEndDateParam = searchParams.get('customEndDate');
@@ -160,47 +157,6 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to calculate cash position',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }, 
-      { status: 500 }
-    );
-  }
-}
-
-// POST endpoint to update the current cash balance
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { currentBalance, balanceDate, source } = body;
-
-    if (currentBalance === undefined) {
-      return NextResponse.json(
-        { success: false, error: 'Current balance is required' },
-        { status: 400 }
-      );
-    }
-
-    // Here you would typically update your current balance in the database
-    // For now, we'll just return a success response
-    
-    console.log(`💰 Current balance updated: $${currentBalance} as of ${balanceDate || 'today'} (source: ${source || 'manual'})`);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Current balance updated successfully',
-      balance: {
-        amount: currentBalance,
-        date: balanceDate || new Date().toISOString(),
-        source: source || 'manual'
-      }
-    });
-
-  } catch (error) {
-    console.error('Update balance API error:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to update current balance',
         details: error instanceof Error ? error.message : 'Unknown error'
       }, 
       { status: 500 }

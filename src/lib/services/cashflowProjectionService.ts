@@ -3,7 +3,6 @@ import { CashflowType, CashflowStatus } from '@prisma/client';
 import { PaymentTermsCalculator } from './paymentTermsCalculator';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 import { Decimal } from '@prisma/client/runtime/library';
-import { generateAllFacilityProjections } from './bankFacilityProjectionService';
 
 interface ProjectionItem {
   projectionDate: Date;
@@ -59,20 +58,7 @@ export class CashflowProjectionService {
       console.log('ℹ️  No invoice projections generated - no unpaid invoices in date range');
     }
     
-    // Generate bank facility projections (handled separately to avoid conflicts)
-    try {
-      console.log('🏦 Generating bank facility projections...');
-      const facilityResults = await generateAllFacilityProjections();
-      console.log(`✅ Generated facility projections for ${facilityResults.length} facilities`);
-      
-      const totalFacilityProjections = facilityResults.reduce((sum, result) => sum + result.projectionsCreated, 0);
-      if (totalFacilityProjections > 0) {
-        console.log(`   - Total bank obligation projections: ${totalFacilityProjections}`);
-      }
-    } catch (error) {
-      console.error('❌ Error generating bank facility projections:', error);
-      // Don't fail the entire process if facility projections fail
-    }
+    console.log('✅ Invoice projection generation completed');
     
     // Return combined count
     const allProjections = [...invoiceProjections];

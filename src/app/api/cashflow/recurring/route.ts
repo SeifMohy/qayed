@@ -88,12 +88,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Generate initial projections
-    await generateProjectionsForRecurring(recurringPayment.id);
+    console.log(`✅ Created recurring payment: ${name}`);
+    console.log(`ℹ️  Note: Projections will be generated when the centralized system is refreshed`);
 
     return NextResponse.json({
       success: true,
-      data: recurringPayment
+      data: recurringPayment,
+      message: 'Recurring payment created successfully. Projections will be generated on next refresh.'
     });
   } catch (error) {
     console.error('Error creating recurring payment:', error);
@@ -175,112 +176,4 @@ function calculateNextDueDate(
 // Helper function to get last day of month
 function getLastDayOfMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-}
-
-// Helper function to generate projections for a recurring payment
-async function generateProjectionsForRecurring(recurringPaymentId: number) {
-  const recurringPayment = await prisma.recurringPayment.findUnique({
-    where: { id: recurringPaymentId }
-  });
-
-  if (!recurringPayment || !recurringPayment.isActive) {
-    return;
-  }
-
-  // Generate projections for 12 months from bank statement date instead of system date
-  const baseDate = new Date('2024-06-30'); // Bank statement date
-  const endProjectionDate = new Date(baseDate);
-  endProjectionDate.setFullYear(baseDate.getFullYear() + 1);
-
-  const projections = [];
-  let currentDate = new Date(recurringPayment.nextDueDate);
-
-  console.log(`📅 Generating recurring payment projections from ${currentDate.toISOString().split('T')[0]} to ${endProjectionDate.toISOString().split('T')[0]}`);
-
-  while (currentDate <= endProjectionDate) {
-    // Stop if we've reached the end date for this recurring payment
-    if (recurringPayment.endDate && currentDate > recurringPayment.endDate) {
-      break;
-    }
-
-    const projectedAmount = recurringPayment.type === 'RECURRING_INFLOW' 
-      ? Number(recurringPayment.amount) 
-      : -Math.abs(Number(recurringPayment.amount));
-
-    projections.push({
-      projectionDate: new Date(currentDate),
-      projectedAmount,
-      type: recurringPayment.type,
-      status: 'PROJECTED' as const,
-      confidence: recurringPayment.confidence,
-      description: `${recurringPayment.name} - ${recurringPayment.frequency.toLowerCase()} recurring`,
-      recurringPaymentId: recurringPayment.id
-    });
-
-    // Calculate next occurrence
-    currentDate = getNextOccurrence(currentDate, recurringPayment.frequency, recurringPayment.dayOfMonth, recurringPayment.dayOfWeek);
-  }
-
-  // Delete existing future projections for this recurring payment (from base date forward)
-  await prisma.cashflowProjection.deleteMany({
-    where: {
-      recurringPaymentId: recurringPayment.id,
-      projectionDate: {
-        gte: baseDate
-      }
-    }
-  });
-
-  // Create new projections
-  if (projections.length > 0) {
-    await prisma.cashflowProjection.createMany({
-      data: projections
-    });
-    console.log(`✅ Created ${projections.length} recurring payment projections for "${recurringPayment.name}"`);
-  }
-}
-
-// Helper function to get next occurrence
-function getNextOccurrence(
-  currentDate: Date,
-  frequency: RecurrenceFrequency,
-  dayOfMonth?: number | null,
-  dayOfWeek?: number | null
-): Date {
-  const nextDate = new Date(currentDate);
-
-  switch (frequency) {
-    case 'DAILY':
-      nextDate.setDate(nextDate.getDate() + 1);
-      break;
-    
-    case 'WEEKLY':
-      nextDate.setDate(nextDate.getDate() + 7);
-      break;
-    
-    case 'BIWEEKLY':
-      nextDate.setDate(nextDate.getDate() + 14);
-      break;
-    
-    case 'MONTHLY':
-      nextDate.setMonth(nextDate.getMonth() + 1);
-      if (dayOfMonth) {
-        nextDate.setDate(Math.min(dayOfMonth, getLastDayOfMonth(nextDate)));
-      }
-      break;
-    
-    case 'QUARTERLY':
-      nextDate.setMonth(nextDate.getMonth() + 3);
-      break;
-    
-    case 'SEMIANNUALLY':
-      nextDate.setMonth(nextDate.getMonth() + 6);
-      break;
-    
-    case 'ANNUALLY':
-      nextDate.setFullYear(nextDate.getFullYear() + 1);
-      break;
-  }
-
-  return nextDate;
 } 
