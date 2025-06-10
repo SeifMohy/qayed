@@ -48,6 +48,12 @@ type StructuredData = {
   account_statements: AccountStatement[];
 };
 
+type ChunkData = {
+  chunk_number: number;
+  pages: string;
+  account_statements: AccountStatement[];
+};
+
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const FALLBACK_MODEL = "gemini-1.5-flash";
@@ -57,15 +63,23 @@ if (!API_KEY) {
     console.error('Error: GEMINI_API_KEY environment variable is not set.');
 }
 
-// --- Prompt for Bank Statement Structuring ---
+// --- Updated Prompt for Chunked Bank Statement Structuring ---
 const STRUCTURING_PROMPT = `
 You are a document parser specialized in bank statement data extraction.
 
-Given the raw text content of a bank statement, your task is to extract and structure the data into JSON format.
+Given a CHUNK of raw text content from a bank statement, your task is to extract and structure the data into JSON format.
 
-The document may contain MULTIPLE account statements. For each unique account statement you find, extract the following:
+IMPORTANT CONTEXT:
+- This is chunk {CHUNK_NUMBER} of a larger bank statement document
+- The document may span multiple chunks/pages
+- Account statements may continue across chunks
+- Extract only the data visible in this chunk
+
+For each account statement data you find in this chunk, extract the following:
 
 {
+  "chunk_number": {CHUNK_NUMBER},
+  "pages": "{PAGES_INFO}",
   "account_statements": [
     {
       "bank_name": "",
@@ -94,15 +108,131 @@ The document may contain MULTIPLE account statements. For each unique account st
 }
 
 Guidelines:
-- An account statement changes when the account number or statement period changes
-- Add each distinct account statement as a separate object in the account_statements array
+- Extract all transactions visible in this chunk
+- If account information (bank_name, account_number, etc.) is not visible in this chunk but transactions are present, use "CONTINUATION" for missing fields
+- If starting/ending balances are not visible in this chunk, use empty string ""
 - Dates should be in ISO format (YYYY-MM-DD) if possible
 - Credit and debit amounts should be parsed as numerical values without currency symbols
-- If the amount is ambiguous, leave it blank or return "unknown" rather than guessing
+- If the amount is ambiguous, leave it blank rather than guessing
 - Entity name is the name of the person or company that the transaction is for
+- Page numbers should reflect the actual page number from the document
 
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
-`.trim(); // TODO: Improve prompt to handle all the required fields better. 
+`.trim();
+
+// Helper function to split text into chunks based on page markers
+function splitIntoChunks(statementText: string): Array<{content: string, pages: string, chunkNumber: number}> {
+    console.log("Splitting statement text into chunks based on page markers");
+    
+    // Split by page markers like "=== PDF PAGES X-Y ==="
+    const pageMarkerRegex = /=== PDF PAGES? (\d+(?:-\d+)?) ===/gi;
+    const chunks: Array<{content: string, pages: string, chunkNumber: number}> = [];
+    
+    const parts = statementText.split(pageMarkerRegex);
+    
+    if (parts.length <= 1) {
+        // No page markers found, treat as single chunk
+        console.log("No page markers found, treating as single chunk");
+        return [{
+            content: statementText,
+            pages: "1-N",
+            chunkNumber: 1
+        }];
+    }
+    
+    // Process parts - every odd index is a page range, every even index is content
+    for (let i = 1; i < parts.length; i += 2) {
+        const pages = parts[i]?.trim();
+        const content = parts[i + 1]?.trim();
+        
+        if (content && content.length > 0) {
+            chunks.push({
+                content: content,
+                pages: pages || `chunk-${Math.floor(i/2) + 1}`,
+                chunkNumber: Math.floor(i/2) + 1
+            });
+        }
+    }
+    
+    console.log(`Split into ${chunks.length} chunks`);
+    chunks.forEach((chunk, index) => {
+        console.log(`Chunk ${index + 1}: Pages ${chunk.pages}, Content length: ${chunk.content.length}`);
+    });
+    
+    return chunks;
+}
+
+// Helper function to merge account statements from multiple chunks
+function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
+    console.log("Merging account statements from chunks");
+    
+    const accountMap = new Map<string, AccountStatement>();
+    
+    for (const chunkResult of chunkResults) {
+        for (const statement of chunkResult.account_statements) {
+            const accountKey = `${statement.bank_name}_${statement.account_number}`;
+            
+            if (accountMap.has(accountKey)) {
+                // Merge transactions with existing account
+                const existingStatement = accountMap.get(accountKey)!;
+                
+                // Merge transactions
+                existingStatement.transactions.push(...statement.transactions);
+                
+                // Update missing fields if current chunk has them
+                if (statement.bank_name && statement.bank_name !== "CONTINUATION") {
+                    existingStatement.bank_name = statement.bank_name;
+                }
+                if (statement.account_number && statement.account_number !== "CONTINUATION") {
+                    existingStatement.account_number = statement.account_number;
+                }
+                if (statement.account_type && statement.account_type !== "CONTINUATION") {
+                    existingStatement.account_type = statement.account_type;
+                }
+                if (statement.account_currency && statement.account_currency !== "CONTINUATION") {
+                    existingStatement.account_currency = statement.account_currency;
+                }
+                if (statement.starting_balance && statement.starting_balance !== "") {
+                    existingStatement.starting_balance = statement.starting_balance;
+                }
+                if (statement.ending_balance && statement.ending_balance !== "") {
+                    existingStatement.ending_balance = statement.ending_balance;
+                }
+                if (statement.statement_period.start_date && statement.statement_period.start_date !== "") {
+                    existingStatement.statement_period.start_date = statement.statement_period.start_date;
+                }
+                if (statement.statement_period.end_date && statement.statement_period.end_date !== "") {
+                    existingStatement.statement_period.end_date = statement.statement_period.end_date;
+                }
+                
+                console.log(`Merged ${statement.transactions.length} transactions into existing account ${accountKey}`);
+            } else {
+                // Add new account statement
+                accountMap.set(accountKey, {
+                    ...statement,
+                    transactions: [...statement.transactions] // Clone transactions array
+                });
+                console.log(`Added new account statement ${accountKey} with ${statement.transactions.length} transactions`);
+            }
+        }
+    }
+    
+    // Sort transactions by date for each account
+    for (const statement of accountMap.values()) {
+        statement.transactions.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return dateA.getTime() - dateB.getTime();
+        });
+    }
+    
+    const mergedStatements = Array.from(accountMap.values());
+    console.log(`Final result: ${mergedStatements.length} account statements with combined transactions`);
+    
+    return {
+        account_statements: mergedStatements
+    };
+}
 
 // Helper function to normalize the data structure
 function normalizeData(data: any): any {
@@ -424,9 +554,71 @@ function performAutoValidation(statement: any): {
   };
 }
 
+// Helper function to process a single chunk
+async function processChunk(
+    ai: any, 
+    chunk: {content: string, pages: string, chunkNumber: number}
+): Promise<ChunkData> {
+    console.log(`Processing chunk ${chunk.chunkNumber} (pages ${chunk.pages})`);
+    
+    // Create chunk-specific prompt
+    const chunkPrompt = STRUCTURING_PROMPT
+        .replace('{CHUNK_NUMBER}', chunk.chunkNumber.toString())
+        .replace('{PAGES_INFO}', chunk.pages);
+    
+    const prompt = `${chunkPrompt}\n\nHere is chunk ${chunk.chunkNumber} of the bank statement text to parse:\n${chunk.content}`;
+    
+    const responseText = await callGeminiAPI(ai, prompt);
+    const cleanedText = validateAndFixJSON(responseText);
+    
+    let parsedData;
+    try {
+        parsedData = JSON.parse(cleanedText);
+        console.log(`Successfully parsed JSON for chunk ${chunk.chunkNumber}`);
+    } catch (parseError: any) {
+        console.error(`Failed to parse JSON for chunk ${chunk.chunkNumber}:`, parseError);
+        
+        // Try manual fix approach
+        try {
+            let manualFix = cleanedText;
+            
+            if (!manualFix.startsWith('{')) {
+                const startIndex = manualFix.indexOf('{');
+                if (startIndex > -1) {
+                    manualFix = manualFix.substring(startIndex);
+                }
+            }
+            
+            if (!manualFix.endsWith('}')) {
+                const openBraces = (manualFix.match(/\{/g) || []).length;
+                const closeBraces = (manualFix.match(/\}/g) || []).length;
+                const missingBraces = openBraces - closeBraces;
+                
+                if (missingBraces > 0) {
+                    manualFix += '}'.repeat(missingBraces);
+                }
+            }
+            
+            parsedData = JSON.parse(manualFix);
+            console.log(`Successfully parsed JSON for chunk ${chunk.chunkNumber} after manual fix`);
+        } catch (finalParseError: any) {
+            throw new Error(`Failed to parse JSON from chunk ${chunk.chunkNumber}. Parse error: ${finalParseError.message}`);
+        }
+    }
+    
+    // Normalize the data structure
+    const normalizedData = normalizeData(parsedData);
+    
+    return {
+        chunk_number: chunk.chunkNumber,
+        pages: chunk.pages,
+        account_statements: normalizedData.account_statements || []
+    };
+}
+
 // --- API Route Handler ---
 export async function POST(request: Request) {
-    console.log("=== BANK STATEMENT PROCESSING STARTED ===");
+    console.log("=== BANK STATEMENT PROCESSING STARTED (CHUNKED) ===");
     if (!API_KEY) {
         return NextResponse.json({ error: 'Server configuration error: API key not found.' }, { status: 500 });
     }
@@ -447,82 +639,57 @@ export async function POST(request: Request) {
         const ai = new GoogleGenAI({ apiKey: API_KEY });
         console.log('Initialized GenAI model for statement structuring');
 
-        // Truncate text if too long (prevent token limit issues)
-
-        let responseText = '';
         try {
-            console.log("Sending request to Gemini API");
-            // Create the request
-            const prompt = `${STRUCTURING_PROMPT}\n\nHere is the bank statement text to parse:\n${statementText}`;
+            console.log("Starting chunked processing approach");
             
-            // Make the API call with the new SDK format
-            responseText = await callGeminiAPI(ai, prompt);
+            // Step 1: Split the statement text into chunks
+            const chunks = splitIntoChunks(statementText);
             
-            // Use the new validation and fixing function
-            const cleanedText = validateAndFixJSON(responseText);
+            if (chunks.length === 0) {
+                throw new Error('No valid chunks found in the statement text');
+            }
             
-            console.log("Parsing JSON response");
-            console.log(`Response length: ${cleanedText.length} characters`);
-            console.log("First 200 characters of response:", cleanedText.substring(0, 200));
-            console.log("Last 200 characters of response:", cleanedText.substring(Math.max(0, cleanedText.length - 200)));
+            console.log(`Processing ${chunks.length} chunks`);
             
-            // Try to parse the response as JSON
-            let parsedData;
-            try {
-                parsedData = JSON.parse(cleanedText);
-                console.log("JSON parsing successful");
-            } catch (parseError: any) {
-                console.error("Failed to parse JSON:", parseError);
-                console.log("Full response text length:", cleanedText.length);
-                console.log("First 500 characters of response:", cleanedText.substring(0, 500));
-                console.log("Last 500 characters of response:", cleanedText.substring(Math.max(0, cleanedText.length - 500)));
-                
-                // If the helper function didn't work, try one more manual approach
+            // Step 2: Process each chunk separately
+            const chunkResults: ChunkData[] = [];
+            
+            for (const chunk of chunks) {
                 try {
-                    // Try to manually fix common issues
-                    let manualFix = cleanedText;
+                    const chunkResult = await processChunk(ai, chunk);
+                    chunkResults.push(chunkResult);
                     
-                    // Ensure it starts and ends properly
-                    if (!manualFix.startsWith('{')) {
-                        const startIndex = manualFix.indexOf('{');
-                        if (startIndex > -1) {
-                            manualFix = manualFix.substring(startIndex);
-                        }
+                    console.log(`Chunk ${chunk.chunkNumber} processed: ${chunkResult.account_statements.length} account statements found`);
+                    
+                    // Add a small delay between chunks to avoid rate limiting
+                    if (chunks.length > 1) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     }
+                } catch (chunkError: any) {
+                    console.error(`Error processing chunk ${chunk.chunkNumber}:`, chunkError);
                     
-                    // If it doesn't end with }, try to add it
-                    if (!manualFix.endsWith('}')) {
-                        // Count open braces vs close braces
-                        const openBraces = (manualFix.match(/\{/g) || []).length;
-                        const closeBraces = (manualFix.match(/\}/g) || []).length;
-                        const missingBraces = openBraces - closeBraces;
-                        
-                        if (missingBraces > 0) {
-                            console.log(`Adding ${missingBraces} missing closing braces`);
-                            manualFix += '}'.repeat(missingBraces);
-                        }
-                    }
-                    
-                    console.log("Attempting manual fix parse");
-                    console.log("Manual fix preview:", manualFix.substring(0, 200) + "...");
-                    
-                    parsedData = JSON.parse(manualFix);
-                    console.log("JSON parsing successful after manual fix");
-                } catch (finalParseError: any) {
-                    console.error("All JSON parsing attempts failed:", finalParseError);
-                    console.error("Original response (truncated to 1000 chars):", responseText.substring(0, 1000));
-                    console.error("Cleaned response (truncated to 1000 chars):", cleanedText.substring(0, 1000));
-                    throw new Error(`Failed to parse JSON from response. Original length: ${responseText.length}, Cleaned length: ${cleanedText.length}. Parse error: ${finalParseError.message}`);
+                    // Continue processing other chunks even if one fails
+                    chunkResults.push({
+                        chunk_number: chunk.chunkNumber,
+                        pages: chunk.pages,
+                        account_statements: []
+                    });
                 }
             }
             
-            // Normalize the data structure to ensure it matches our expected format
-            const structuredData = normalizeData(parsedData);
-            console.log(`Found ${structuredData.account_statements.length} account statements to save`);
+            // Step 3: Merge the results from all chunks
+            console.log("Merging results from all chunks");
+            const structuredData = mergeAccountStatements(chunkResults);
+            
+            if (structuredData.account_statements.length === 0) {
+                throw new Error('No account statements found in any of the processed chunks');
+            }
+            
+            console.log(`Final merged result: ${structuredData.account_statements.length} account statements`);
 
-            // Save the structured data to the database
+            // Step 4: Save the structured data to the database
             const savedStatements = [];
-            console.log('Saving to database');
+            console.log('Saving merged data to database');
 
             // Process each account statement and save to database
             for (let i = 0; i < structuredData.account_statements.length; i++) {
@@ -530,6 +697,12 @@ export async function POST(request: Request) {
                 console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
 
                 try {
+                    // Skip statements with CONTINUATION values that weren't properly merged
+                    if (statement.bank_name === "CONTINUATION" || statement.account_number === "CONTINUATION") {
+                        console.warn(`Skipping incomplete statement ${i + 1} with CONTINUATION values`);
+                        continue;
+                    }
+
                     // Convert string values to appropriate types
                     const startingBalance = convertToDecimal(statement.starting_balance);
                     const endingBalance = convertToDecimal(statement.ending_balance);
@@ -598,7 +771,7 @@ export async function POST(request: Request) {
                 }
             }
 
-            // Perform automatic validation on all saved statements
+            // Step 5: Perform automatic validation on all saved statements
             for (const statement of savedStatements) {
                 try {
                     // Get the statement with transactions for validation
@@ -636,7 +809,7 @@ export async function POST(request: Request) {
                 }
             }
 
-            console.log(`Successfully saved ${savedStatements.length} bank statements`);
+            console.log(`Successfully saved ${savedStatements.length} bank statements from ${chunks.length} chunks`);
 
             // Get transaction counts for each saved statement
             const statementsWithCounts = await Promise.all(
@@ -656,15 +829,16 @@ export async function POST(request: Request) {
             return NextResponse.json({
                 success: true,
                 fileName: fileName || "statement",
+                chunksProcessed: chunks.length,
                 structuredData,
                 savedStatements: statementsWithCounts
             });
 
         } catch (error: any) {
-            console.error('Error in statement structuring:', error);
+            console.error('Error in chunked statement structuring:', error);
             
             // Provide more specific error messages for different types of failures
-            let errorMessage = 'An unexpected error occurred during processing.';
+            let errorMessage = 'An unexpected error occurred during chunked processing.';
             
             if (error.message?.includes('INTERNAL') || error.message?.includes('500')) {
                 errorMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
@@ -674,12 +848,11 @@ export async function POST(request: Request) {
                 errorMessage = 'The document format is not supported or the content is too complex to process.';
             } else if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('403')) {
                 errorMessage = 'API access is denied. Please check the server configuration.';
-            } else if (error.message?.includes('Failed to parse JSON')) {
-                errorMessage = 'The AI service returned an invalid response. Please try again or try with a different document.';
+            } else if (error.message?.includes('No valid chunks found')) {
+                errorMessage = 'The document format is not supported. Please ensure the document has proper page markers.';
+            } else if (error.message?.includes('No account statements found')) {
+                errorMessage = 'No valid account statements could be extracted from the document.';
             }
-            
-            // Save problematic responses for debugging
-            await saveDebugResponse(responseText, fileName, error.message || '');
             
             return NextResponse.json({
                 success: false,
