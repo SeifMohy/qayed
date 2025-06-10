@@ -73,7 +73,7 @@ export default function ValidationCheck({
   const calculateValidation = () => {
     const startingBalance = toNumber(statement.startingBalance);
     const endingBalance = toNumber(statement.endingBalance);
-    const transactions = statement.transactions;
+    const transactions = statement.transactions || []; // Add fallback to empty array
 
     let totalCredits = 0;
     let totalDebits = 0;

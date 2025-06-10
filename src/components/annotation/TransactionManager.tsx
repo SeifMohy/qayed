@@ -32,6 +32,7 @@ interface TransactionManagerProps {
   statementId: number;
   transactions: Transaction[];
   onUpdate: () => void;
+  onValidate?: () => Promise<void>;
   disabled?: boolean;
   googleSheetId?: string | null;
 }
@@ -40,6 +41,7 @@ export default function TransactionManager({
   statementId, 
   transactions, 
   onUpdate, 
+  onValidate,
   disabled = false,
   googleSheetId 
 }: TransactionManagerProps) {
@@ -86,6 +88,15 @@ export default function TransactionManager({
         
         // Refresh the data to get the updated googleSheetId
         onUpdate();
+        
+        // Trigger validation after creating sheet
+        if (onValidate) {
+          try {
+            await onValidate();
+          } catch (error) {
+            console.error('Auto-validation after sheet creation failed:', error);
+          }
+        }
       } else {
         alert('Failed to create Google Sheet: ' + result.error);
       }
@@ -116,6 +127,15 @@ export default function TransactionManager({
         
         // Refresh the data
         onUpdate();
+        
+        // Trigger validation after successful sync
+        if (onValidate) {
+          try {
+            await onValidate();
+          } catch (error) {
+            console.error('Auto-validation after sync failed:', error);
+          }
+        }
       } else {
         alert('Failed to sync from Google Sheet: ' + result.error);
       }
@@ -140,7 +160,7 @@ export default function TransactionManager({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-medium text-gray-900">Transactions</h3>
-          <p className="text-sm text-gray-500">{transactions.length} transactions</p>
+          <p className="text-sm text-gray-500">{(transactions || []).length} transactions</p>
           {googleSheetId && (
             <p className="text-xs text-green-600 mt-1">✓ Connected to Google Sheets</p>
           )}
@@ -171,7 +191,7 @@ export default function TransactionManager({
           ) : (
             <button
               onClick={handleCreateGoogleSheet}
-              disabled={transactions.length === 0 || creatingSheet}
+              disabled={(transactions || []).length === 0 || creatingSheet}
               className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -184,7 +204,7 @@ export default function TransactionManager({
       </div>
 
       {/* Transactions Table */}
-      {transactions.length > 0 ? (
+      {(transactions || []).length > 0 ? (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -210,7 +230,7 @@ export default function TransactionManager({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.map((transaction, index) => (
+              {(transactions || []).map((transaction, index) => (
                 <tr key={transaction.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatDate(transaction.transactionDate)}

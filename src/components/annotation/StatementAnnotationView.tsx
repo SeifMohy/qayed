@@ -75,8 +75,23 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
     fetchStatement();
   }, [statementId]);
 
+  const handleTransactionsUpdate = async () => {
+    // Refresh the statement data after transactions are updated
+    await fetchStatement();
+    
+    // Automatically trigger validation after transactions are updated
+    try {
+      await handleValidation();
+    } catch (error) {
+      console.error('Auto-validation failed:', error);
+      // Don't show error to user for auto-validation, they can still manually validate
+    }
+  };
+
   const handleMetadataUpdate = async (updatedData: Partial<BankStatement>) => {
     if (!statement) return;
+    
+    const { transactions, ...metadataOnly } = updatedData;
 
     try {
       setSaving(true);
@@ -88,7 +103,7 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify(metadataOnly),
       });
 
       const result = await response.json();
@@ -105,6 +120,16 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         setTimeout(() => {
           setSuccessMessage(null);
         }, 5000);
+
+        // Automatically trigger validation after metadata updates that affect balance
+        if (updatedData.startingBalance !== undefined || updatedData.endingBalance !== undefined) {
+          try {
+            await handleValidation();
+          } catch (error) {
+            console.error('Auto-validation after metadata update failed:', error);
+            // Don't show error to user for auto-validation
+          }
+        }
       } else {
         throw new Error(result.error || 'Failed to update statement');
       }
@@ -139,11 +164,6 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleTransactionsUpdate = () => {
-    // Refresh the statement data after transactions are updated
-    fetchStatement();
   };
 
   const handleViewDocument = () => {
@@ -378,6 +398,13 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
               statementId={statement.id}
               transactions={statement.transactions}
               onUpdate={handleTransactionsUpdate}
+              onValidate={async () => {
+                try {
+                  await handleValidation();
+                } catch (error) {
+                  console.error('Manual validation trigger failed:', error);
+                }
+              }}
               disabled={statement.locked}
               googleSheetId={statement.googleSheetId}
             />
