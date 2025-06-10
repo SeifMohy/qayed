@@ -416,8 +416,8 @@ export class CashflowProjectionService {
       // Get all validated and processed bank statements (matching banks page logic)
       const allStatements = await prisma.bankStatement.findMany({
         where: {
-          validated: true,
-          processingStatus: 'processed'
+          // validated: true, // REMOVED
+          // processingStatus: "processed" // REMOVED
         },
         include: {
           transactions: {
@@ -446,7 +446,9 @@ export class CashflowProjectionService {
       // Calculate total cash balance by including all regular account balances (positive and negative)
       let totalCashBalance = 0;
       let latestDate = new Date(0); // Start with earliest possible date
-      let latestStatementId: number | undefined;
+      let latestStatementId
+
+      // Group by account to get latest statement for each account (matching dashboard logic): number | undefined;
 
       allStatements.forEach(statement => {
         const endingBalance = Number(statement.endingBalance || 0);
