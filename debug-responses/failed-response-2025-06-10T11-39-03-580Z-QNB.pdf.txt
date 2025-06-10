@@ -1,0 +1,1186 @@
+=== FAILED JSON PARSING DEBUG INFO ===
+Timestamp: 2025-06-10T11:39:03.580Z
+Original File: QNB.pdf
+Error: Failed to parse JSON from response. Original length: 33934, Cleaned length: 23344. Parse error: Unexpected token } in JSON at position 23344
+Response Length: 33934
+
+=== RAW RESPONSE ===
+```json
+{
+  "account_statements": [
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "20533565359-14",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "PF disbursement account",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 127451.64,
+      "ending_balance": 108993.80,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": 653585.58,
+          "debit_amount": null,
+          "description": "POST FINANCE LOAN 685043",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 95516.92,
+          "description": "SHERKET EL-SAFWA LLPLASTIC ELSA",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": "SHERKET EL-SAFWA LLPLASTIC ELSA"
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 216.03,
+          "description": "ACH OUT/NCHG/ 5575044351",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 302690.52,
+          "description": "SHERKET ALSAFHA LLPLASTIC ALSA",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": "SHERKET ALSAFHA LLPLASTIC ALSA"
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 375.00,
+          "description": "ACH OUT/NCHG/ 55752 44351",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": 189969.50,
+          "debit_amount": null,
+          "description": "SHERKET POLY MASTER LLPLASTIC",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": "SHERKET POLY MASTER LLPLASTIC"
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 375.00,
+          "description": "ACH OUT/NCHG/ 55753 44351",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 65408.64,
+          "description": "SHERKET ALBADR LLTEGARA W ALSE",
+          "balance": null,
+          "page_number": 1,
+          "entity_name": "SHERKET ALBADR LLTEGARA W ALSE"
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 155.82,
+          "description": "ACH OUT/NCHG/ 55754 44351",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": 2495975.75,
+          "debit_amount": null,
+          "description": "POST FINANCE LOAN 689851",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 2495975.75,
+          "description": "sherket alzohour leltasnea",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": "sherket alzohour leltasnea"
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 375.00,
+          "description": "ACH OUT/NCHG/ 55875 44474",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": null,
+          "debit_amount": 16110.99,
+          "description": "VISA CARD REPAYMENT / Card No:",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 1800854.25,
+          "debit_amount": null,
+          "description": "POST FINANCE LOAN 690941",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": null,
+          "debit_amount": 1800854.25,
+          "description": "snerket elitihad letasnea elka",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": "snerket elitihad letasnea elka"
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": null,
+          "debit_amount": 375.00,
+          "description": "ACH OUT/NCHG/ 5589944508",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": 222408.30,
+          "debit_amount": null,
+          "description": "POST FINANCE LOAN 691892",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 222408.30,
+          "description": "SHERKET. EGY PACK EGY PACK INDU",
+          "balance": null,
+          "page_number": 2,
+          "entity_name": "SHERKET. EGY PACK EGY PACK INDU"
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 375.00,
+          "description": "ACH OUT/NCHG/ 55924 44528",
+          "balance": null,
+          "page_number": 3,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "27590546655-14",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP QNB / CLEAN 8% CBE",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 70.05,
+      "ending_balance": 170.05,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 3,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "27590546662-14",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP ODA/CLEAN 8% CBE INTERST",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 72.24,
+      "ending_balance": 173.31,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 3,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 1.07,
+          "description": "INT. EXPENSE/ACCOUNT 275905466",
+          "balance": null,
+          "page_number": 3,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "27590546666-14",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP ODA/CP 8% CBE",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 70.05,
+      "ending_balance": 170.05,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT, REQUEST FEES",
+          "balance": null,
+          "page_number": 3,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "24639786221-67",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP ODA CUR A/C CUS CORP SUB",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 2.41,
+      "ending_balance": null,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 4,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 2.27,
+          "description": "DEBIT INTERESTS ON 30/06/24",
+          "balance": null,
+          "page_number": 4,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 0.08,
+          "description": "OVERDRAFT COMMISSION ON 30/06/101/07",
+          "balance": null,
+          "page_number": 4,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "28400857484-05",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP NON PAID INT POST FIN CORP",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 665609.54,
+      "ending_balance": null,
+      "transactions": [
+        {
+          "date": "2024-06-23",
+          "credit_amount": null,
+          "debit_amount": 132916.67,
+          "description": "CALING OF INSTALMNT 640281",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 139130.19,
+          "description": "CALING OF INSTALMNT 566449",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 5090.83,
+          "description": "CALING OF INSTALMNT 578340",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 17677.92,
+          "description": "CALING OF INSTALMNT 578660",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 138992.33,
+          "description": "CALING OF INSTALMNT 580146",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 132916.67,
+          "description": "CALING OF INSTALMNT 597248",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 25166.10,
+          "description": "CALING OF INSTALMNT 598871",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 82218.41,
+          "description": "CALING OF INSTALMNT 610817",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 107291.67,
+          "description": "CALING OF INSTALMNT 672592",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 4641.06,
+          "description": "CALING OF INSTALMNT 677156",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": null,
+          "debit_amount": 43330.83,
+          "description": "CALING OF INSTALMNT 630639",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 139130.19,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 566449",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 5090.83,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 578340",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 17677.92,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 578660",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 138992.33,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 580146",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 132916.67,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 597248",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 25166.10,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 598871",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 82218.41,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 610817",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 132916.67,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 640281",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 107291.67,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 672592",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": 4641.06,
+          "debit_amount": null,
+          "description": "RECOVERY UNPAID AMOU 677156",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 31959.82,
+          "description": "CALING OF INSTALMNT 583680",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 175445.07,
+          "description": "CALING OF INSTALMNT 584591",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "24620857258-52",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP POST FINANCE CORP",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 90265132.61,
+      "ending_balance": 91206213.01,
+      "transactions": [
+        {
+          "date": "2024-06-06",
+          "credit_amount": 2955737.68,
+          "debit_amount": null,
+          "description": "CALING OF INSTALMNT 545336",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-09",
+          "credit_amount": 568005.80,
+          "debit_amount": null,
+          "description": "CALING OF INSTALMNT 545846",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-09",
+          "credit_amount": 708000.00,
+          "debit_amount": null,
+          "description": "CALING OF INSTALMNT 546149",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 653585.58,
+          "description": "POST FINANCE LOAN 685043",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 2495975.75,
+          "description": "POST FINANCE LOAN 689851",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-25",
+          "credit_amount": null,
+          "debit_amount": 1800854.25,
+          "description": "POST FINANCE LOAN 690941",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 222408.30,
+          "description": "POST FINANCE LOAN 691892",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "20319810936-71",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "USD CURRENT A/C CORP",
+      "account_currency": "US DOLLAR",
+      "starting_balance": 13878.70,
+      "ending_balance": 43115.37,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 2.12,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-05",
+          "credit_amount": 256534.73,
+          "debit_amount": null,
+          "description": "BREAK/MATURE TD 964940",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-05",
+          "credit_amount": 662.36,
+          "debit_amount": null,
+          "description": "CR. INT.TD#964940",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-06",
+          "credit_amount": null,
+          "debit_amount": 106952.34,
+          "description": "SIGHT PAYMENT ILCO 23001854",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-06",
+          "credit_amount": null,
+          "debit_amount": 110.00,
+          "description": "SIGHT PAYMENT ILCO 23001854",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 149582.39,
+          "description": "NEW TO ISSUANCE 971408",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": null,
+          "debit_amount": 0.06,
+          "description": "FISCAL STAMPS",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": null,
+          "debit_amount": 1159.77,
+          "description": "TRANSF TO TO COVER ICL24023341",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 2.08,
+          "description": "MAIL FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 93.19,
+          "description": "OVERDRAFT COMMISSION ON 30/06/101/07",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 53.47,
+          "description": "DEBIT INTERESTS ON 30/06/24",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 30000.00,
+          "debit_amount": null,
+          "description": "INCOMING ACH USD - 44269",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 5.00,
+          "debit_amount": null,
+          "description": "INCOMING ACH USD 44269",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "24639800906-50",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP ODA supported by CP",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 2655355.51,
+      "ending_balance": 1202047.41,
+      "transactions": [
+        {
+          "date": "2024-06-02",
+          "credit_amount": 500000.00,
+          "debit_amount": null,
+          "description": "CHQ COLL. 00000074923715",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 525.00,
+          "description": "CHQ COLL. 00000074923715",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 100.76,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 100.13,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.00,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 70.05,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 89.80,
+          "description": "RECOVER OF UNPAID FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": null,
+          "debit_amount": 230460.68,
+          "description": "PAY CLR CHQ 49757134",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-23",
+          "credit_amount": 500000.00,
+          "debit_amount": null,
+          "description": "CHQ COLL. 00000074923717",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-23",
+          "credit_amount": null,
+          "debit_amount": 525.00,
+          "description": "CHQ COLL.. 00000074923717",
+          "balance": null,
+          "page_number": 5,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": 500000.00,
+          "debit_amount": null,
+          "description": "CHQ COLL. 00000074923718",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 525.00,
+          "description": "CHQ COLL. 00000074923718",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": null,
+          "debit_amount": 69471.89,
+          "description": "PAYMENT CHO 49757209",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": 500000.00,
+          "debit_amount": null,
+          "description": "CHQ COLL. 37917000173743",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 525.00,
+          "description": "CHQ COLL. 37917000173743",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": null,
+          "debit_amount": 188881.76,
+          "description": "PAY CLR CHQ-49757133",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "MAIL FEES",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "UNP CHQ49757210 CORP CREDIT 0",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 52674.71,
+          "description": "DEBIT INTERESTS ON 30/06/24",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 1992.12,
+          "description": "OVERDRAFT COMMISSION ON 30/06/101/07",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "24639800905-53",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP ODA CLEAN",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 10582074.40,
+      "ending_balance": 10855392.85,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 265281.82,
+          "description": "DEBIT INTERESTS ON 30/06/24",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 7936.63,
+          "description": "OVERDRAFT COMMISSION ON 30/06/101/07",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "20312372048-42",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "CHF CURRENT A/C CORP",
+      "account_currency": "SWISS FRANC",
+      "starting_balance": 0.89,
+      "ending_balance": 2.80,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 1.91,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "20316162115-84",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "AED CURRENT A/C CORP",
+      "account_currency": "UAE DIRHAM",
+      "starting_balance": 4.83,
+      "ending_balance": 12.63,
+      "transactions": [
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 7.79,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": null,
+          "debit_amount": 0.01,
+          "description": "OVERDRAFT COMMISSION ON 30/06/101/07",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        }
+      ]
+    },
+    {
+      "bank_name": "QNB ALAHLI",
+      "account_number": "20319810935-74",
+      "statement_period": {
+        "start_date": "2024-06-01",
+        "end_date": "2024-06-30"
+      },
+      "account_type": "EGP CURRENT A/C CORP",
+      "account_currency": "EGYPTIAN POUND",
+      "starting_balance": 193331.81,
+      "ending_balance": 10760.30,
+      "transactions": [
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 39361.28,
+          "description": "CALING OF INSTALMNT 616264",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 5836.16,
+          "description": "CALING OF INSTALMNT 617193",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 20137.54,
+          "description": "CALING OF INSTALMNT 617332",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": null,
+          "debit_amount": 1273.87,
+          "description": "CALING OF INSTALMNT 617495",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-02",
+          "credit_amount": 107000.00,
+          "debit_amount": null,
+          "description": "CHQ COLL 65557139",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": null,
+          "debit_amount": 187253.00,
+          "description": "CALING OF INSTALMNT 635057",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": null,
+          "debit_amount": 6025.60,
+          "description": "CALING OF INSTALMNT 666088",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": null,
+          "debit_amount": 100.00,
+          "description": "STATEMENT REQUEST FEES",
+          "balance": null,
+          "page_number": 6,
+          "entity_name": null
+        },
+        {
+          "date": "2024-06-06",
+          "credit_amount": null,
+          "debit_amount":
+
+=== END DEBUG INFO ===

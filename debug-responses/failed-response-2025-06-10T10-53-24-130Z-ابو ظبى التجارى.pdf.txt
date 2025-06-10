@@ -1,0 +1,799 @@
+=== FAILED JSON PARSING DEBUG INFO ===
+Timestamp: 2025-06-10T10:53:24.130Z
+Original File: ابو ظبى التجارى.pdf
+Error: Failed to parse JSON from response. Original length: 21783, Cleaned length: 14365. Parse error: Unexpected end of JSON input
+Response Length: 21783
+
+=== RAW RESPONSE ===
+```json
+{
+  "account_statements": [
+    {
+      "bank_name": "",
+      "account_number": "1130880610010101",
+      "statement_period": {
+        "start_date": "2024-06-03",
+        "end_date": "2024-07-01"
+      },
+      "account_type": "Current Account",
+      "account_currency": "EGP",
+      "starting_balance": -308.69,
+      "ending_balance": -0.64,
+      "transactions": [
+        {
+          "date": "2024-06-03",
+          "credit_amount": 1000000.0,
+          "debit_amount": "",
+          "description": "ACH Cash",
+          "balance": 999691.31,
+          "page_number": "",
+          "entity_name": "شركة كان لصناعة وتعبئه العلب"
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 126982.42,
+          "description": "Interest",
+          "balance": 872708.89,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 51236.11,
+          "description": "Interest",
+          "balance": 821472.78,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 38427.08,
+          "description": "Interest",
+          "balance": 783045.7,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 16407.08,
+          "description": "Interest",
+          "balance": 766638.62,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 5123.61,
+          "description": "Interest",
+          "balance": 761515.01,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 79581.79,
+          "description": "Interest",
+          "balance": 681933.22,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 48508.49,
+          "description": "Interest",
+          "balance": 633424.73,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": "",
+          "debit_amount": 16651.74,
+          "description": "Interest",
+          "balance": 616772.99,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 23363.57,
+          "description": "Interest",
+          "balance": 593409.42,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 20494.44,
+          "description": "Interest",
+          "balance": 572914.98,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 15370.83,
+          "description": "Interest",
+          "balance": 557544.15,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 51236.11,
+          "description": "Interest",
+          "balance": 506308.04,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 7128.54,
+          "description": "Interest",
+          "balance": 499179.5,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 1735.92,
+          "description": "Interest",
+          "balance": 497443.58,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 8772.81,
+          "description": "Interest",
+          "balance": 488670.77,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 32022.57,
+          "description": "Interest",
+          "balance": 456648.2,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 25618.06,
+          "description": "Interest",
+          "balance": 431030.14,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 25085.1,
+          "description": "Interest",
+          "balance": 405945.04,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 30741.67,
+          "description": "Interest",
+          "balance": 375203.37,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 19998.61,
+          "description": "Interest",
+          "balance": 355204.76,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 51239.93,
+          "description": "Interest",
+          "balance": 303964.83,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 32895.68,
+          "description": "Interest",
+          "balance": 271069.15,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 84260.88,
+          "description": "Interest",
+          "balance": 186808.27,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 29750.0,
+          "description": "Interest",
+          "balance": 157058.27,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 3231.63,
+          "description": "Interest",
+          "balance": 153826.64,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 13801.66,
+          "description": "Interest",
+          "balance": 140024.98,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 44619.52,
+          "description": "Interest",
+          "balance": 95405.46,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 3981.64,
+          "description": "Interest",
+          "balance": 91423.82,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 21394.76,
+          "description": "Interest",
+          "balance": 70029.06,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 32694.14,
+          "description": "Interest",
+          "balance": 37334.92,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 5045.1,
+          "description": "Interest",
+          "balance": 32289.82,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": 4021160.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 4053449.82,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 4053049.82,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 4021160.0,
+          "description": "ACH",
+          "balance": 31889.82,
+          "page_number": "",
+          "entity_name": "ElZahour LelTasnea"
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": 728552.55,
+          "debit_amount": "",
+          "description": "",
+          "balance": 760442.37,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": 319643.1,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1080085.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": 423450.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1503535.47,
+          "page_number": "",
+          "entity_name": "CURRENCY EXCHANG"
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 200263.74,
+          "description": "Customs Duties",
+          "balance": 1303271.73,
+          "page_number": "",
+          "entity_name": "Central Bank Of Egy-Cairo"
+        },
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 190622.19,
+          "description": "Customs Duties",
+          "balance": 1112649.54,
+          "page_number": "",
+          "entity_name": "Central Bank Of Egy-Cairo"
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": 319643.1,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1217241.73,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 1216841.73,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 104592.19,
+          "description": "ACH",
+          "balance": 897198.63,
+          "page_number": "",
+          "entity_name": "MASR LETASNIEA MOSTLZMAT ELTABEAA WA ELTAGHLIF"
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 896798.63,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 728552.55,
+          "description": "ACH",
+          "balance": 168246.08,
+          "page_number": "",
+          "entity_name": "ELKADESSYA FOR CHEMICALS"
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 209.18,
+          "description": "Swift",
+          "balance": 168036.9,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 104592.19,
+          "description": "ACH",
+          "balance": 63444.71,
+          "page_number": "",
+          "entity_name": "ELSAFWA FOR PLAST"
+        },
+        {
+          "date": "2024-06-06",
+          "credit_amount": "",
+          "debit_amount": 7050.0,
+          "description": "Admin",
+          "balance": 56394.71,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-06",
+          "credit_amount": 100.0,
+          "debit_amount": "",
+          "description": "ADMIN FEES REFUND",
+          "balance": 56494.71,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": 135596.27,
+          "debit_amount": "",
+          "description": "",
+          "balance": 192090.98,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": 124526.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 316616.98,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": "",
+          "debit_amount": 271.19,
+          "description": "Swift",
+          "balance": 316345.79,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": "",
+          "debit_amount": 135596.27,
+          "description": "ACH",
+          "balance": 180749.52,
+          "page_number": "",
+          "entity_name": "MODERN PACK"
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": "",
+          "debit_amount": 249.05,
+          "description": "Swift",
+          "balance": 180500.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-10",
+          "credit_amount": "",
+          "debit_amount": 124526.0,
+          "description": "ACH",
+          "balance": 55974.47,
+          "page_number": "",
+          "entity_name": "DELTA ARMATIC"
+        },
+        {
+          "date": "2024-06-11",
+          "credit_amount": 262500.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 318474.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-11",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 318074.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-11",
+          "credit_amount": "",
+          "debit_amount": 262500.0,
+          "description": "ACH",
+          "balance": 55574.47,
+          "page_number": "",
+          "entity_name": "ELALAMYA LELTBAEA WA MWAD ELTABEAA WA ELTAGHLIF"
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": 1250000.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1305574.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 1305174.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": "",
+          "debit_amount": 1250000.0,
+          "description": "ACH",
+          "balance": 55174.47,
+          "page_number": "",
+          "entity_name": "ELKAHERA LETAKRIR ELPETROL"
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": 3004024.25,
+          "debit_amount": "",
+          "description": "",
+          "balance": 4039633.73,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": 980435.01,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1035609.48,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 4039233.73,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": "",
+          "debit_amount": 3004024.25,
+          "description": "ACH",
+          "balance": 1035209.48,
+          "page_number": "",
+          "entity_name": "ELZOHOUR LETASNIEA"
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 1034809.48,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": "",
+          "debit_amount": 980435.01,
+          "description": "ACH",
+          "balance": 54374.47,
+          "page_number": "",
+          "entity_name": "ELKADSYA LELKIMAWEYAT"
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 50.0,
+          "description": "Account Service",
+          "balance": 54324.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 1671210.46,
+          "debit_amount": "",
+          "description": "",
+          "balance": 1725534.93,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 400.0,
+          "description": "Swift",
+          "balance": 1725134.93,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 1671210.46,
+          "description": "ACH",
+          "balance": 53924.47,
+          "page_number": "",
+          "entity_name": "STOR PLAST"
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 75.0,
+          "description": "Commission",
+          "balance": 53849.47,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 17560.76,
+          "debit_amount": "",
+          "description": "Reimbursement of Interest",
+          "balance": 36288.71,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 4861.32,
+          "debit_amount": "",
+          "description": "Reimbursement of Interest",
+          "balance": 31427.39,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 14894.95,
+          "debit_amount": "",
+          "description": "Reimbursement of Interest",
+          "balance": 16532.44,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": 16532.44,
+          "debit_amount": "",
+          "description": "Reimbursement of Interest",
+          "balance": 0.0,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 0.64,
+          "description": "Debit Interest",
+          "balance": -0.64,
+          "page_number": "",
+          "entity_name": ""
+        }
+      ]
+    },
+    {
+      "bank_name": "",
+      "account_number": "1130880610010201",
+      "statement_period": {
+        "start_date": "2024-06-03",
+        "end_date": "2024-06-27"
+      },
+      "account_type": "Current Account",
+      "account_currency": "USD",
+      "starting_balance": 24455.72,
+      "ending_balance": 5858.72,
+      "transactions": [
+        {
+          "date": "2024-06-03",
+          "credit_amount": "",
+          "debit_amount": 9000.0,
+          "description": "",
+          "balance": 15455.72,
+          "page_number": "",
+          "entity_name": "CURRENCY EXCHANG"
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": 36405.0,
+          "debit_amount": "",
+          "description": "",
+          "balance": 51860.72,
+          "page_number": "",
+          "entity_name": ""
+        },
+        {
+          "date": "2024-06-04",
+          "credit_amount": "",
+          "debit_amount": 10000.0,
+          "description": "Cheque",
+          "balance": 41860.72,
+          "page_number": "",
+          "entity_name": "SHABAN ABDELAZIAM IBRAHIM ALI"
+        },
+        {
+          "date": "2024-06-13",
+          "credit_amount": "",
+          "debit_amount": 6000.0,
+          "description": "Cheque",
+          "balance": 35860.72,
+          "page_number": "",
+          "entity_name": "SHABAN ABDELAZIAM IBRAHIM ALI"
+        },
+        {
+          "date": "2024-06-24",
+          "credit_amount": "",
+          "debit_amount": 15000.0,
+          "description": "Cheque",
+          "balance": 20860.72,
+          "page_number": "",
+          "entity_name": "AHMED ATEF AHMED MOHAMED OTHMAN"
+        },
+        {
+          "date": "2024-06-26",
+          "credit_amount": "",
+          "debit_amount": 15000.0,
+          "description": "Cheque",
+          "balance": 5860.72,
+          "page_number": "",
+          "entity_name": "SHAABAN ABDELAZIM IBRAHIM ALI"
+        },
+        {
+          "date": "2024-06-27",
+          "credit_amount": "",
+          "debit_amount": 2.0,
+          "description": "Account Service",
+          "balance": 5858.72,
+          "page_number": "",
+          "entity_name": ""
+        }
+      ]
+    },
+    {
+      "bank_name": "",
+      "account_number": "11308
+
+=== END DEBUG INFO ===
