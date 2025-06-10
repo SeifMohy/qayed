@@ -49,6 +49,17 @@ export function isFacilityAccount(accountType: string | null | undefined, ending
   if (accountType) {
     const normalizedType = accountType.trim();
     
+    // Check for regular account types FIRST - these should NOT be treated as facilities even with negative balance
+    const isRegularType = REGULAR_ACCOUNT_TYPES.some(regularType =>
+      normalizedType === regularType ||
+      normalizedType.toLowerCase().includes(regularType.toLowerCase()) ||
+      regularType.toLowerCase().includes(normalizedType.toLowerCase())
+    );
+    
+    if (isRegularType) {
+      return false; // Regular accounts (including Current Account) are never facilities, even with negative balance
+    }
+    
     // Check for exact matches or partial matches for facility types
     const isFacilityType = FACILITY_ACCOUNT_TYPES.some(facilityType => 
       normalizedType === facilityType || 
@@ -59,21 +70,10 @@ export function isFacilityAccount(accountType: string | null | undefined, ending
     if (isFacilityType) {
       return true;
     }
-    
-    // Check for regular account types - these should NOT be treated as facilities even with negative balance
-    const isRegularType = REGULAR_ACCOUNT_TYPES.some(regularType =>
-      normalizedType === regularType ||
-      normalizedType.toLowerCase().includes(regularType.toLowerCase()) ||
-      regularType.toLowerCase().includes(normalizedType.toLowerCase())
-    );
-    
-    if (isRegularType) {
-      return false; // Regular accounts are not facilities, even with negative balance
-    }
   }
   
-  // Fallback determination: Use negative balance as backup if no account type detected
-  // This maintains backward compatibility
+  // Fallback determination: Use negative balance as backup only if no account type detected
+  // This maintains backward compatibility for untyped accounts
   return endingBalance < 0;
 }
 

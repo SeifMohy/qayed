@@ -86,7 +86,7 @@ export async function GET() {
     thirtyDaysFromReference.setDate(referenceDate.getDate() + 30);
 
     // Calculate Total Cash On Hand using the same logic as banks page
-    // Only count regular accounts (non-facility) with positive balances
+    // Include all regular accounts (non-facility) balances, including negative ones
     // Get all bank statements and process each account separately
     const allBankStatements = await prisma.bankStatement.findMany({
       where: {
@@ -122,11 +122,11 @@ export async function GET() {
       if (statement.endingBalance) {
         const endingBalance = Number(statement.endingBalance);
         
-        // Use the same logic as banks page: only count regular accounts with positive balances
+        // Use the same logic as banks page: include all regular accounts (positive and negative balances)
         const isFacility = isFacilityAccount(statement.accountType, endingBalance);
         
-        if (!isFacility && endingBalance > 0) {
-          totalCashOnHand += endingBalance;
+        if (!isFacility) {
+          totalCashOnHand += endingBalance; // Include negative balances from current accounts
         }
       }
     }

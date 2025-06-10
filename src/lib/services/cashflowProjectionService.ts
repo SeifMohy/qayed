@@ -3,6 +3,7 @@ import { CashflowType, CashflowStatus } from '@prisma/client';
 import { PaymentTermsCalculator } from './paymentTermsCalculator';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 import { Decimal } from '@prisma/client/runtime/library';
+import { isFacilityAccount } from '@/utils/bankStatementUtils';
 
 interface ProjectionItem {
   projectionDate: Date;
@@ -442,7 +443,7 @@ export class CashflowProjectionService {
         };
       }
 
-      // Calculate total cash balance by summing all positive ending balances (matching banks page)
+      // Calculate total cash balance by including all regular account balances (positive and negative)
       let totalCashBalance = 0;
       let latestDate = new Date(0); // Start with earliest possible date
       let latestStatementId: number | undefined;
@@ -450,10 +451,16 @@ export class CashflowProjectionService {
       allStatements.forEach(statement => {
         const endingBalance = Number(statement.endingBalance || 0);
         
-        // Only include positive balances in cash total (matching banks page logic)
-        if (endingBalance > 0) {
+        // Check if this is a facility account using the utility function
+        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
+        
+        // Only include regular accounts (not facilities) in cash total
+        // This includes negative balances from current accounts
+        if (!isFacility) {
           totalCashBalance += endingBalance;
-          console.log(`💰 Adding statement ${statement.id}: ${endingBalance.toLocaleString()} (Period: ${statement.statementPeriodStart.toISOString().split('T')[0]} to ${statement.statementPeriodEnd.toISOString().split('T')[0]})`);
+          console.log(`💰 Adding statement ${statement.id}: ${endingBalance.toLocaleString()} (${statement.accountType || 'Unknown Type'}) (Period: ${statement.statementPeriodStart.toISOString().split('T')[0]} to ${statement.statementPeriodEnd.toISOString().split('T')[0]})`);
+        } else {
+          console.log(`🏦 Skipping facility account ${statement.id}: ${endingBalance.toLocaleString()} (${statement.accountType || 'Unknown Type'})`);
         }
         
         // Track the most recent statement end date
@@ -467,8 +474,8 @@ export class CashflowProjectionService {
       console.log(`📅 Latest statement date: ${latestDate.toISOString().split('T')[0]}`);
       console.log(`🏦 Most recent statement ID: ${latestStatementId}`);
 
-      // If we have a positive total, use it with the latest date
-      if (totalCashBalance > 0) {
+      // Return the total cash balance (can be negative for current accounts)
+      if (allStatements.length > 0) {
         return {
           balance: totalCashBalance,
           date: latestDate,

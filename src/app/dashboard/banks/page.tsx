@@ -231,11 +231,10 @@ export default function BanksPage() {
             }
           }
         } else {
-          // Regular account with positive balance contributes to cash
-          if (endingBalance > 0) {
-            totalCashBalance += endingBalance;
-            totalPositiveBalance += endingBalance;
-          }
+          // Regular account - both positive and negative balances contribute to cash position
+          // Negative balances in current accounts should be deducted from total cash on hand
+          totalCashBalance += endingBalance; // This can be negative for current accounts
+          totalPositiveBalance += endingBalance; // Include negative balances in total cash calculation
         }
         
         // Track the latest update date

@@ -56,8 +56,8 @@ export async function GET() {
         const endingBalance = Number(statement.endingBalance);
         const isFacility = isFacilityAccount(statement.accountType, endingBalance);
         
-        if (!isFacility && endingBalance > 0) {
-          totalCashOnHand += endingBalance;
+        if (!isFacility) {
+          totalCashOnHand += endingBalance; // Include negative balances from current accounts
         }
       }
     }
