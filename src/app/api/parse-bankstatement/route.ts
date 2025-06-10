@@ -17,14 +17,14 @@ if (!API_KEY) {
 }
 
 // --- Helper Function to split PDF into chunks ---
-async function splitPdfIntoChunks(pdfBuffer: ArrayBuffer, maxPagesPerChunk: number = MAX_PAGES_PER_CHUNK): Promise<Uint8Array[]> {
+async function splitPdfIntoChunks(pdfBuffer: ArrayBuffer, maxPagesPerChunk: number = MAX_PAGES_PER_CHUNK): Promise<{chunk: Uint8Array, pageRange: {start: number, end: number}}[]> {
   try {
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const totalPages = pdfDoc.getPageCount();
     
     console.log(`PDF has ${totalPages} pages, splitting into chunks of ${maxPagesPerChunk} pages`);
     
-    const chunks: Uint8Array[] = [];
+    const chunks: {chunk: Uint8Array, pageRange: {start: number, end: number}}[] = [];
     
     for (let i = 0; i < totalPages; i += maxPagesPerChunk) {
       const endPage = Math.min(i + maxPagesPerChunk, totalPages);
@@ -39,7 +39,13 @@ async function splitPdfIntoChunks(pdfBuffer: ArrayBuffer, maxPagesPerChunk: numb
       });
       
       const chunkBuffer = await chunkDoc.save();
-      chunks.push(chunkBuffer);
+      chunks.push({
+        chunk: chunkBuffer,
+        pageRange: {
+          start: i + 1, // 1-based indexing
+          end: endPage
+        }
+      });
       
       console.log(`Created chunk ${Math.floor(i / maxPagesPerChunk) + 1}: pages ${i + 1}-${endPage}`);
     }
@@ -88,6 +94,7 @@ async function processChunkWithRetry(
   chunkIndex: number,
   totalChunks: number,
   fileName: string,
+  pageRange: {start: number, end: number},
   maxRetries: number = MAX_RETRIES
 ): Promise<string> {
   let lastError: any;
@@ -97,15 +104,15 @@ async function processChunkWithRetry(
       // Add delay for retry attempts (exponential backoff)
       if (attempt > 0) {
         const retryDelay = RETRY_BASE_DELAY * Math.pow(2, attempt - 1);
-        console.log(`Retrying chunk ${chunkIndex + 1}/${totalChunks} for ${fileName}, attempt ${attempt + 1}/${maxRetries + 1} after ${retryDelay}ms delay`);
+        console.log(`Retrying chunk ${chunkIndex + 1}/${totalChunks} (pages ${pageRange.start}-${pageRange.end}) for ${fileName}, attempt ${attempt + 1}/${maxRetries + 1} after ${retryDelay}ms delay`);
         await delay(retryDelay);
       } else {
-        console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks} for ${fileName}`);
+        console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks} (pages ${pageRange.start}-${pageRange.end}) for ${fileName}`);
       }
       
       // Convert chunk to base64 - chunkData is Uint8Array
       const base64Data = Buffer.from(chunkData).toString("base64");
-      const prompt = `Extract the text content from this PDF chunk (chunk ${chunkIndex + 1} of ${totalChunks}).`;
+      const prompt = `Extract the text content from this PDF chunk (chunk ${chunkIndex + 1} of ${totalChunks}, containing pages ${pageRange.start}-${pageRange.end}).`;
 
       // Create a content object for the API request
       const fileContent = {
@@ -135,29 +142,35 @@ async function processChunkWithRetry(
 
       // Check if the response exists
       if (!response) {
-        throw new Error(`Received null response from GenAI API for chunk ${chunkIndex + 1}`);
+        throw new Error(`Received null response from GenAI API for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end})`);
       }
 
       // Get the text from the response
       const text = response.text;
       if (!text || text.trim() === '') {
-        console.warn(`GenAI returned empty text content for chunk ${chunkIndex + 1} of ${fileName}`);
+        console.warn(`GenAI returned empty text content for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) of ${fileName}`);
         return ''; // Return empty string for empty chunks
       } else {
-        console.log(`Successfully processed chunk ${chunkIndex + 1}, extracted ${text.length} characters`);
-        return text.trim();
+        console.log(`Successfully processed chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}), extracted ${text.length} characters`);
+        
+        // Add page markers to the extracted text
+        const pageMarker = pageRange.start === pageRange.end 
+          ? `=== PDF PAGE ${pageRange.start} ===` 
+          : `=== PDF PAGES ${pageRange.start}-${pageRange.end} ===`;
+        
+        return `${pageMarker}\n${text.trim()}\n=== END PAGES ${pageRange.start}-${pageRange.end} ===`;
       }
 
     } catch (error: any) {
       lastError = error;
-      console.error(`Error processing chunk ${chunkIndex + 1} of ${fileName}, attempt ${attempt + 1}:`, error.message);
+      console.error(`Error processing chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) of ${fileName}, attempt ${attempt + 1}:`, error.message);
       
       // Check if this is the last attempt or if the error is not retryable
       if (attempt === maxRetries || !isRetryableError(error)) {
         if (!isRetryableError(error)) {
-          console.log(`Error for chunk ${chunkIndex + 1} is not retryable, failing immediately`);
+          console.log(`Error for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) is not retryable, failing immediately`);
         } else {
-          console.log(`Max retries (${maxRetries}) reached for chunk ${chunkIndex + 1}`);
+          console.log(`Max retries (${maxRetries}) reached for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end})`);
         }
         break;
       }
@@ -165,7 +178,7 @@ async function processChunkWithRetry(
   }
   
   // If we get here, all attempts failed
-  throw new Error(`Failed to process chunk ${chunkIndex + 1} after ${maxRetries + 1} attempts: ${lastError.message}`);
+  throw new Error(`Failed to process chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) after ${maxRetries + 1} attempts: ${lastError.message}`);
 }
 
 // --- System Prompt for Document Parsing ---
@@ -182,8 +195,9 @@ Important notes:
 - Extract ALL visible text content
 - Preserve table structures and formatting when possible
 - Include headers, footers, and any metadata visible in the chunk
+- The chunk will be labeled with its corresponding PDF page numbers for reference
 
-*CRITICAL: Only return the extracted text content as your final output. Do NOT include ANY introductory text, concluding remarks, or explanations.*
+*CRITICAL: Only return the extracted text content as your final output. Do NOT include ANY introductory text, concluding remarks, explanations, or page number references in your response. The page markers will be added automatically.*
 `.trim();
 
 // --- API Route Handler ---
@@ -235,7 +249,7 @@ export async function POST(request: Request) {
         for (let i = 0; i < pdfChunks.length; i++) {
           try {
             // Process chunk with retry logic
-            const text = await processChunkWithRetry(ai, pdfChunks[i], i, pdfChunks.length, file.name);
+            const text = await processChunkWithRetry(ai, pdfChunks[i].chunk, i, pdfChunks.length, file.name, pdfChunks[i].pageRange);
             chunkResults.push(text);
 
             // Add delay between chunks to avoid rate limiting
@@ -244,15 +258,15 @@ export async function POST(request: Request) {
             }
 
           } catch (chunkError: any) {
-            console.error(`Final error processing chunk ${i + 1} of ${file.name}:`, chunkError);
-            chunkResults.push(`[Error processing chunk ${i + 1}: ${chunkError.message}]`);
+            console.error(`Final error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}) of ${file.name}:`, chunkError);
+            chunkResults.push(`[Error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}): ${chunkError.message}]`);
           }
         }
 
         // Combine all chunk results
         const combinedText = chunkResults
           .filter(text => text.length > 0 && !text.includes('[Error processing chunk'))
-          .join('\n\n--- PAGE BREAK ---\n\n');
+          .join('\n\n');
 
         if (combinedText.trim() === '') {
           throw new Error("No text content could be extracted from any chunks of the document.");
