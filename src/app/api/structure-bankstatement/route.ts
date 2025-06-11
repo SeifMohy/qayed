@@ -164,32 +164,82 @@ function splitIntoChunks(statementText: string): Array<{content: string, pages: 
 
 // Helper function to merge account statements from multiple chunks
 function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
-    console.log("Merging account statements from chunks");
+    console.log("Merging account statements from chunks in order");
     
     const accountMap = new Map<string, AccountStatement>();
+    let lastKnownBankName = "";
     
-    for (const chunkResult of chunkResults) {
+    // Sort chunk results by chunk number to ensure processing in order
+    const sortedChunkResults = chunkResults.sort((a, b) => a.chunk_number - b.chunk_number);
+    
+    for (const chunkResult of sortedChunkResults) {
+        console.log(`Processing chunk ${chunkResult.chunk_number} with ${chunkResult.account_statements.length} account statements`);
+        
         for (const statement of chunkResult.account_statements) {
-            const accountKey = `${statement.bank_name}_${statement.account_number}`;
+            // Update last known bank name if we encounter a real bank name
+            if (statement.bank_name && statement.bank_name !== "CONTINUATION" && statement.bank_name.trim() !== "") {
+                lastKnownBankName = statement.bank_name;
+            }
+            
+            // Skip statements that have no account number at all
+            if (!statement.account_number || statement.account_number === "CONTINUATION" || statement.account_number.trim() === "") {
+                console.warn(`Skipping statement with missing or invalid account number: "${statement.account_number}"`);
+                continue;
+            }
+            
+            // For statements with valid account numbers but missing/empty bank names, infer the bank name from context
+            let effectiveBankName = statement.bank_name;
+            if (!effectiveBankName || effectiveBankName === "CONTINUATION" || effectiveBankName.trim() === "") {
+                if (lastKnownBankName) {
+                    effectiveBankName = lastKnownBankName;
+                    console.log(`Inferred bank name "${lastKnownBankName}" for statement with account ${statement.account_number}`);
+                } else {
+                    console.warn(`No bank name available to infer for account ${statement.account_number}, skipping`);
+                    continue;
+                }
+            }
+            
+            const accountKey = `${effectiveBankName}_${statement.account_number}`;
             
             if (accountMap.has(accountKey)) {
-                // Merge transactions with existing account
+                // Merge transactions with existing account, maintaining chronological order
                 const existingStatement = accountMap.get(accountKey)!;
                 
-                // Merge transactions
-                existingStatement.transactions.push(...statement.transactions);
+                // Add chunk information to transactions for ordering
+                const newTransactions = statement.transactions.map(transaction => ({
+                    ...transaction,
+                    _chunkNumber: chunkResult.chunk_number // Temporary field for sorting
+                }));
                 
-                // Update missing fields if current chunk has them
-                if (statement.bank_name && statement.bank_name !== "CONTINUATION") {
+                // Merge transactions and sort by chunk number first, then by date
+                const allTransactions = [
+                    ...existingStatement.transactions.map(t => ({ ...t, _chunkNumber: (t as any)._chunkNumber || 0 })),
+                    ...newTransactions
+                ];
+                
+                // Sort by chunk number first (to maintain document order), then by date within chunks
+                allTransactions.sort((a, b) => {
+                    const chunkDiff = (a as any)._chunkNumber - (b as any)._chunkNumber;
+                    if (chunkDiff !== 0) return chunkDiff;
+                    
+                    // Within the same chunk, maintain original order (no date sorting)
+                    return 0;
+                });
+                
+                // Remove the temporary _chunkNumber field
+                existingStatement.transactions = allTransactions.map(({ _chunkNumber, ...transaction }) => transaction);
+                
+                // Update missing fields if current chunk has them (excluding CONTINUATION values)
+                if (statement.bank_name && statement.bank_name !== "CONTINUATION" && statement.bank_name.trim() !== "") {
                     existingStatement.bank_name = statement.bank_name;
                 }
-                if (statement.account_number && statement.account_number !== "CONTINUATION") {
+                if (statement.account_number && statement.account_number !== "CONTINUATION" && statement.account_number.trim() !== "") {
                     existingStatement.account_number = statement.account_number;
                 }
-                if (statement.account_type && statement.account_type !== "CONTINUATION") {
+                if (statement.account_type && statement.account_type !== "CONTINUATION" && statement.account_type.trim() !== "") {
                     existingStatement.account_type = statement.account_type;
                 }
-                if (statement.account_currency && statement.account_currency !== "CONTINUATION") {
+                if (statement.account_currency && statement.account_currency !== "CONTINUATION" && statement.account_currency.trim() !== "") {
                     existingStatement.account_currency = statement.account_currency;
                 }
                 if (statement.starting_balance && statement.starting_balance !== "") {
@@ -205,29 +255,31 @@ function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
                     existingStatement.statement_period.end_date = statement.statement_period.end_date;
                 }
                 
-                console.log(`Merged ${statement.transactions.length} transactions into existing account ${accountKey}`);
+                console.log(`Merged ${statement.transactions.length} transactions into existing account ${accountKey}, total transactions: ${existingStatement.transactions.length}`);
             } else {
-                // Add new account statement
-                accountMap.set(accountKey, {
+                // Add new account statement with inferred bank name if applicable
+                const newStatement = {
                     ...statement,
-                    transactions: [...statement.transactions] // Clone transactions array
-                });
+                    bank_name: effectiveBankName, // Use the inferred bank name
+                    transactions: statement.transactions.map(transaction => ({
+                        ...transaction,
+                        _chunkNumber: chunkResult.chunk_number // Add chunk info for future merging
+                    })).map(({ _chunkNumber, ...transaction }) => transaction) // Remove it immediately for clean data
+                };
+                
+                accountMap.set(accountKey, newStatement);
                 console.log(`Added new account statement ${accountKey} with ${statement.transactions.length} transactions`);
             }
         }
     }
     
-    // Sort transactions by date for each account
-    for (const statement of accountMap.values()) {
-        statement.transactions.sort((a, b) => {
-            const dateA = new Date(a.date);
-            const dateB = new Date(b.date);
-            return dateA.getTime() - dateB.getTime();
-        });
+    // Maintain document order - no additional sorting needed as chunk order is already preserved
+    for (const statement of Array.from(accountMap.values())) {
+        console.log(`Final transaction order for account ${statement.bank_name}/${statement.account_number}: ${statement.transactions.length} transactions in document order`);
     }
     
     const mergedStatements = Array.from(accountMap.values());
-    console.log(`Final result: ${mergedStatements.length} account statements with combined transactions`);
+    console.log(`Final result: ${mergedStatements.length} account statements with properly ordered transactions`);
     
     return {
         account_statements: mergedStatements
@@ -412,7 +464,7 @@ function validateAndFixJSON(jsonString: string): string {
     return cleaned;
 }
 
-// Helper function to retry API calls with exponential backoff
+// Helper function to retry API calls with exponential backoff¬
 async function retryWithBackoff<T>(
     fn: () => Promise<T>, 
     maxRetries: number = 3,
@@ -607,12 +659,12 @@ async function processChunk(
     }
     
     // Normalize the data structure
-    const normalizedData = normalizeData(parsedData);
+    // const normalizedData = normalizeData(parsedData);
     
     return {
         chunk_number: chunk.chunkNumber,
         pages: chunk.pages,
-        account_statements: normalizedData.account_statements || []
+        account_statements: parsedData.account_statements || []
     };
 }
 
@@ -697,9 +749,9 @@ export async function POST(request: Request) {
                 console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
 
                 try {
-                    // Skip statements with CONTINUATION values that weren't properly merged
-                    if (statement.bank_name === "CONTINUATION" || statement.account_number === "CONTINUATION") {
-                        console.warn(`Skipping incomplete statement ${i + 1} with CONTINUATION values`);
+                    // Validate that we have required fields (bank_name and account_number should be resolved by now)
+                    if (!statement.bank_name || !statement.account_number) {
+                        console.warn(`Skipping statement ${i + 1} with missing bank_name or account_number`);
                         continue;
                     }
 
