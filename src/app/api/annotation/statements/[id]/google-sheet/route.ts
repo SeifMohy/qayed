@@ -101,7 +101,9 @@ export async function POST(
     }
 
     // Convert transactions to the format expected by Google Sheets
-    const transactionRows: TransactionRow[] = statement.transactions.map(transaction => {
+    let currentRunningBalance = Number(statement.startingBalance);
+    
+    const transactionRows: TransactionRow[] = statement.transactions.map((transaction, index) => {
       // Safely convert date to YYYY-MM-DD format
       let dateString = '';
       try {
@@ -113,12 +115,36 @@ export async function POST(
         console.error('Error converting transaction date:', error);
       }
 
+      // Calculate running balance for this transaction
+      const creditAmount = transaction.creditAmount ? Number(transaction.creditAmount) : 0;
+      const debitAmount = transaction.debitAmount ? Number(transaction.debitAmount) : 0;
+      currentRunningBalance = currentRunningBalance + creditAmount - debitAmount;
+
+      // Calculate validation - compare balance with running balance
+      const originalBalance = transaction.balance ? Number(transaction.balance) : null;
+      let validation = '';
+      
+      if (originalBalance !== null) {
+        const difference = currentRunningBalance - originalBalance;
+        
+        if (difference === 0) {
+          validation = 'Match';
+        } else {
+          const sign = difference > 0 ? '+' : '-';
+          validation = `${sign}${Math.abs(difference).toFixed(2)}`;
+        }
+      } else {
+        validation = 'No Balance';
+      }
+
       return {
         date: dateString,
         description: transaction.description || '',
         creditAmount: transaction.creditAmount ? Number(transaction.creditAmount) : null,
         debitAmount: transaction.debitAmount ? Number(transaction.debitAmount) : null,
         balance: transaction.balance ? Number(transaction.balance) : null,
+        runningBalance: currentRunningBalance,
+        validation: validation,
         pageNumber: transaction.pageNumber || null,
         entityName: transaction.entityName || null
       };

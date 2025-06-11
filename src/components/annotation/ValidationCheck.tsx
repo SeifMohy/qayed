@@ -13,8 +13,15 @@ interface BankStatement {
 
 interface Transaction {
   id: number;
+  transactionDate: string | Date;
+  description?: string;
   creditAmount?: number;
   debitAmount?: number;
+  balance?: number;
+  runningBalance?: number;
+  validation?: string;
+  pageNumber?: string;
+  entityName?: string;
 }
 
 interface ValidationResult {

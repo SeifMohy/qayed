@@ -6,6 +6,8 @@ export interface TransactionRow {
   creditAmount: number | null;
   debitAmount: number | null;
   balance: number | null;
+  runningBalance: number | null;
+  validation: string | null;
   pageNumber: string | null;
   entityName: string | null;
 }
@@ -76,6 +78,8 @@ export async function createTransactionSheet(
       'Credit Amount',
       'Debit Amount',
       'Balance',
+      'Running Balance',
+      'Validation',
       'Page Number',
       'Entity Name'
     ];
@@ -86,6 +90,8 @@ export async function createTransactionSheet(
       transaction.creditAmount || '',
       transaction.debitAmount || '',
       transaction.balance || '',
+      transaction.runningBalance || '',
+      transaction.validation || '',
       transaction.pageNumber || '',
       transaction.entityName || ''
     ]);
@@ -243,7 +249,7 @@ export async function syncSheetToDatabase(
     // Get the data from the sheet
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: 'A2:G', // Skip header row
+      range: 'A2:I', // Updated range to include the validation column
     });
 
     const rows = response.data.values || [];
@@ -254,8 +260,10 @@ export async function syncSheetToDatabase(
       creditAmount: row[2] ? parseFloat(row[2]) : null,
       debitAmount: row[3] ? parseFloat(row[3]) : null,
       balance: row[4] ? parseFloat(row[4]) : null,
-      pageNumber: row[5] || null,
-      entityName: row[6] || null
+      runningBalance: row[5] ? parseFloat(row[5]) : null,
+      validation: row[6] || null,
+      pageNumber: row[7] || null,
+      entityName: row[8] || null
     }));
 
     return transactions;

@@ -37,6 +37,8 @@ interface Transaction {
   creditAmount?: number;
   debitAmount?: number;
   balance?: number;
+  runningBalance?: number;
+  validation?: string;
   pageNumber?: string;
   entityName?: string;
 }
@@ -407,6 +409,7 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
               }}
               disabled={statement.locked}
               googleSheetId={statement.googleSheetId}
+              startingBalance={Number(statement.startingBalance)}
             />
           </div>
         </div>

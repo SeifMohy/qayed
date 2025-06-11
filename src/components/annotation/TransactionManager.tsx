@@ -24,6 +24,8 @@ interface Transaction {
   creditAmount?: number;
   debitAmount?: number;
   balance?: number;
+  runningBalance?: number;
+  validation?: string;
   pageNumber?: string;
   entityName?: string;
 }
@@ -35,6 +37,7 @@ interface TransactionManagerProps {
   onValidate?: () => Promise<void>;
   disabled?: boolean;
   googleSheetId?: string | null;
+  startingBalance?: number;
 }
 
 export default function TransactionManager({ 
@@ -43,7 +46,8 @@ export default function TransactionManager({
   onUpdate, 
   onValidate,
   disabled = false,
-  googleSheetId 
+  googleSheetId,
+  startingBalance = 0
 }: TransactionManagerProps) {
   const [creatingSheet, setCreatingSheet] = useState(false);
   const [syncingSheet, setSyncingSheet] = useState(false);
@@ -64,6 +68,41 @@ export default function TransactionManager({
     
     return `$${numValue.toFixed(2)}`;
   };
+
+  // Calculate running balance for each transaction
+  const transactionsWithRunningBalance = (() => {
+    let currentRunningBalance = startingBalance;
+    
+    return (transactions || []).map((transaction) => {
+      const creditAmount = transaction.creditAmount ? Number(transaction.creditAmount) : 0;
+      const debitAmount = transaction.debitAmount ? Number(transaction.debitAmount) : 0;
+      
+      currentRunningBalance = currentRunningBalance + creditAmount - debitAmount;
+      
+      // Calculate validation - compare balance with running balance
+      const originalBalance = transaction.balance ? Number(transaction.balance) : null;
+      let validation = '';
+      
+      if (originalBalance !== null) {
+        const difference = currentRunningBalance - originalBalance;
+        
+        if (difference === 0) {
+          validation = 'Match';
+        } else {
+          const sign = difference > 0 ? '+' : '-';
+          validation = `${sign}${Math.abs(difference).toFixed(2)}`;
+        }
+      } else {
+        validation = 'No Balance';
+      }
+      
+      return {
+        ...transaction,
+        runningBalance: currentRunningBalance,
+        validation: validation
+      };
+    });
+  })();
 
   const handleCreateGoogleSheet = async () => {
     setCreatingSheet(true);
@@ -225,12 +264,18 @@ export default function TransactionManager({
                   Balance
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Running Balance
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Validation
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Entity
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {(transactions || []).map((transaction, index) => (
+              {transactionsWithRunningBalance.map((transaction, index) => (
                 <tr key={transaction.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {formatDate(transaction.transactionDate)}
@@ -248,6 +293,20 @@ export default function TransactionManager({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                     {formatCurrency(transaction.balance)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
+                    {formatCurrency(transaction.runningBalance)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <span className={`${
+                      transaction.validation === 'Match' 
+                        ? 'text-green-600' 
+                        : transaction.validation === 'No Balance'
+                        ? 'text-gray-400'
+                        : 'text-red-600'
+                    }`}>
+                      {transaction.validation}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {transaction.entityName || '-'}
