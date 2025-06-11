@@ -115,7 +115,7 @@ Guidelines:
 - Credit and debit amounts should be parsed as numerical values without currency symbols
 - If the amount is ambiguous, leave it blank rather than guessing
 - Entity name is the name of the person or company that the transaction is for
-- Page numbers should reflect the actual page number from the document
+- Page numbers should reflect the pdf page number
 
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
 `.trim();
