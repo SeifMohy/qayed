@@ -107,6 +107,7 @@ For each account statement data you find in this chunk, extract the following:
 Guidelines:
 - Extract all transactions visible in this chunk
 - If account information (bank_name, account_number, etc.) is not visible in this chunk but transactions are present, use "CONTINUATION" for missing fields
+- Use account_number as the primary key for grouping transactions. Each account_number uniquely identifies a distinct account statement. All transactions that fall under the same account_number must be grouped together.
 - If starting/ending balances are not visible in this chunk, use the starting balance
 - Dates should be in ISO format (YYYY-MM-DD)
 - Credit and debit amounts should be parsed as numerical values without currency symbols
