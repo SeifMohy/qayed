@@ -1,125 +1,146 @@
-# Account Type Dropdown Enhancement
+# Account Type System Simplification
 
 ## Overview
 
-Enhanced the bank statement annotation form to display extracted account type values even when they don't match the predefined dropdown options. This improvement ensures users can see exactly what was extracted from the bank statement and choose whether to keep the extracted value or select a standard option.
+Simplified the bank statement account type system to use only two account types:
+- **Current Account**: Accounts with client's own money (reflected in cash balance)
+- **Facility Account**: Accounts with bank's money (reflected in obligations)
+
+This replaces the previous complex system with multiple account type categories.
 
 ## Problem Solved
 
-Previously, if the system extracted an account type from a bank statement that didn't match the predefined dropdown options (e.g., "Business Checking", "Savings Account", "Credit Card"), the extracted value would not be visible in the form, making it difficult for users to:
+The previous system had too many account type options that created confusion:
 
-1. See what was actually extracted from the bank statement
-2. Decide whether to keep the extracted value or standardize it
-3. Understand why certain accounts might be misclassified
+1. **Multiple regular types**: Checking, Savings, Business, Current Account, Deposit Account
+2. **Multiple facility types**: Overdraft, STL, LTL, Credit Facility, Credit Line, Line of Credit, Term Loan, Credit
+3. **Complex UI**: Nested optgroups and multiple choices for essentially the same function
+4. **Classification ambiguity**: Users uncertain which specific type to choose
 
 ## Solution Implemented
 
-### 1. Dynamic Option Addition
+### 1. Simplified Account Types
 
-The dropdown now dynamically adds the extracted account type as an option if it doesn't match any predefined values:
-
-- **Extracted values** appear in a special "Extracted from Statement" optgroup
-- **Standard options** remain organized in "Regular Accounts" and "Credit Facilities" groups
-- **"Other"** option is still available for manual input
-
-### 2. Visual Indicators
-
-- Extracted values are labeled with "(Extracted)" suffix
-- A blue informational note appears below the dropdown when an extracted value is selected
-- Clear distinction between extracted and standard options
-
-### 3. Smart Detection
-
-The system uses the predefined constants from `bankStatementUtils.ts` to determine if an account type is standard:
+The system now uses only two standardized account types:
 
 ```typescript
-// Uses these constants for detection:
-- REGULAR_ACCOUNT_TYPES
-- FACILITY_ACCOUNT_TYPES  
-- ALL_ACCOUNT_TYPES
-- Plus "Other" and empty string
+// New simplified constants:
+export const ACCOUNT_TYPES = [
+  'Current Account',
+  'Facility Account',
+] as const;
+```
+
+### 2. Smart Legacy Support
+
+The system maintains backward compatibility by:
+
+- **Automatic classification**: Legacy account types are automatically mapped to the new system
+- **Keyword detection**: Facility-related keywords (overdraft, loan, credit, facility) are detected
+- **Balance fallback**: Negative balance accounts default to Facility Account when type is unclear
+
+### 3. Enhanced Logic
+
+Updated classification logic in `bankStatementUtils.ts`:
+
+```typescript
+export function isFacilityAccount(accountType: string | null | undefined, endingBalance: number): boolean {
+  if (accountType) {
+    // Exact match checking
+    if (accountType === 'Facility Account') return true;
+    if (accountType === 'Current Account') return false;
+    
+    // Legacy keyword detection
+    const facilityKeywords = ['overdraft', 'loan', 'credit', 'facility', 'line of credit', 'term loan'];
+    if (facilityKeywords.some(keyword => accountType.toLowerCase().includes(keyword))) {
+      return true;
+    }
+  }
+  
+  // Fallback: negative balance = facility
+  return endingBalance < 0;
+}
 ```
 
 ## Code Changes
 
-### Updated File: `src/components/annotation/StatementMetadataForm.tsx`
+### Updated Files:
 
-1. **Added helper function**:
-   ```typescript
-   const isStandardAccountType = (accountType: string) => {
-     return ALL_ACCOUNT_TYPES.includes(accountType as any) || accountType === '';
-   };
-   ```
+1. **`src/utils/bankStatementUtils.ts`**:
+   - Simplified `ACCOUNT_TYPES` constant
+   - Updated `isFacilityAccount()` logic
+   - Removed `REGULAR_ACCOUNT_TYPES` and `FACILITY_ACCOUNT_TYPES`
 
-2. **Enhanced dropdown structure**:
-   - Dynamic optgroup for extracted values
-   - Programmatic generation of standard options using constants
-   - Conditional display of informational text
+2. **`src/components/annotation/StatementMetadataForm.tsx`**:
+   - Updated imports to use new `ACCOUNT_TYPES`
+   - Simplified dropdown to show only two options
+   - Removed complex optgroup structure
 
-3. **Improved maintainability**:
-   - Uses constants from utility file instead of hardcoded arrays
-   - Single source of truth for account types
-   - Easier to add new account types in the future
+3. **Database Migration**:
+   - Created `scripts/standardize-account-types.ts`
+   - Migrated 60 existing bank statements
+   - Results: 45 Current Accounts, 15 Facility Accounts
 
 ## User Experience Improvements
 
 ### Before
-- **Hidden extracted values**: Users couldn't see what was actually extracted
-- **Confusion**: Unclear why accounts might be misclassified
-- **Data loss**: Extracted information was effectively lost if not matching predefined options
+- **Complex choices**: Multiple options for essentially the same account types
+- **Decision paralysis**: Users unsure which specific type to choose (e.g., "Checking" vs "Business" vs "Current Account")
+- **Inconsistent data**: Different users might classify the same account type differently
 
 ### After
-- **Transparent extraction**: Users see exactly what was extracted
-- **Informed decisions**: Clear choice between extracted and standard values
-- **Data preservation**: All extracted information is visible and selectable
-- **Better classification**: Users can make informed decisions about standardization
+- **Clear binary choice**: Either Current Account or Facility Account
+- **Obvious classification**: Account purpose determines type (client money vs bank money)
+- **Consistent data**: All users make the same logical distinction
 
-## Example Scenarios
+## Business Logic Alignment
 
-### Scenario 1: Standard Account Type
-- **Extracted**: "Checking"
-- **Display**: Shows normally in "Regular Accounts" section
-- **Result**: No special handling needed
+### Current Account (Client's Money)
+- **Cash Balance Impact**: Positive balance increases available cash
+- **Negative Balance**: Overdraft on client's own account
+- **Examples**: Checking accounts, savings accounts, business accounts
 
-### Scenario 2: Non-Standard but Clear Account Type  
-- **Extracted**: "Business Checking Account"
-- **Display**: Shows in "Extracted from Statement" section with "(Extracted)" label
-- **User choice**: Keep extracted value or select "Checking" from standard options
-- **Benefit**: User understands it's a checking account but with more specific naming
+### Facility Account (Bank's Money)
+- **Obligations Impact**: Balance represents debt to the bank
+- **Negative Balance**: Money owed to the bank (typical for facilities)
+- **Examples**: Credit lines, loans, overdraft facilities, term loans
 
-### Scenario 3: Completely Unknown Account Type
-- **Extracted**: "Special Investment Account" 
-- **Display**: Shows in "Extracted from Statement" section
-- **User choice**: Keep extracted value or select "Other" and provide manual input
-- **Benefit**: Preserves specific information while allowing standardization
+## Migration Results
+
+Successfully migrated existing data:
+
+```
+📊 Found 60 bank statements to process
+✅ Updated 1 statements to "Facility Account"
+✅ Updated 6 statements to "Current Account"  
+✅ Updated 14 statements with negative balance to "Facility Account"
+✅ Updated 32 remaining statements to "Current Account"
+
+📈 Final account type distribution:
+  Current Account: 45 statements
+  Facility Account: 15 statements
+```
 
 ## Technical Benefits
 
-1. **Maintainable**: Uses constants from utility file
-2. **Extensible**: Easy to add new standard account types
-3. **Consistent**: Same logic used throughout the application
-4. **User-friendly**: Clear visual indicators and helpful text
+1. **Simplified Logic**: Binary classification reduces complexity
+2. **Clear Semantics**: Account type directly reflects financial purpose
+3. **Better UX**: Users understand the distinction immediately
+4. **Consistent Data**: Eliminates classification ambiguity
+5. **Maintenance**: Much easier to maintain two types vs. dozen types
 
-## Testing
+## Integration Points
 
-- ✅ Build compiles successfully
-- ✅ Dropdown displays extracted values correctly
-- ✅ Standard options remain properly organized
-- ✅ Helper text appears for non-standard values
-- ✅ Form validation works with both extracted and standard values
+This change maintains compatibility with:
 
-## Impact on Facility Classification
+- **Cashflow projections**: Current accounts contribute to cash balance
+- **Facility management**: Facility accounts tracked as obligations
+- **Reporting**: Clear distinction for financial reporting
+- **API endpoints**: Existing API structure unchanged
 
-This improvement enhances the facility account determination system by:
+## Future Considerations
 
-1. **Better visibility**: Users can see extracted account types that might indicate facilities
-2. **Informed annotation**: Users can make better decisions about account classification
-3. **Data quality**: More accurate account type data leads to better facility determination
-4. **Workflow efficiency**: Reduces the need to re-process statements with unclear account types
-
-## Future Enhancements
-
-1. **Smart suggestions**: Could suggest the closest standard option for extracted values
-2. **Learning system**: Could learn from user choices to improve extraction
-3. **Bulk operations**: Could allow users to standardize multiple similar extracted values at once
-4. **Validation warnings**: Could warn when extracted values might affect facility classification 
+1. **Account subtypes**: Could add optional subtype field for internal categorization while maintaining the binary public interface
+2. **Enhanced detection**: Could improve automatic classification using transaction patterns
+3. **User preferences**: Could remember user's typical classification patterns
+4. **Validation rules**: Could add warnings for unusual account type vs. balance combinations 

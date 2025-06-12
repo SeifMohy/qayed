@@ -3,40 +3,14 @@
  */
 
 /**
- * Facility account types that indicate credit facilities
+ * Simplified account types for the application
  */
-export const FACILITY_ACCOUNT_TYPES = [
-  'Overdraft',
-  'Short-term Loans (STL)',
-  'Long-term Loans (LTL)',
-  'Credit Facility',
-  'Credit Line',
-  'Line of Credit',
-  'Term Loan',
-  'Credit',
-] as const;
-
-/**
- * Regular account types (non-facility accounts)
- */
-export const REGULAR_ACCOUNT_TYPES = [
-  'Checking',
-  'Savings', 
-  'Business',
+export const ACCOUNT_TYPES = [
   'Current Account',
-  'Deposit Account',
+  'Facility Account',
 ] as const;
 
-/**
- * All supported account types for annotation
- */
-export const ALL_ACCOUNT_TYPES = [
-  ...REGULAR_ACCOUNT_TYPES,
-  ...FACILITY_ACCOUNT_TYPES,
-  'Other',
-] as const;
-
-export type AccountType = typeof ALL_ACCOUNT_TYPES[number];
+export type AccountType = typeof ACCOUNT_TYPES[number];
 
 /**
  * Determines if an account is a facility account based on account type and balance
@@ -49,22 +23,24 @@ export function isFacilityAccount(accountType: string | null | undefined, ending
   if (accountType) {
     const normalizedType = accountType.trim();
     
-    // Check for regular account types FIRST - these should NOT be treated as facilities even with negative balance
-    const isRegularType = REGULAR_ACCOUNT_TYPES.some(regularType =>
-      normalizedType === regularType ||
-      normalizedType.toLowerCase().includes(regularType.toLowerCase()) ||
-      regularType.toLowerCase().includes(normalizedType.toLowerCase())
-    );
-    
-    if (isRegularType) {
-      return false; // Regular accounts (including Current Account) are never facilities, even with negative balance
+    // Check for exact match with Facility Account
+    if (normalizedType === 'Facility Account') {
+      return true;
     }
     
-    // Check for exact matches or partial matches for facility types
-    const isFacilityType = FACILITY_ACCOUNT_TYPES.some(facilityType => 
-      normalizedType === facilityType || 
-      normalizedType.toLowerCase().includes(facilityType.toLowerCase()) ||
-      facilityType.toLowerCase().includes(normalizedType.toLowerCase())
+    // Check for exact match with Current Account
+    if (normalizedType === 'Current Account') {
+      return false;
+    }
+    
+    // Legacy support: Check for facility-related keywords in account type
+    const facilityKeywords = [
+      'overdraft', 'loan', 'credit', 'facility', 'line of credit', 'term loan'
+    ];
+    
+    const lowerType = normalizedType.toLowerCase();
+    const isFacilityType = facilityKeywords.some(keyword => 
+      lowerType.includes(keyword)
     );
     
     if (isFacilityType) {
@@ -84,21 +60,8 @@ export function isFacilityAccount(accountType: string | null | undefined, ending
  * @returns A user-friendly facility type name
  */
 export function getFacilityDisplayType(accountType: string | null | undefined, endingBalance: number): string {
-  if (accountType && accountType.trim()) {
-    const normalizedType = accountType.trim();
-    
-    // Return the account type if it's a known facility type
-    if (FACILITY_ACCOUNT_TYPES.some(facilityType => 
-      normalizedType === facilityType || 
-      normalizedType.toLowerCase().includes(facilityType.toLowerCase())
-    )) {
-      return normalizedType;
-    }
-  }
-  
-  // Fallback for negative balance accounts without clear type
-  if (endingBalance < 0) {
-    return 'Credit Facility';
+  if (isFacilityAccount(accountType, endingBalance)) {
+    return accountType && accountType.trim() ? accountType.trim() : 'Facility Account';
   }
   
   return 'N/A';

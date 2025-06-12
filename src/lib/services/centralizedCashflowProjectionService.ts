@@ -3,6 +3,7 @@ import { CashflowType, CashflowStatus, RecurrenceFrequency } from '@prisma/clien
 import { PaymentTermsCalculator } from './paymentTermsCalculator';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 import { Decimal } from '@prisma/client/runtime/library';
+import { isFacilityAccount } from '@/utils/bankStatementUtils';
 
 interface ProjectionParams {
   startDate: Date;
@@ -356,7 +357,7 @@ export class CentralizedCashflowProjectionService {
    * Generate bank obligation projections (facilities/loans)
    */
   async generateBankObligationProjections(startDate: Date, endDate: Date): Promise<BankObligationProjectionItem[]> {
-    console.log('🏦 Generating bank obligation projections...');
+    console.log('💳 Generating bank obligation projections...');
     
     // Get bank statements that represent facilities/loans with outstanding balances
     const bankStatements = await prisma.bankStatement.findMany({
@@ -364,14 +365,11 @@ export class CentralizedCashflowProjectionService {
         AND: [
           // Must have negative balance (indicating outstanding debt)
           { endingBalance: { lt: 0 } },
-          // Must be a recognized facility account type OR have tenor information
+          // Must be a facility account based on our simplified logic
           {
             OR: [
-              { accountType: { contains: 'overdraft', mode: 'insensitive' } },
-              { accountType: { contains: 'loan', mode: 'insensitive' } },
-              { accountType: { contains: 'credit', mode: 'insensitive' } },
-              { accountType: { contains: 'facility', mode: 'insensitive' } },
-              { tenor: { not: null } }
+              { accountType: 'Facility Account' },
+              { tenor: { not: null } } // Also include any account with tenor information
             ]
           }
         ]
@@ -387,6 +385,13 @@ export class CentralizedCashflowProjectionService {
 
     for (const statement of bankStatements) {
       const endingBalance = Number(statement.endingBalance);
+      
+      // Double-check using our utility function for consistency
+      if (!isFacilityAccount(statement.accountType, endingBalance) && !statement.tenor) {
+        console.log(`⚠️  Skipping ${statement.bank.name} - not recognized as a facility account`);
+        continue;
+      }
+      
       const outstandingAmount = Math.abs(endingBalance);
       
       console.log(`📊 Processing ${statement.bank.name} - ${statement.accountType || 'Facility'}`);

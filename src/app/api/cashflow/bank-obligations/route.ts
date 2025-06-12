@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { isFacilityAccount } from '@/utils/bankStatementUtils';
 
 /**
  * GET - Debug facility information and projections
@@ -17,11 +18,8 @@ export async function GET(request: Request) {
             { endingBalance: { lt: 0 } }, // Outstanding debt
             {
               OR: [
-                { accountType: { contains: 'overdraft', mode: 'insensitive' } },
-                { accountType: { contains: 'loan', mode: 'insensitive' } },
-                { accountType: { contains: 'credit', mode: 'insensitive' } },
-                { accountType: { contains: 'facility', mode: 'insensitive' } },
-                { tenor: { not: null } }
+                { accountType: 'Facility Account' },
+                { tenor: { not: null } } // Also include any account with tenor information
               ]
             }
           ]

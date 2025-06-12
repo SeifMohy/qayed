@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ALL_ACCOUNT_TYPES, REGULAR_ACCOUNT_TYPES, FACILITY_ACCOUNT_TYPES } from '@/utils/bankStatementUtils';
+import { ACCOUNT_TYPES } from '@/utils/bankStatementUtils';
 
 interface BankStatement {
   id: number;
@@ -183,7 +183,7 @@ export default function StatementMetadataForm({
 
   // Helper function to check if account type is in predefined list
   const isStandardAccountType = (accountType: string) => {
-    return ALL_ACCOUNT_TYPES.includes(accountType as any) || accountType === '';
+    return ACCOUNT_TYPES.includes(accountType as any) || accountType === '';
   };
 
   return (
@@ -282,17 +282,9 @@ export default function StatementMetadataForm({
               </optgroup>
             )}
             
-            <optgroup label="Regular Accounts">
-              {REGULAR_ACCOUNT_TYPES.map(accountType => (
-                <option key={accountType} value={accountType}>{accountType}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Credit Facilities">
-              {FACILITY_ACCOUNT_TYPES.map(accountType => (
-                <option key={accountType} value={accountType}>{accountType}</option>
-              ))}
-            </optgroup>
-            <option value="Other">Other</option>
+            {ACCOUNT_TYPES.map(accountType => (
+              <option key={accountType} value={accountType}>{accountType}</option>
+            ))}
           </select>
           
           {/* Show a note if the current value is extracted and not in standard list */}
