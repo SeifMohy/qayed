@@ -14,8 +14,6 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
-import fs from 'fs';
-import path from 'path';
 
 // --- Type definitions ---
 type StatementPeriod = {
@@ -100,7 +98,6 @@ For each account statement data you find in this chunk, extract the following:
           "description": "",
           "balance": "",
           "page_number": "",
-          "entity_name": "",
         }
       ]
     }
@@ -110,12 +107,13 @@ For each account statement data you find in this chunk, extract the following:
 Guidelines:
 - Extract all transactions visible in this chunk
 - If account information (bank_name, account_number, etc.) is not visible in this chunk but transactions are present, use "CONTINUATION" for missing fields
-- If starting/ending balances are not visible in this chunk, use empty string ""
-- Dates should be in ISO format (YYYY-MM-DD) if possible
+- If starting/ending balances are not visible in this chunk, use the starting balance
+- Dates should be in ISO format (YYYY-MM-DD)
 - Credit and debit amounts should be parsed as numerical values without currency symbols
-- If the amount is ambiguous, leave it blank rather than guessing
-- Entity name is the name of the person or company that the transaction is for
-- Page numbers should reflect the pdf page number
+- Page numbers should reflect the exact pdf page number when possible
+- maintain the order of transactions as shown in the statement
+- account_currency should be one of: USD, EUR, GBP, EGP, CNY, CAD, AUD, JPY based on the extracted currency from the statement
+- account_type should be one of: Current Account (an account with clients own money) or Facility Account (an account with a bank's money) based on the extracted account type from the statement
 
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
 `.trim();
@@ -163,78 +161,97 @@ function splitIntoChunks(statementText: string): Array<{content: string, pages: 
 }
 
 // Helper function to merge account statements from multiple chunks
-function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
+function mergeAccountStatements(chunkResults: ChunkData[], fileName?: string): StructuredData {
     console.log("Merging account statements from chunks in order");
     
     const accountMap = new Map<string, AccountStatement>();
-    let lastKnownBankName = "";
+    let documentBankName = ""; // Fallback bank name for the entire document
+    let fallbackBankName = fileName || "Unknown Bank"; // Use filename as fallback
     
     // Sort chunk results by chunk number to ensure processing in order
     const sortedChunkResults = chunkResults.sort((a, b) => a.chunk_number - b.chunk_number);
     
+    // First pass: Find any valid bank name in the document
+    for (const chunkResult of sortedChunkResults) {
+        for (const statement of chunkResult.account_statements) {
+            if (statement.bank_name && 
+                statement.bank_name !== "CONTINUATION" && 
+                statement.bank_name.trim() !== "" && 
+                statement.bank_name.toLowerCase() !== "unknown") {
+                documentBankName = statement.bank_name;
+                console.log(`Found document bank name: "${documentBankName}"`);
+                break;
+            }
+        }
+        if (documentBankName) break;
+    }
+    
+    // If no bank name found, use filename or generic fallback
+    if (!documentBankName) {
+        documentBankName = fallbackBankName;
+        console.log(`No bank name detected in document, using fallback: "${documentBankName}"`);
+    }
+    
+    // Second pass: Process statements using account number as primary marker
     for (const chunkResult of sortedChunkResults) {
         console.log(`Processing chunk ${chunkResult.chunk_number} with ${chunkResult.account_statements.length} account statements`);
         
         for (const statement of chunkResult.account_statements) {
-            // Update last known bank name if we encounter a real bank name
-            if (statement.bank_name && statement.bank_name !== "CONTINUATION" && statement.bank_name.trim() !== "") {
-                lastKnownBankName = statement.bank_name;
-            }
-            
             // Skip statements that have no account number at all
-            if (!statement.account_number || statement.account_number === "CONTINUATION" || statement.account_number.trim() === "") {
+            if (!statement.account_number || 
+                statement.account_number === "CONTINUATION" || 
+                statement.account_number.trim() === "") {
                 console.warn(`Skipping statement with missing or invalid account number: "${statement.account_number}"`);
                 continue;
             }
             
-            // For statements with valid account numbers but missing/empty bank names, infer the bank name from context
+            // Determine effective bank name for this statement
             let effectiveBankName = statement.bank_name;
-            if (!effectiveBankName || effectiveBankName === "CONTINUATION" || effectiveBankName.trim() === "") {
-                if (lastKnownBankName) {
-                    effectiveBankName = lastKnownBankName;
-                    console.log(`Inferred bank name "${lastKnownBankName}" for statement with account ${statement.account_number}`);
-                } else {
-                    console.warn(`No bank name available to infer for account ${statement.account_number}, skipping`);
-                    continue;
-                }
+            if (!effectiveBankName || 
+                effectiveBankName === "CONTINUATION" || 
+                effectiveBankName.trim() === "" ||
+                effectiveBankName.toLowerCase() === "unknown") {
+                effectiveBankName = documentBankName;
             }
             
-            const accountKey = `${effectiveBankName}_${statement.account_number}`;
+            // Use account number as the primary key for merging
+            const accountKey = statement.account_number.trim();
             
             if (accountMap.has(accountKey)) {
-                // Merge transactions with existing account, maintaining chronological order
+                // Merge transactions with existing account statement
                 const existingStatement = accountMap.get(accountKey)!;
+                
+                console.log(`Merging transactions for account ${accountKey} from chunk ${chunkResult.chunk_number}`);
                 
                 // Add chunk information to transactions for ordering
                 const newTransactions = statement.transactions.map(transaction => ({
                     ...transaction,
-                    _chunkNumber: chunkResult.chunk_number // Temporary field for sorting
+                    _chunkNumber: chunkResult.chunk_number
                 }));
                 
-                // Merge transactions and sort by chunk number first, then by date
+                // Merge transactions and sort by chunk number to maintain document order
                 const allTransactions = [
-                    ...existingStatement.transactions.map(t => ({ ...t, _chunkNumber: (t as any)._chunkNumber || 0 })),
+                    ...existingStatement.transactions.map(t => ({ 
+                        ...t, 
+                        _chunkNumber: (t as any)._chunkNumber || 0 
+                    })),
                     ...newTransactions
                 ];
                 
-                // Sort by chunk number first (to maintain document order), then by date within chunks
+                // Sort by chunk number first (to maintain document order)
                 allTransactions.sort((a, b) => {
                     const chunkDiff = (a as any)._chunkNumber - (b as any)._chunkNumber;
                     if (chunkDiff !== 0) return chunkDiff;
-                    
-                    // Within the same chunk, maintain original order (no date sorting)
+                    // Within the same chunk, maintain original order
                     return 0;
                 });
                 
                 // Remove the temporary _chunkNumber field
                 existingStatement.transactions = allTransactions.map(({ _chunkNumber, ...transaction }) => transaction);
                 
-                // Update missing fields if current chunk has them (excluding CONTINUATION values)
-                if (statement.bank_name && statement.bank_name !== "CONTINUATION" && statement.bank_name.trim() !== "") {
-                    existingStatement.bank_name = statement.bank_name;
-                }
-                if (statement.account_number && statement.account_number !== "CONTINUATION" && statement.account_number.trim() !== "") {
-                    existingStatement.account_number = statement.account_number;
+                // Update statement fields with non-empty values from current chunk
+                if (effectiveBankName && effectiveBankName !== "CONTINUATION" && effectiveBankName.trim() !== "") {
+                    existingStatement.bank_name = effectiveBankName;
                 }
                 if (statement.account_type && statement.account_type !== "CONTINUATION" && statement.account_type.trim() !== "") {
                     existingStatement.account_type = statement.account_type;
@@ -242,10 +259,10 @@ function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
                 if (statement.account_currency && statement.account_currency !== "CONTINUATION" && statement.account_currency.trim() !== "") {
                     existingStatement.account_currency = statement.account_currency;
                 }
-                if (statement.starting_balance && statement.starting_balance !== "") {
+                if (statement.starting_balance && statement.starting_balance !== "" && statement.starting_balance !== "0" && statement.starting_balance !== "0.00") {
                     existingStatement.starting_balance = statement.starting_balance;
                 }
-                if (statement.ending_balance && statement.ending_balance !== "") {
+                if (statement.ending_balance && statement.ending_balance !== "" && statement.ending_balance !== "0" && statement.ending_balance !== "0.00") {
                     existingStatement.ending_balance = statement.ending_balance;
                 }
                 if (statement.statement_period.start_date && statement.statement_period.start_date !== "") {
@@ -257,29 +274,76 @@ function mergeAccountStatements(chunkResults: ChunkData[]): StructuredData {
                 
                 console.log(`Merged ${statement.transactions.length} transactions into existing account ${accountKey}, total transactions: ${existingStatement.transactions.length}`);
             } else {
-                // Add new account statement with inferred bank name if applicable
+                // Add new account statement
                 const newStatement = {
-                    ...statement,
-                    bank_name: effectiveBankName, // Use the inferred bank name
+                    bank_name: effectiveBankName,
+                    account_number: statement.account_number,
+                    statement_period: statement.statement_period,
+                    account_type: statement.account_type || "",
+                    account_currency: statement.account_currency || "",
+                    starting_balance: statement.starting_balance || "",
+                    ending_balance: statement.ending_balance || "",
                     transactions: statement.transactions.map(transaction => ({
-                        ...transaction,
-                        _chunkNumber: chunkResult.chunk_number // Add chunk info for future merging
-                    })).map(({ _chunkNumber, ...transaction }) => transaction) // Remove it immediately for clean data
+                        ...transaction
+                    }))
                 };
                 
                 accountMap.set(accountKey, newStatement);
-                console.log(`Added new account statement ${accountKey} with ${statement.transactions.length} transactions`);
+                console.log(`Added new account statement for account ${accountKey} with ${statement.transactions.length} transactions`);
             }
         }
     }
     
-    // Maintain document order - no additional sorting needed as chunk order is already preserved
-    for (const statement of Array.from(accountMap.values())) {
-        console.log(`Final transaction order for account ${statement.bank_name}/${statement.account_number}: ${statement.transactions.length} transactions in document order`);
+    // Final validation and cleanup
+    const mergedStatements = Array.from(accountMap.values());
+    
+    // Ensure all statements have valid bank names
+    mergedStatements.forEach(statement => {
+        if (!statement.bank_name || statement.bank_name.trim() === "" || statement.bank_name === "CONTINUATION") {
+            statement.bank_name = documentBankName;
+            console.log(`Applied fallback bank name "${documentBankName}" to account ${statement.account_number}`);
+        }
+    });
+    
+    // Find the longest date range among all statements for fallback
+    let longestRange: { start_date: string; end_date: string } | null = null;
+    let longestDuration = 0;
+    
+    mergedStatements.forEach(statement => {
+        if (statement.statement_period.start_date && statement.statement_period.end_date) {
+            try {
+                const startDate = new Date(statement.statement_period.start_date);
+                const endDate = new Date(statement.statement_period.end_date);
+                const duration = endDate.getTime() - startDate.getTime();
+                
+                if (duration > longestDuration) {
+                    longestDuration = duration;
+                    longestRange = {
+                        start_date: statement.statement_period.start_date,
+                        end_date: statement.statement_period.end_date
+                    };
+                }
+            } catch (error) {
+                // Invalid dates, skip this statement for range calculation
+            }
+        }
+    });
+    
+    // Apply longest range to statements with missing date ranges
+    if (longestRange) {
+        mergedStatements.forEach(statement => {
+            if (!statement.statement_period.start_date || !statement.statement_period.end_date) {
+                console.log(`Applying longest date range fallback to account ${statement.account_number}: ${longestRange!.start_date} to ${longestRange!.end_date}`);
+                statement.statement_period.start_date = longestRange!.start_date;
+                statement.statement_period.end_date = longestRange!.end_date;
+            }
+        });
     }
     
-    const mergedStatements = Array.from(accountMap.values());
     console.log(`Final result: ${mergedStatements.length} account statements with properly ordered transactions`);
+    mergedStatements.forEach(statement => {
+        console.log(`Account ${statement.account_number} (${statement.bank_name}): ${statement.transactions.length} transactions`);
+    });
     
     return {
         account_statements: mergedStatements
@@ -320,20 +384,6 @@ function normalizeData(data: any): any {
   
   // If it's already an array, just return the data
   return data;
-}
-
-// Helper function to safely convert dates
-function convertToDate(dateValue: any): Date {
-    if (!dateValue) {
-        throw new Error('Date value is required');
-    }
-    
-    const date = new Date(dateValue);
-    if (isNaN(date.getTime())) {
-        throw new Error(`Invalid date value: ${dateValue}`);
-    }
-    
-    return date;
 }
 
 // Helper function to convert string to Decimal
@@ -731,7 +781,7 @@ export async function POST(request: Request) {
             
             // Step 3: Merge the results from all chunks
             console.log("Merging results from all chunks");
-            const structuredData = mergeAccountStatements(chunkResults);
+            const structuredData = mergeAccountStatements(chunkResults, fileName);
             
             if (structuredData.account_statements.length === 0) {
                 throw new Error('No account statements found in any of the processed chunks');
@@ -749,11 +799,18 @@ export async function POST(request: Request) {
                 console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
 
                 try {
-                    // Validate that we have required fields (bank_name and account_number should be resolved by now)
-                    if (!statement.bank_name || !statement.account_number) {
-                        console.warn(`Skipping statement ${i + 1} with missing bank_name or account_number`);
+                    // Validate that we have required fields - account_number is mandatory, bank_name should have fallback
+                    if (!statement.account_number || statement.account_number.trim() === "") {
+                        console.warn(`Skipping statement ${i + 1} with missing account_number`);
                         continue;
                     }
+
+                    // Ensure we have a bank name (should be handled by merging function, but double-check)
+                    const effectiveBankName = statement.bank_name && statement.bank_name.trim() !== "" 
+                        ? statement.bank_name 
+                        : (fileName || "Unknown Bank");
+
+                    console.log(`Saving statement with bank name: "${effectiveBankName}" and account: "${statement.account_number}"`);
 
                     // Convert string values to appropriate types
                     const startingBalance = convertToDecimal(statement.starting_balance);
@@ -761,16 +818,44 @@ export async function POST(request: Request) {
 
                     // Find or create the bank
                     let bank = await prisma.bank.findUnique({
-                        where: { name: statement.bank_name }
+                        where: { name: effectiveBankName }
                     });
 
                     if (!bank) {
                         bank = await prisma.bank.create({
-                            data: { name: statement.bank_name }
+                            data: { name: effectiveBankName }
                         });
                         console.log(`Created new bank: ${bank.name} with ID: ${bank.id}`);
                     } else {
                         console.log(`Found existing bank: ${bank.name} with ID: ${bank.id}`);
+                    }
+
+                    // Prepare statement period dates - let LLM handle formatting, simple fallbacks only
+                    let statementPeriodStart: Date;
+                    let statementPeriodEnd: Date;
+
+                    try {
+                        if (statement.statement_period.start_date && statement.statement_period.start_date.trim() !== "") {
+                            statementPeriodStart = new Date(statement.statement_period.start_date);
+                        } else {
+                            // Simple fallback - use current date
+                            statementPeriodStart = new Date();
+                        }
+                    } catch (dateError) {
+                        console.warn(`Invalid start date for statement ${i + 1}, using current date`);
+                        statementPeriodStart = new Date();
+                    }
+
+                    try {
+                        if (statement.statement_period.end_date && statement.statement_period.end_date.trim() !== "") {
+                            statementPeriodEnd = new Date(statement.statement_period.end_date);
+                        } else {
+                            // Simple fallback - use current date
+                            statementPeriodEnd = new Date();
+                        }
+                    } catch (dateError) {
+                        console.warn(`Invalid end date for statement ${i + 1}, using current date`);
+                        statementPeriodEnd = new Date();
                     }
 
                     // Create the bank statement record
@@ -778,12 +863,12 @@ export async function POST(request: Request) {
                         data: {
                             fileName,
                             fileUrl,
-                            bankName: statement.bank_name,
+                            bankName: effectiveBankName,
                             accountNumber: statement.account_number,
-                            statementPeriodStart: convertToDate(statement.statement_period.start_date),
-                            statementPeriodEnd: convertToDate(statement.statement_period.end_date),
-                            accountType: statement.account_type,
-                            accountCurrency: statement.account_currency,
+                            statementPeriodStart,
+                            statementPeriodEnd,
+                            accountType: statement.account_type || null,
+                            accountCurrency: statement.account_currency || null,
                             startingBalance: startingBalance || new Decimal(0),
                             endingBalance: endingBalance || new Decimal(0),
                             rawTextContent: statementText,
@@ -796,8 +881,23 @@ export async function POST(request: Request) {
                             transactions: {
                                 create: statement.transactions.map((transaction: TransactionData, index: number) => {
                                     try {
+                                        // Prepare transaction date - let LLM handle formatting
+                                        let transactionDate: Date;
+                                        try {
+                                            if (transaction.date && transaction.date.trim() !== "") {
+                                                transactionDate = new Date(transaction.date);
+                                            } else {
+                                                // Use statement period start as fallback
+                                                transactionDate = statementPeriodStart;
+                                            }
+                                        } catch {
+                                            // Use statement period start as fallback
+                                            transactionDate = statementPeriodStart;
+                                            console.warn(`Invalid transaction date for transaction ${index + 1}, using statement start date`);
+                                        }
+
                                         return {
-                                            transactionDate: convertToDate(transaction.date),
+                                            transactionDate,
                                             creditAmount: convertToDecimal(transaction.credit_amount) || null,
                                             debitAmount: convertToDecimal(transaction.debit_amount) || null,
                                             description: String(transaction.description || ''),
@@ -818,8 +918,9 @@ export async function POST(request: Request) {
                     console.log(`Saved bank statement ID: ${bankStatement.id} with ${statement.transactions.length} transactions`);
                     savedStatements.push(bankStatement);
                 } catch (error) {
-                    console.error('Error saving bank statement:', error);
-                    throw error;
+                    console.error(`Error saving bank statement ${i + 1}:`, error);
+                    // Don't throw error - continue processing other statements
+                    console.warn(`Continuing with remaining statements after error with statement ${i + 1}`);
                 }
             }
 
