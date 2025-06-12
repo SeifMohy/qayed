@@ -40,7 +40,8 @@ function createSheetsClient(config: GoogleSheetsConfig) {
 export async function createTransactionSheet(
   transactions: TransactionRow[],
   title: string,
-  config: GoogleSheetsConfig
+  config: GoogleSheetsConfig,
+  startingBalance: number = 0
 ): Promise<{ spreadsheetId: string; url: string }> {
   const { sheets, drive } = createSheetsClient(config);
 
@@ -84,17 +85,36 @@ export async function createTransactionSheet(
       'Entity Name'
     ];
 
-    const rows = transactions.map(transaction => [
-      transaction.date,
-      transaction.description || '',
-      transaction.creditAmount || '',
-      transaction.debitAmount || '',
-      transaction.balance || '',
-      transaction.runningBalance || '',
-      transaction.validation || '',
-      transaction.pageNumber || '',
-      transaction.entityName || ''
-    ]);
+    // Create rows with formulas for Running Balance and Validation columns
+    const rows = transactions.map((transaction, index) => {
+      const rowNumber = index + 2; // +2 because we have headers in row 1, and this is 0-indexed
+      
+      // Running Balance formula: Previous Running Balance + Credit - Debit
+      // For first row, use starting balance; for subsequent rows, reference previous running balance
+      let runningBalanceFormula: string;
+      if (index === 0) {
+        // First transaction: Starting Balance + Credit - Debit
+        runningBalanceFormula = `=${startingBalance}+IFERROR(C${rowNumber},0)-IFERROR(D${rowNumber},0)`;
+      } else {
+        // Subsequent transactions: Previous Running Balance + Credit - Debit
+        runningBalanceFormula = `=F${rowNumber - 1}+IFERROR(C${rowNumber},0)-IFERROR(D${rowNumber},0)`;
+      }
+      
+      // Validation formula: Compare Running Balance with Balance column
+      const validationFormula = `=IF(E${rowNumber}="","No Balance",IF(ABS(F${rowNumber}-E${rowNumber})<=0.01,"Match",IF(F${rowNumber}-E${rowNumber}>0,"+"&TEXT(ABS(F${rowNumber}-E${rowNumber}),"0.00"),"-"&TEXT(ABS(F${rowNumber}-E${rowNumber}),"0.00"))))`;
+
+      return [
+        transaction.date,
+        transaction.description || '',
+        transaction.creditAmount || '',
+        transaction.debitAmount || '',
+        transaction.balance || '',
+        runningBalanceFormula, // Dynamic formula instead of static value
+        validationFormula, // Dynamic formula instead of static value
+        transaction.pageNumber || '',
+        transaction.entityName || ''
+      ];
+    });
 
     const values = [headers, ...rows];
     
@@ -104,7 +124,7 @@ export async function createTransactionSheet(
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: 'A1',
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'USER_ENTERED', // This allows formulas to be interpreted
       requestBody: {
         values
       }
@@ -141,6 +161,115 @@ export async function createTransactionSheet(
                   }
                 },
                 fields: 'userEnteredFormat(backgroundColor,textFormat)'
+              }
+            },
+            // Format Credit Amount column (C) with currency formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 1, // Skip header
+                  endRowIndex: transactions.length + 1,
+                  startColumnIndex: 2, // Column C (Credit Amount)
+                  endColumnIndex: 3
+                },
+                cell: {
+                  userEnteredFormat: {
+                    numberFormat: {
+                      type: 'CURRENCY',
+                      pattern: '$#,##0.00'
+                    },
+                    textFormat: {
+                      foregroundColor: {
+                        red: 0.0,
+                        green: 0.6,
+                        blue: 0.0
+                      }
+                    }
+                  }
+                },
+                fields: 'userEnteredFormat(numberFormat,textFormat)'
+              }
+            },
+            // Format Debit Amount column (D) with currency formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 1, // Skip header
+                  endRowIndex: transactions.length + 1,
+                  startColumnIndex: 3, // Column D (Debit Amount)
+                  endColumnIndex: 4
+                },
+                cell: {
+                  userEnteredFormat: {
+                    numberFormat: {
+                      type: 'CURRENCY',
+                      pattern: '$#,##0.00'
+                    },
+                    textFormat: {
+                      foregroundColor: {
+                        red: 0.8,
+                        green: 0.0,
+                        blue: 0.0
+                      }
+                    }
+                  }
+                },
+                fields: 'userEnteredFormat(numberFormat,textFormat)'
+              }
+            },
+            // Format Balance column (E) with currency formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 1, // Skip header
+                  endRowIndex: transactions.length + 1,
+                  startColumnIndex: 4, // Column E (Balance)
+                  endColumnIndex: 5
+                },
+                cell: {
+                  userEnteredFormat: {
+                    numberFormat: {
+                      type: 'CURRENCY',
+                      pattern: '$#,##0.00'
+                    },
+                    textFormat: {
+                      bold: true
+                    }
+                  }
+                },
+                fields: 'userEnteredFormat(numberFormat,textFormat)'
+              }
+            },
+            // Format Running Balance column (F) with currency formatting
+            {
+              repeatCell: {
+                range: {
+                  sheetId: sheetId,
+                  startRowIndex: 1, // Skip header
+                  endRowIndex: transactions.length + 1,
+                  startColumnIndex: 5, // Column F (Running Balance)
+                  endColumnIndex: 6
+                },
+                cell: {
+                  userEnteredFormat: {
+                    numberFormat: {
+                      type: 'CURRENCY',
+                      pattern: '$#,##0.00'
+                    },
+                    textFormat: {
+                      bold: true,
+                      foregroundColor: {
+                        red: 0.0,
+                        green: 0.0,
+                        blue: 0.8
+                      }
+                    }
+                  }
+                },
+                fields: 'userEnteredFormat(numberFormat,textFormat)'
               }
             },
             // Set default column width
@@ -254,17 +383,28 @@ export async function syncSheetToDatabase(
 
     const rows = response.data.values || [];
     
-    const transactions: TransactionRow[] = rows.map(row => ({
-      date: row[0] || '',
-      description: row[1] || '',
-      creditAmount: row[2] ? parseFloat(row[2]) : null,
-      debitAmount: row[3] ? parseFloat(row[3]) : null,
-      balance: row[4] ? parseFloat(row[4]) : null,
-      runningBalance: row[5] ? parseFloat(row[5]) : null,
-      validation: row[6] || null,
-      pageNumber: row[7] || null,
-      entityName: row[8] || null
-    }));
+    const transactions: TransactionRow[] = rows.map(row => {
+      // Helper function to safely parse numbers, handling formula results
+      const safeParseFloat = (value: string | undefined): number | null => {
+        if (!value || value === '') return null;
+        // Remove currency symbols and formatting that might be in the displayed value
+        const cleaned = value.toString().replace(/[$,\s]/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      return {
+        date: row[0] || '',
+        description: row[1] || '',
+        creditAmount: safeParseFloat(row[2]),
+        debitAmount: safeParseFloat(row[3]),
+        balance: safeParseFloat(row[4]),
+        runningBalance: safeParseFloat(row[5]), // This will now be computed by the formula
+        validation: row[6] || null, // This will now be computed by the formula
+        pageNumber: row[7] || null,
+        entityName: row[8] || null
+      };
+    });
 
     return transactions;
 

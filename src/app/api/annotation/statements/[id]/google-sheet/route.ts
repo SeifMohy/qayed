@@ -155,7 +155,7 @@ export async function POST(
     
     console.log(`Creating Google Sheet for statement ${id} with ${transactionRows.length} transactions`);
     
-    const result = await createTransactionSheet(transactionRows, title, config);
+    const result = await createTransactionSheet(transactionRows, title, config, Number(statement.startingBalance));
 
     // Store the spreadsheet ID in the database for future syncing
     await prisma.bankStatement.update({
