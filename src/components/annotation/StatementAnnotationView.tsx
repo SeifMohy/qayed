@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import StatementMetadataForm from './StatementMetadataForm';
@@ -52,12 +52,15 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const router = useRouter();
 
-  const fetchStatement = async () => {
+  const fetchStatement = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const response = await fetch(`/api/annotation/statements/${statementId}`);
       const result = await response.json();
 
@@ -67,28 +70,25 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         setError(result.error || 'Failed to fetch statement');
       }
     } catch (err: any) {
+      console.error('Error fetching statement:', err);
       setError(err.message || 'Failed to fetch statement');
     } finally {
       setLoading(false);
     }
-  };
+  }, [statementId]);
 
   useEffect(() => {
     fetchStatement();
-  }, [statementId]);
+  }, [fetchStatement]);
 
-  const handleTransactionsUpdate = async () => {
-    // Refresh the statement data after transactions are updated
-    await fetchStatement();
-    
-    // Automatically trigger validation after transactions are updated
+  const handleTransactionsUpdate = useCallback(async () => {
     try {
-      await handleValidation();
+      // Refresh the statement data after transactions are updated
+      await fetchStatement();
     } catch (error) {
-      console.error('Auto-validation failed:', error);
-      // Don't show error to user for auto-validation, they can still manually validate
+      console.error('Error refreshing statement after transaction update:', error);
     }
-  };
+  }, [fetchStatement]);
 
   const handleMetadataUpdate = async (updatedData: Partial<BankStatement>) => {
     if (!statement) return;
@@ -125,17 +125,21 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
 
         // Automatically trigger validation after metadata updates that affect balance
         if (updatedData.startingBalance !== undefined || updatedData.endingBalance !== undefined) {
-          try {
-            await handleValidation();
-          } catch (error) {
-            console.error('Auto-validation after metadata update failed:', error);
-            // Don't show error to user for auto-validation
-          }
+          // Small delay to ensure state is updated
+          setTimeout(async () => {
+            try {
+              await handleValidation();
+            } catch (error) {
+              console.error('Auto-validation after metadata update failed:', error);
+              // Don't show error to user for auto-validation
+            }
+          }, 300);
         }
       } else {
         throw new Error(result.error || 'Failed to update statement');
       }
     } catch (err: any) {
+      console.error('Error updating statement metadata:', err);
       setError(err.message || 'Failed to update statement');
       setSuccessMessage(null);
     } finally {
@@ -143,14 +147,30 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
     }
   };
 
-  const handleValidation = async () => {
-    if (!statement) return;
+  const handleValidation = useCallback(async () => {
+    if (!statement) {
+      throw new Error('No statement data available for validation');
+    }
+
+    if (validating) {
+      console.log('Validation already in progress, skipping...');
+      return null;
+    }
 
     try {
-      setSaving(true);
+      setValidating(true);
+      setError(null);
+      
       const response = await fetch(`/api/annotation/statements/${statementId}/validate`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const result = await response.json();
 
@@ -161,12 +181,13 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         throw new Error(result.error || 'Failed to validate statement');
       }
     } catch (err: any) {
+      console.error('Error validating statement:', err);
       setError(err.message || 'Failed to validate statement');
       return null;
     } finally {
-      setSaving(false);
+      setValidating(false);
     }
-  };
+  }, [statement, statementId, validating]);
 
   const handleViewDocument = () => {
     if (statement?.fileUrl) {
@@ -203,7 +224,13 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
             <div className="mt-2 text-sm text-red-700">
               <p>{error}</p>
             </div>
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={fetchStatement}
+                className="text-sm font-medium text-red-600 hover:text-red-500"
+              >
+                Try again
+              </button>
               <button
                 onClick={() => router.back()}
                 className="text-sm font-medium text-red-600 hover:text-red-500"
@@ -248,59 +275,81 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
   };
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="mb-6">
-        <nav className="flex" aria-label="Breadcrumb">
-          <ol className="flex items-center space-x-4">
-            <li>
-              <Link href="/dashboard/annotation/statements" className="text-gray-400 hover:text-gray-500">
-                Annotation
-              </Link>
-            </li>
-            <li>
-              <div className="flex items-center">
-                <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="ml-4 text-sm font-medium text-gray-500">
-                  {statement.bankName} - {statement.accountNumber}
-                </span>
-              </div>
-            </li>
-          </ol>
-        </nav>
-        
-        <div className="mt-4 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <nav className="flex" aria-label="Breadcrumb">
+              <ol className="flex items-center space-x-4">
+                <li>
+                  <div>
+                    <Link href="/dashboard/annotation/statements" className="text-gray-400 hover:text-gray-500">
+                      <span className="sr-only">Bank Statements</span>
+                      Statements
+                    </Link>
+                  </div>
+                </li>
+                <li>
+                  <div className="flex items-center">
+                    <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="ml-4 text-sm font-medium text-gray-500">
+                      {statement.bankName} - {statement.accountNumber}
+                    </span>
+                  </div>
+                </li>
+              </ol>
+            </nav>
+            <h1 className="mt-2 text-2xl font-bold leading-7 text-gray-900 sm:text-3xl">
               Bank Statement Annotation
             </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Review and validate the extracted data for accuracy
-            </p>
           </div>
-          <div className="flex items-center gap-3">
-            {statement?.fileUrl && (
+          <div className="flex items-center space-x-3">
+            {getStatusBadge(statement.validationStatus)}
+            {statement.fileUrl && (
               <button
                 onClick={handleViewDocument}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
                 View Document
               </button>
             )}
-            {getStatusBadge(statement.validationStatus)}
-            {statement.locked && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                🔒 Locked
-              </span>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => setError(null)}
+                  className="text-sm font-medium text-red-600 hover:text-red-500"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Message */}
       {successMessage && (
@@ -314,102 +363,49 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
             <div className="ml-3">
               <p className="text-sm font-medium text-green-800">{successMessage}</p>
             </div>
-            <div className="ml-auto pl-3">
-              <div className="-mx-1.5 -my-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSuccessMessage(null)}
-                  className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600"
-                >
-                  <span className="sr-only">Dismiss</span>
-                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">{error}</p>
-            </div>
-            <div className="ml-auto pl-3">
-              <div className="-mx-1.5 -my-1.5">
-                <button
-                  type="button"
-                  onClick={() => setError(null)}
-                  className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-red-50 focus:ring-red-600"
-                >
-                  <span className="sr-only">Dismiss</span>
-                  <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="w-full">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Statement Metadata Form */}
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Statement Info & Validation */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Statement Metadata */}
           <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Statement Information</h2>
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Statement Information</h3>
+              <StatementMetadataForm
+                statement={statement}
+                onUpdate={handleMetadataUpdate}
+                disabled={statement.locked}
+                saving={saving}
+              />
             </div>
-            <StatementMetadataForm
-              statement={statement}
-              onUpdate={handleMetadataUpdate}
-              disabled={statement.locked}
-              saving={saving}
-            />
           </div>
 
           {/* Validation Check */}
           <div className="bg-white shadow rounded-lg">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Balance Validation</h2>
-            </div>
             <ValidationCheck
               statement={statement}
               onValidate={handleValidation}
               disabled={statement.locked}
-              validating={saving}
+              validating={validating}
             />
           </div>
+        </div>
 
-          {/* Transaction Management - Full Width */}
-          <div className="bg-white shadow rounded-lg xl:col-span-2">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-medium text-gray-900">Transaction Management</h2>
-            </div>
+        {/* Right Column - Transactions */}
+        <div className="lg:col-span-2">
+          <div className="bg-white shadow rounded-lg">
             <TransactionManager
-              statementId={statement.id}
+              statementId={statementId}
               transactions={statement.transactions}
               onUpdate={handleTransactionsUpdate}
-              onValidate={async () => {
-                try {
-                  await handleValidation();
-                } catch (error) {
-                  console.error('Manual validation trigger failed:', error);
-                }
-              }}
+              onValidate={handleValidation}
               disabled={statement.locked}
               googleSheetId={statement.googleSheetId}
-              startingBalance={Number(statement.startingBalance)}
+              startingBalance={statement.startingBalance}
             />
           </div>
         </div>

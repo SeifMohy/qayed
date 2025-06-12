@@ -21,7 +21,7 @@ export async function GET(
         bankStatementId: bankStatementId
       },
       orderBy: {
-        transactionDate: 'desc'
+        id: 'asc'
       }
     });
 

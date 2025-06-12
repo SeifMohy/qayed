@@ -22,7 +22,7 @@ export async function POST(
       include: {
         transactions: {
           orderBy: {
-            transactionDate: 'asc'
+            id: 'asc'
           }
         }
       }

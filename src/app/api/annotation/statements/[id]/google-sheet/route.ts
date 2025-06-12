@@ -80,7 +80,7 @@ export async function POST(
       include: {
         transactions: {
           orderBy: {
-            transactionDate: 'asc'
+            id: 'asc'
           }
         }
       }
@@ -278,7 +278,7 @@ export async function PUT(
       include: {
         transactions: {
           orderBy: {
-            transactionDate: 'asc'
+            id: 'asc'
           }
         }
       }

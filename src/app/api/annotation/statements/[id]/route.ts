@@ -94,7 +94,7 @@ export async function GET(
         bank: true,
         transactions: {
           orderBy: {
-            transactionDate: 'asc'
+            id: 'asc'
           }
         },
       }
@@ -245,7 +245,7 @@ export async function PUT(
             bank: true,
             transactions: {
               orderBy: {
-                transactionDate: 'asc'
+                id: 'asc'
               }
             },
           }
@@ -305,7 +305,7 @@ export async function PUT(
         bank: true,
         transactions: {
           orderBy: {
-            transactionDate: 'asc'
+            id: 'asc'
           }
         },
       }

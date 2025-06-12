@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 // Helper function to safely format dates
 function formatDate(dateValue: string | Date): string {
@@ -51,6 +51,8 @@ export default function TransactionManager({
 }: TransactionManagerProps) {
   const [creatingSheet, setCreatingSheet] = useState(false);
   const [syncingSheet, setSyncingSheet] = useState(false);
+  const [editingTransactions, setEditingTransactions] = useState<Record<number, { creditAmount: string; debitAmount: string }>>({});
+  const [updatingTransactions, setUpdatingTransactions] = useState<Set<number>>(new Set());
 
   const formatCurrency = (amount?: any) => {
     if (amount === null || amount === undefined) return '-';
@@ -70,6 +72,8 @@ export default function TransactionManager({
   };
 
   // Calculate running balance for each transaction
+  // NOTE: Transactions are ordered by ID (not date) to maintain consistent ordering
+  // when transactions are updated. This prevents the UI from being reordered unexpectedly.
   const transactionsWithRunningBalance = (() => {
     let currentRunningBalance = startingBalance;
     
@@ -104,6 +108,66 @@ export default function TransactionManager({
     });
   })();
 
+  const handleUpdateTransaction = useCallback(async (transactionId: number, creditAmount: string, debitAmount: string) => {
+    try {
+      setUpdatingTransactions(prev => new Set(prev).add(transactionId));
+      
+      const response = await fetch(`/api/bank-statements/${statementId}/transactions/${transactionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          creditAmount: creditAmount === '' ? null : creditAmount,
+          debitAmount: debitAmount === '' ? null : debitAmount,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Remove from editing state
+        setEditingTransactions(prev => {
+          const updated = { ...prev };
+          delete updated[transactionId];
+          return updated;
+        });
+        
+        // Refresh the data
+        onUpdate();
+      } else {
+        alert('Failed to update transaction: ' + result.error);
+      }
+    } catch (error: any) {
+      console.error('Error updating transaction:', error);
+      alert('Failed to update transaction: ' + error.message);
+    } finally {
+      setUpdatingTransactions(prev => {
+        const updated = new Set(prev);
+        updated.delete(transactionId);
+        return updated;
+      });
+    }
+  }, [statementId, onUpdate]);
+
+  const handleEditTransaction = (transactionId: number, creditAmount: number | null, debitAmount: number | null) => {
+    setEditingTransactions(prev => ({
+      ...prev,
+      [transactionId]: {
+        creditAmount: creditAmount?.toString() || '',
+        debitAmount: debitAmount?.toString() || '',
+      }
+    }));
+  };
+
+  const handleCancelEdit = (transactionId: number) => {
+    setEditingTransactions(prev => {
+      const updated = { ...prev };
+      delete updated[transactionId];
+      return updated;
+    });
+  };
+
   const handleCreateGoogleSheet = async () => {
     setCreatingSheet(true);
     try {
@@ -128,14 +192,16 @@ export default function TransactionManager({
         // Refresh the data to get the updated googleSheetId
         onUpdate();
         
-        // Trigger validation after creating sheet
-        if (onValidate) {
-          try {
-            await onValidate();
-          } catch (error) {
-            console.error('Auto-validation after sheet creation failed:', error);
+        // Small delay before validation to ensure state is updated
+        setTimeout(async () => {
+          if (onValidate) {
+            try {
+              await onValidate();
+            } catch (error) {
+              console.error('Auto-validation after sheet creation failed:', error);
+            }
           }
-        }
+        }, 500);
       } else {
         alert('Failed to create Google Sheet: ' + result.error);
       }
@@ -167,14 +233,16 @@ export default function TransactionManager({
         // Refresh the data
         onUpdate();
         
-        // Trigger validation after successful sync
-        if (onValidate) {
-          try {
-            await onValidate();
-          } catch (error) {
-            console.error('Auto-validation after sync failed:', error);
+        // Small delay before validation to ensure state is updated
+        setTimeout(async () => {
+          if (onValidate) {
+            try {
+              await onValidate();
+            } catch (error) {
+              console.error('Auto-validation after sync failed:', error);
+            }
           }
-        }
+        }, 500);
       } else {
         alert('Failed to sync from Google Sheet: ' + result.error);
       }
@@ -270,49 +338,131 @@ export default function TransactionManager({
                   Validation
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Entity
+                  Page
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactionsWithRunningBalance.map((transaction, index) => (
-                <tr key={transaction.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(transaction.transactionDate)}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                    <div className="truncate" title={transaction.description}>
-                      {transaction.description || '-'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                    {formatCurrency(transaction.creditAmount)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                    {formatCurrency(transaction.debitAmount)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                    {formatCurrency(transaction.balance)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-                    {formatCurrency(transaction.runningBalance)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <span className={`${
-                      transaction.validation === 'Match' 
-                        ? 'text-green-600' 
-                        : transaction.validation === 'No Balance'
-                        ? 'text-gray-400'
-                        : 'text-red-600'
-                    }`}>
-                      {transaction.validation}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {transaction.entityName || '-'}
-                  </td>
-                </tr>
-              ))}
+              {transactionsWithRunningBalance.map((transaction, index) => {
+                const isEditing = editingTransactions[transaction.id];
+                const isUpdating = updatingTransactions.has(transaction.id);
+                
+                return (
+                  <tr key={transaction.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDate(transaction.transactionDate)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                      <div className="truncate" title={transaction.description}>
+                        {transaction.description || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={isEditing.creditAmount}
+                          onChange={(e) => setEditingTransactions(prev => ({
+                            ...prev,
+                            [transaction.id]: { ...prev[transaction.id], creditAmount: e.target.value }
+                          }))}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-green-500 focus:border-green-500"
+                          placeholder="0.00"
+                        />
+                      ) : (
+                        <span className="text-green-600 font-medium">
+                          {formatCurrency(transaction.creditAmount)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {isEditing ? (
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={isEditing.debitAmount}
+                          onChange={(e) => setEditingTransactions(prev => ({
+                            ...prev,
+                            [transaction.id]: { ...prev[transaction.id], debitAmount: e.target.value }
+                          }))}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-red-500 focus:border-red-500"
+                          placeholder="0.00"
+                        />
+                      ) : (
+                        <span className="text-red-600 font-medium">
+                          {formatCurrency(transaction.debitAmount)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                      {formatCurrency(transaction.balance)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
+                      {formatCurrency(transaction.runningBalance)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <span className={`${
+                        transaction.validation === 'Match' 
+                          ? 'text-green-600' 
+                          : transaction.validation === 'No Balance'
+                          ? 'text-gray-400'
+                          : 'text-red-600'
+                      }`}>
+                        {transaction.validation}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {transaction.pageNumber || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleUpdateTransaction(
+                              transaction.id,
+                              isEditing.creditAmount,
+                              isEditing.debitAmount
+                            )}
+                            disabled={isUpdating}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-green-600 border border-transparent rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isUpdating ? (
+                              <svg className="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            ) : (
+                              '✓'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleCancelEdit(transaction.id)}
+                            disabled={isUpdating}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            ✗
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEditTransaction(transaction.id, transaction.creditAmount || null, transaction.debitAmount || null)}
+                          disabled={disabled}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
