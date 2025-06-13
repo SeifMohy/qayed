@@ -4,6 +4,7 @@ import { CURRENT_CUSTOMER_NAMES, CURRENT_CUSTOMER_ETAID } from '@/lib/constants'
 import { normalizeNames } from '@/lib/services/nameNormalizationService';
 import type { NameToNormalize } from '@/lib/services/nameNormalizationService';
 import { v4 as uuidv4 } from 'uuid';
+import { xml2js } from 'xml-js';
 
 // Initialize Prisma client directly in this file to ensure we use the correct client
 // with all the models properly generated
@@ -90,7 +91,215 @@ export async function POST(request: NextRequest) {
     for (const rawInvoice of invoicesToProcess) {
       const internalId = rawInvoice.internalId || 'N/A'; // Use a default if internalId is missing
       try {
-        const document = typeof rawInvoice.document === 'string' ? JSON.parse(rawInvoice.document) : rawInvoice.document;
+        // Enhanced document parsing to handle both JSON and XML formats
+        let document: any;
+        
+        if (typeof rawInvoice.document === 'string') {
+          // Always try JSON parsing first, regardless of format
+          try {
+            document = JSON.parse(rawInvoice.document);
+            console.log(`✅ Successfully parsed document as JSON for invoice ${internalId}`);
+          } catch (jsonError) {
+            console.log(`📄 JSON parsing failed for invoice ${internalId}, attempting XML parsing...`);
+            
+            // If JSON fails, try XML parsing
+            try {
+              console.log(`🔄 Parsing XML document for invoice ${internalId}...`);
+              
+              // Add some basic XML validation and cleanup before parsing
+              let xmlContent = rawInvoice.document.trim();
+              
+              // Check if it looks like XML
+              if (!xmlContent.startsWith('<')) {
+                throw new Error('Document does not appear to be valid XML (does not start with <)');
+              }
+              
+              // Parse XML with error recovery options
+              const xmlResult = xml2js(xmlContent, { 
+                compact: true, 
+                ignoreDeclaration: true, 
+                ignoreInstruction: true, 
+                ignoreComment: true, 
+                ignoreDoctype: true,
+                ignoreText: false,
+                alwaysChildren: false,
+                sanitize: false
+              }) as any;
+              
+              // Transform XML structure to match expected JSON structure
+              if (xmlResult.document) {
+                const xmlDoc = xmlResult.document;
+                document = {
+                  issuer: {
+                    id: xmlDoc.issuer?.id?._text || '',
+                    name: xmlDoc.issuer?.name?._text || '',
+                    address: {
+                      country: xmlDoc.issuer?.address?.country?._text || '',
+                      governate: xmlDoc.issuer?.address?.governate?._text || '',
+                      regionCity: xmlDoc.issuer?.address?.regionCity?._text || '',
+                      street: xmlDoc.issuer?.address?.street?._text || '',
+                      buildingNumber: xmlDoc.issuer?.address?.buildingNumber?._text || '',
+                      floor: xmlDoc.issuer?.address?.floor?._text || '',
+                      room: xmlDoc.issuer?.address?.room?._text || '',
+                      postalCode: xmlDoc.issuer?.address?.postalCode?._text || '',
+                      landmark: xmlDoc.issuer?.address?.landmark?._text || '',
+                      additionalInformation: xmlDoc.issuer?.address?.additionalInformation?._text || '',
+                      branchID: xmlDoc.issuer?.address?.branchID?._text || ''
+                    }
+                  },
+                  receiver: {
+                    id: xmlDoc.receiver?.id?._text || '',
+                    name: xmlDoc.receiver?.name?._text || '',
+                    address: {
+                      country: xmlDoc.receiver?.address?.country?._text || '',
+                      governate: xmlDoc.receiver?.address?.governate?._text || '',
+                      regionCity: xmlDoc.receiver?.address?.regionCity?._text || '',
+                      street: xmlDoc.receiver?.address?.street?._text || '',
+                      buildingNumber: xmlDoc.receiver?.address?.buildingNumber?._text || '',
+                      floor: xmlDoc.receiver?.address?.floor?._text || '',
+                      room: xmlDoc.receiver?.address?.room?._text || '',
+                      postalCode: xmlDoc.receiver?.address?.postalCode?._text || '',
+                      landmark: xmlDoc.receiver?.address?.landmark?._text || '',
+                      additionalInformation: xmlDoc.receiver?.address?.additionalInformation?._text || ''
+                    }
+                  },
+                  invoiceLines: [],
+                  taxTotals: [],
+                  totalAmount: 0,
+                  totalDiscountAmount: 0
+                };
+                
+                // Parse invoice lines
+                if (xmlDoc.invoiceLines?.invoiceLine) {
+                  const lines = Array.isArray(xmlDoc.invoiceLines.invoiceLine) 
+                    ? xmlDoc.invoiceLines.invoiceLine 
+                    : [xmlDoc.invoiceLines.invoiceLine];
+                  
+                  document.invoiceLines = lines.map((line: any) => ({
+                    description: line.description?._text || '',
+                    itemType: line.itemType?._text || '',
+                    itemCode: line.itemCode?._text || '',
+                    unitType: line.unitType?._text || '',
+                    quantity: parseFloat(line.quantity?._text || '0'),
+                    unitValue: {
+                      currencySold: line.unitValue?.currencySold?._text || 'EGP',
+                      amountSold: parseFloat(line.unitValue?.amountSold?._text || '0'),
+                      amountEGP: parseFloat(line.unitValue?.amountEGP?._text || '0'),
+                      currencyExchangeRate: parseFloat(line.unitValue?.currencyExchangeRate?._text || '1')
+                    },
+                    salesTotal: parseFloat(line.salesTotal?._text || '0'),
+                    discount: {
+                      rate: parseFloat(line.discount?.rate?._text || '0'),
+                      amount: parseFloat(line.discount?.amount?._text || '0')
+                    },
+                    taxableItems: line.taxableItems?.taxableItem ? 
+                      (Array.isArray(line.taxableItems.taxableItem) 
+                        ? line.taxableItems.taxableItem 
+                        : [line.taxableItems.taxableItem]).map((tax: any) => ({
+                          taxType: tax.taxType?._text || '',
+                          amount: parseFloat(tax.amount?._text || '0'),
+                          subType: tax.subType?._text || '',
+                          rate: parseFloat(tax.rate?._text || '0')
+                        })) : [],
+                    netTotal: parseFloat(line.netTotal?._text || '0'),
+                    total: parseFloat(line.total?._text || '0')
+                  }));
+                }
+                
+                // Parse tax totals
+                if (xmlDoc.taxTotals?.taxTotal) {
+                  const taxes = Array.isArray(xmlDoc.taxTotals.taxTotal) 
+                    ? xmlDoc.taxTotals.taxTotal 
+                    : [xmlDoc.taxTotals.taxTotal];
+                  
+                  document.taxTotals = taxes.map((tax: any) => ({
+                    taxType: tax.taxType?._text || '',
+                    amount: parseFloat(tax.amount?._text || '0')
+                  }));
+                }
+                
+                // Set totals
+                document.totalAmount = parseFloat(xmlDoc.totalAmount?._text || '0');
+                document.totalDiscountAmount = parseFloat(xmlDoc.totalDiscountAmount?._text || '0');
+                
+                console.log(`✅ Successfully parsed XML document for invoice ${internalId}`);
+              } else {
+                throw new Error('Invalid XML structure: missing document root element');
+              }
+            } catch (xmlError: any) {
+              console.error(`❌ Failed to parse XML document for invoice ${internalId}:`, xmlError.message);
+              
+              // For malformed XML, let's try to extract basic information from the raw invoice data
+              console.log(`🔧 XML parsing failed, using fallback approach with basic document structure for invoice ${internalId}`);
+              
+              // Create a minimal document structure using available raw invoice data
+              document = {
+                issuer: {
+                  id: '',
+                  name: rawInvoice.issuerName || '',
+                  address: {
+                    country: 'EG', // Default fallback
+                    governate: '',
+                    regionCity: '',
+                    street: '',
+                    buildingNumber: '',
+                    floor: '',
+                    room: '',
+                    postalCode: '',
+                    landmark: '',
+                    additionalInformation: '',
+                    branchID: ''
+                  }
+                },
+                receiver: {
+                  id: '',
+                  name: rawInvoice.receiverName || '',
+                  address: {
+                    country: 'EG', // Default fallback
+                    governate: '',
+                    regionCity: '',
+                    street: '',
+                    buildingNumber: '',
+                    floor: '',
+                    room: '',
+                    postalCode: '',
+                    landmark: '',
+                    additionalInformation: ''
+                  }
+                },
+                invoiceLines: [{
+                  description: 'Document parsing failed - using fallback data',
+                  itemType: 'SERVICE',
+                  itemCode: '00000000',
+                  unitType: 'EA',
+                  quantity: 1,
+                  unitValue: {
+                    currencySold: 'EGP',
+                    amountSold: rawInvoice.totalSales || 0,
+                    amountEGP: rawInvoice.totalSales || 0,
+                    currencyExchangeRate: 1
+                  },
+                  salesTotal: rawInvoice.totalSales || 0,
+                  discount: {
+                    rate: 0,
+                    amount: rawInvoice.totalDiscount || 0
+                  },
+                  taxableItems: [],
+                  netTotal: rawInvoice.netAmount || 0,
+                  total: rawInvoice.total || 0
+                }],
+                taxTotals: [],
+                totalAmount: rawInvoice.total || 0,
+                totalDiscountAmount: rawInvoice.totalDiscount || 0
+              };
+              
+              console.log(`🛠️ Created fallback document structure for invoice ${internalId}`);
+            }
+          }
+        } else {
+          // Document is already an object
+          document = rawInvoice.document;
+        }
 
         const taxAmount = Array.isArray(document.taxTotals)
           ? document.taxTotals.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0)
@@ -192,9 +401,14 @@ export async function POST(request: NextRequest) {
         let customerId: number | null = null;
         let supplierId: number | null = null;
 
-        // First check by ETA ID (if valid and not "0"), then fall back to name matching
-        if ((invoiceData.issuerEtaId && invoiceData.issuerEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(normalizedIssuerName)) {
-          console.log(`👥 Processing as customer invoice for: ${invoiceData.invoiceNumber}`);
+        // Enhanced logic to accept all invoices and determine customer vs supplier based on available criteria
+        // Priority 1: Check if this matches current customer by ETA ID or name (for customer invoices)
+        const isCurrentCustomerAsIssuer = (invoiceData.issuerEtaId && invoiceData.issuerEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(normalizedIssuerName);
+        const isCurrentCustomerAsReceiver = (invoiceData.receiverEtaId && invoiceData.receiverEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(normalizedReceiverName);
+
+        if (isCurrentCustomerAsIssuer) {
+          // This is a customer invoice (current customer is issuing to someone else)
+          console.log(`👥 Processing as customer invoice for: ${invoiceData.invoiceNumber} (current customer as issuer)`);
           
           let customer = null;
           // Find customer by ETA ID first if available and not "0", then by name
@@ -211,19 +425,21 @@ export async function POST(request: NextRequest) {
           }
           
           if (!customer) {
+            console.log(`➕ Creating new customer: ${normalizedReceiverName}`);
             customer = await prisma.customer.create({
               data: {
                 name: normalizedReceiverName,
                 country: receiverCountry,
-                etaId: invoiceData.receiverEtaId || null, // Store sanitized etaId or null
+                etaId: invoiceData.receiverEtaId || null,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
             });
           }
           customerId = customer.id;
-        } else if ((invoiceData.receiverEtaId && invoiceData.receiverEtaId === CURRENT_CUSTOMER_ETAID) || CURRENT_CUSTOMER_NAMES.includes(normalizedReceiverName)) {
-          console.log(`🏢 Processing as supplier invoice for: ${invoiceData.invoiceNumber}`);
+        } else if (isCurrentCustomerAsReceiver) {
+          // This is a supplier invoice (someone else is issuing to current customer)
+          console.log(`🏢 Processing as supplier invoice for: ${invoiceData.invoiceNumber} (current customer as receiver)`);
           
           let supplier = null;
           // Find supplier by ETA ID first if available and not "0", then by name
@@ -240,11 +456,12 @@ export async function POST(request: NextRequest) {
           }
           
           if (!supplier) {
+            console.log(`➕ Creating new supplier: ${normalizedIssuerName}`);
             supplier = await prisma.supplier.create({
               data: {
                 name: normalizedIssuerName,
                 country: issuerCountry,
-                etaId: invoiceData.issuerEtaId || null, // Store sanitized etaId or null
+                etaId: invoiceData.issuerEtaId || null,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -252,7 +469,66 @@ export async function POST(request: NextRequest) {
           }
           supplierId = supplier.id;
         } else {
-          throw new Error('Invoice does not match any current customer ETA ID (excluding "0") or name as issuer or receiver.');
+          // Neither issuer nor receiver matches current customer - treat as external invoice
+          // Default: treat as supplier invoice (external entity providing service/goods)
+          console.log(`🔄 Processing as external supplier invoice for: ${invoiceData.invoiceNumber} (no current customer match)`);
+          
+          let supplier = null;
+          // Find supplier by ETA ID first if available and not "0", then by name
+          if (invoiceData.issuerEtaId) {
+            supplier = await prisma.supplier.findFirst({ 
+              where: { etaId: invoiceData.issuerEtaId } 
+            });
+          }
+          
+          if (!supplier) {
+            supplier = await prisma.supplier.findFirst({ 
+              where: { name: normalizedIssuerName } 
+            });
+          }
+          
+          if (!supplier) {
+            console.log(`➕ Creating new external supplier: ${normalizedIssuerName}`);
+            supplier = await prisma.supplier.create({
+              data: {
+                name: normalizedIssuerName,
+                country: issuerCountry,
+                etaId: invoiceData.issuerEtaId || null,
+                createdAt: new Date(), 
+                updatedAt: new Date(),
+              },
+            });
+          }
+          supplierId = supplier.id;
+          
+          // Also create a customer record for the receiver if it doesn't exist
+          let customer = null;
+          if (invoiceData.receiverEtaId) {
+            customer = await prisma.customer.findFirst({ 
+              where: { etaId: invoiceData.receiverEtaId } 
+            });
+          }
+          
+          if (!customer) {
+            customer = await prisma.customer.findFirst({ 
+              where: { name: normalizedReceiverName } 
+            });
+          }
+          
+          if (!customer) {
+            console.log(`➕ Creating new external customer: ${normalizedReceiverName}`);
+            customer = await prisma.customer.create({
+              data: {
+                name: normalizedReceiverName,
+                country: receiverCountry,
+                etaId: invoiceData.receiverEtaId || null,
+                createdAt: new Date(), 
+                updatedAt: new Date(),
+              },
+            });
+          }
+          // Note: for external invoices, we still primarily treat as supplier invoice
+          // but we create the customer record for completeness
         }
 
         const newInvoice = await prisma.invoice.create({
