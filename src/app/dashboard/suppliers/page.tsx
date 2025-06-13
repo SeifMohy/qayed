@@ -95,58 +95,18 @@ export default function SuppliersPage() {
         const files = sourceFiles[id];
         console.log(`📄 Processing ${files.length} files for source '${id}'`);
         
-        // Separate JSON files for server-side encoding processing
-        const jsonFiles = files.filter(file => file.name.endsWith('.json'));
-        const otherFiles = files.filter(file => !file.name.endsWith('.json'));
-        
-        // Process JSON files with encoding detection on server
-        if (jsonFiles.length > 0) {
-          console.log(`🔍 Processing ${jsonFiles.length} JSON files with encoding detection...`);
-          
-          const formData = new FormData();
-          jsonFiles.forEach(file => {
-            formData.append('files', file);
-          });
-          
-          const uploadResponse = await fetch('/api/upload-json', {
-            method: 'POST',
-            body: formData,
-          });
-          
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            throw new Error(errorData.error || `Failed to process JSON files: ${uploadResponse.status}`);
-          }
-          
-          const uploadResult = await uploadResponse.json();
-          console.log(`📊 JSON processing result:`, uploadResult.summary);
-          
-          // Add processed JSON data to invoices
-          uploadResult.processedFiles.forEach((fileResult: any) => {
-            const jsonData = fileResult.data;
-            if (Array.isArray(jsonData)) {
-              console.log(`✅ Adding ${jsonData.length} invoices from ${fileResult.fileName} (encoding-corrected)`);
-              allInvoices.push(...jsonData);
-            } else {
-              console.log(`✅ Adding single invoice from ${fileResult.fileName} (encoding-corrected)`);
-              allInvoices.push(jsonData);
-            }
-          });
-          
-          // Log any encoding errors
-          if (uploadResult.errors.length > 0) {
-            console.warn('⚠️ Some files had encoding issues:', uploadResult.errors);
-            uploadResult.errors.forEach((error: any) => {
-              alert(`Warning: ${error.fileName} - ${error.error}`);
-            });
-          }
-        }
-
-        // Process other file types with the old method (if any)
-        for (const file of otherFiles) {
+        // Process all files directly (no more upload-json dependency)
+        for (const file of files) {
           try {
+            if (!file.name.endsWith('.json')) {
+              console.warn(`⚠️ Skipping non-JSON file: ${file.name}`);
+              continue;
+            }
+
+            console.log(`🔍 Processing JSON file: ${file.name}`);
             const text = await file.text();
             const json = JSON.parse(text);
+            
             if (Array.isArray(json)) {
               console.log(`✅ Adding ${json.length} invoices from ${file.name}`);
               allInvoices.push(...json);
@@ -170,11 +130,24 @@ export default function SuppliersPage() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `Server responded with ${response.status}`);
+          const errorText = await response.text();
+          let errorMessage;
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            errorMessage = errorData.error || `Server responded with ${response.status}`;
+          } catch {
+            // If response is not JSON (e.g., HTML error page)
+            errorMessage = `Server error (${response.status}). Please check the console for details.`;
+            console.error('Server returned non-JSON response:', errorText);
+          }
+          
+          throw new Error(errorMessage);
         }
 
-        console.log('✅ Successfully uploaded invoices with proper encoding');
+        const result = await response.json();
+        console.log('✅ Successfully uploaded invoices with LLM name normalization');
+        console.log('📊 Processing summary:', result);
         
         // Update uploaded sources state
         const newUploadedSources = { ...uploadedSources };
@@ -192,11 +165,11 @@ export default function SuppliersPage() {
         console.log('🔄 Fetching updated supplier data...');
         await fetchSuppliers();
       }
-    } catch (error) {
-      console.error('❌ Error during file upload:', error);
-      alert('Error uploading file(s): ' + (error as Error).message);
+    } catch (error: any) {
+      console.error('❌ Error during upload process:', error);
+      alert(`Error uploading file(s): ${error.message}`);
     } finally {
-      setIsUploading(null);
+      setIsUploading('idle');
     }
   };
   

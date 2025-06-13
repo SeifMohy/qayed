@@ -5,6 +5,8 @@
  * particularly for Arabic text that may be encoded in windows-1256 or other encodings.
  * 
  * Based on RFC 7159 JSON standard recommendations for UTF-8 encoding.
+ * 
+ * Note: Text normalization is now handled by LLM services in nameNormalizationService.ts
  */
 
 // Only import for server-side operations
@@ -165,86 +167,8 @@ function isValidArabicDecoding(text: string): boolean {
 }
 
 /**
- * Normalizes Arabic and English text by adding proper spacing between words
- */
-function normalizeTextSpacing(text: string): string {
-    if (!text || typeof text !== 'string') {
-        return text;
-    }
-    
-    let normalized = text;
-    
-    // Arabic text normalization
-    if (/[\u0600-\u06FF]/.test(text)) {
-        // Common Arabic word patterns that should be separated
-        const arabicPatterns = [
-            // Company/organization patterns
-            { pattern: /الشركة([^\s])/g, replacement: 'الشركة $1' },
-            { pattern: /المصرية([^\s])/g, replacement: 'المصرية $1' },
-            { pattern: /لتكنولوجيا([^\s])/g, replacement: 'لتكنولوجيا $1' },
-            { pattern: /التجارة([^\s])/g, replacement: 'التجارة $1' },
-            { pattern: /الجمعية([^\s])/g, replacement: 'الجمعية $1' },
-            { pattern: /التعاونية([^\s])/g, replacement: 'التعاونية $1' },
-            { pattern: /للبترول([^\s])/g, replacement: 'للبترول $1' },
-            
-            // Name patterns
-            { pattern: /عبد([^\s])/g, replacement: 'عبد $1' },
-            { pattern: /الحميد([^\s])/g, replacement: 'الحميد $1' },
-            { pattern: /المعطى([^\s])/g, replacement: 'المعطى $1' },
-            { pattern: /حسن([^\s])/g, replacement: 'حسن $1' },
-            { pattern: /محاسبة([^\s])/g, replacement: 'محاسبة $1' },
-            { pattern: /واستشارات([^\s])/g, replacement: 'واستشارات $1' },
-            { pattern: /ضريبية([^\s])/g, replacement: 'ضريبية $1' },
-            
-            // Handle specific cases
-            { pattern: /ايجى([^\s])/g, replacement: 'إيجي $1' }, // Fix إيجي and add space
-            { pattern: /\/([^\s])/g, replacement: '/ $1' }, // Add space after /
-            { pattern: /([^\s])\//g, replacement: '$1 /' }, // Add space before /
-            
-            // Common prefixes and suffixes
-            { pattern: /([^\s])الـ/g, replacement: '$1 الـ' },
-            { pattern: /([^\s])وال/g, replacement: '$1 وال' },
-            { pattern: /([^\s])لل/g, replacement: '$1 لل' },
-            { pattern: /([^\s])من/g, replacement: '$1 من' },
-            { pattern: /([^\s])في/g, replacement: '$1 في' },
-            { pattern: /([^\s])على/g, replacement: '$1 على' }
-        ];
-        
-        arabicPatterns.forEach(({ pattern, replacement }) => {
-            normalized = normalized.replace(pattern, replacement);
-        });
-        
-        // Fix multiple consecutive spaces and trim trailing single letters
-        normalized = normalized.replace(/\s+/g, ' ').trim();
-        
-        // Remove trailing single Arabic letters that are likely artifacts
-        normalized = normalized.replace(/\s[ا-ي]\s*$/g, '').trim();
-    }
-    
-    // English text normalization
-    if (/[A-Za-z]/.test(text)) {
-        // Common English company name patterns
-        const englishPatterns = [
-            // Company names
-            { pattern: /Vodafone([A-Z])/g, replacement: 'Vodafone $1' },
-            { pattern: /Egypt([A-Z])/g, replacement: 'Egypt $1' },
-            { pattern: /Telecommunications([A-Z])/g, replacement: 'Telecommunications $1' },
-            { pattern: /([a-z])([A-Z])/g, replacement: '$1 $2' }, // General camelCase separation
-            
-            // Fix doubled spacing
-            { pattern: /\s+/g, replacement: ' ' }
-        ];
-        
-        englishPatterns.forEach(({ pattern, replacement }) => {
-            normalized = normalized.replace(pattern, replacement);
-        });
-    }
-    
-    return normalized.trim();
-}
-
-/**
  * Convenience function for JSON files specifically
+ * Note: Text normalization is now handled by LLM services
  */
 export async function readJSONFileWithEncoding(input: any): Promise<any> {
     const content = await readFileWithEncoding(input);
@@ -252,51 +176,12 @@ export async function readJSONFileWithEncoding(input: any): Promise<any> {
     try {
         const jsonData = JSON.parse(content);
         
-        // Apply text normalization to common name fields
-        return normalizeJSONTextFields(jsonData);
+        // Return JSON data without normalization - normalization is now handled by LLM services
+        console.log('📄 JSON file read successfully. Use LLM services for name normalization.');
+        return jsonData;
     } catch (error) {
         throw new Error(`Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-}
-
-/**
- * Recursively normalizes text fields in JSON data
- */
-function normalizeJSONTextFields(obj: any): any {
-    if (obj === null || obj === undefined) {
-        return obj;
-    }
-    
-    if (typeof obj === 'string') {
-        return normalizeTextSpacing(obj);
-    }
-    
-    if (Array.isArray(obj)) {
-        return obj.map(item => normalizeJSONTextFields(item));
-    }
-    
-    if (typeof obj === 'object') {
-        const normalized: any = {};
-        for (const [key, value] of Object.entries(obj)) {
-            // Apply normalization to common name fields
-            if (typeof value === 'string' && (
-                key.toLowerCase().includes('name') ||
-                key.toLowerCase().includes('issuer') ||
-                key.toLowerCase().includes('receiver') ||
-                key.toLowerCase().includes('entity') ||
-                key.toLowerCase().includes('company') ||
-                key.toLowerCase().includes('supplier') ||
-                key.toLowerCase().includes('customer')
-            )) {
-                normalized[key] = normalizeTextSpacing(value);
-            } else {
-                normalized[key] = normalizeJSONTextFields(value);
-            }
-        }
-        return normalized;
-    }
-    
-    return obj;
 }
 
 /**
