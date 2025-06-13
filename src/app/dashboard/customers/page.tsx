@@ -187,7 +187,7 @@ export default function CustomersPage() {
       <div className="mt-3">
         <MultiFileUpload
           onFilesChange={(files) => handleFilesChange(source.id, files)}
-          maxFiles={50} // Or your desired config
+          maxFiles={200} // Or your desired config
           maxSize={10} // Or your desired config
           accept=".xlsx,.xls,.csv,.json"
           label="" // No redundant label needed if source.name is displayed by UploadModal

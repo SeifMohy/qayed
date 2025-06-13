@@ -185,7 +185,7 @@ export default function SuppliersPage() {
       <div className="mt-3">
         <MultiFileUpload
           onFilesChange={(files) => handleFilesChange(source.id, files)}
-          maxFiles={50}
+          maxFiles={200}
           maxSize={10}
           accept=".xlsx,.xls,.csv,.json"
           label=""
