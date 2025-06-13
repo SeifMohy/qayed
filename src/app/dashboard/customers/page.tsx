@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import { useUploadedSources } from '@/hooks/useUploadedSources'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
+import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 
 // Interface for customer data
@@ -19,6 +20,7 @@ interface Customer {
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
+  country?: string | null;
 }
 
 export default function CustomersPage() {
@@ -31,6 +33,11 @@ export default function CustomersPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  
+  // Edit dialog states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch customers data
   const fetchCustomers = async () => {
@@ -224,6 +231,54 @@ export default function CustomersPage() {
     return `$${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
   };
 
+  // Handle edit customer
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle save customer
+  const handleSaveCustomer = async (data: { name: string; country?: string }) => {
+    if (!selectedCustomer) {
+      return { success: false, message: 'No customer selected' };
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/customers/${selectedCustomer.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Refresh customers data
+        await fetchCustomers();
+        return {
+          success: true,
+          message: result.message,
+          reconciledInvoices: result.reconciledInvoices
+        };
+      } else {
+        return {
+          success: false,
+          message: result.error || 'Failed to update customer'
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to update customer'
+      };
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   // Overview metrics card rendering
   const renderOverviewMetrics = () => {
     // Always show metrics with actual data or zero values
@@ -334,7 +389,7 @@ export default function CustomersPage() {
                 Status
               </th>
               <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                <span className="sr-only">View</span>
+                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
@@ -363,12 +418,22 @@ export default function CustomersPage() {
                   </span>
                 </td>
                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                  <Link
-                    href={`/dashboard/customers/${customer.id}`}
-                    className="text-[#595CFF] hover:text-[#484adb]"
-                  >
-                    View<span className="sr-only">, {customer.name}</span>
-                  </Link>
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      onClick={() => handleEditCustomer(customer)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                      title="Edit customer"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      <span className="sr-only">Edit {customer.name}</span>
+                    </button>
+                    <Link
+                      href={`/dashboard/customers/${customer.id}`}
+                      className="text-[#595CFF] hover:text-[#484adb]"
+                    >
+                      View<span className="sr-only">, {customer.name}</span>
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -416,6 +481,20 @@ export default function CustomersPage() {
         isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
         renderSourceContent={renderSourceContent}
       />
+
+      {selectedCustomer && (
+        <EditEntityDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setSelectedCustomer(null);
+          }}
+          entityType="customer"
+          entity={selectedCustomer}
+          onSave={handleSaveCustomer}
+          isLoading={isUpdating}
+        />
+      )}
     </div>
   )
 } 

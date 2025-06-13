@@ -256,6 +256,19 @@ export async function PUT(
       );
     }
 
+    // Check if supplier exists
+    const existingSupplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+      include: { Invoice: true }
+    });
+
+    if (!existingSupplier) {
+      return NextResponse.json(
+        { error: 'Supplier not found' },
+        { status: 404 }
+      );
+    }
+
     // Handle both old paymentTerms and new paymentTermsData
     const updateData: any = {};
 
@@ -267,6 +280,64 @@ export async function PUT(
       }
     }
 
+    // Handle name changes with reconciliation
+    if ('name' in body && body.name !== existingSupplier.name) {
+      const newName = body.name.trim();
+      
+      // Check if another supplier with this name already exists
+      const duplicateSupplier = await prisma.supplier.findFirst({
+        where: {
+          name: newName,
+          id: { not: supplierId } // Exclude the current supplier
+        },
+        include: { Invoice: true }
+      });
+
+      if (duplicateSupplier) {
+        console.log(`🔄 Found duplicate supplier with name "${newName}". Reconciling...`);
+        
+        // Use a transaction to ensure data consistency
+        await prisma.$transaction(async (tx) => {
+          // Move all invoices from the duplicate supplier to the current supplier
+          await tx.invoice.updateMany({
+            where: { supplierId: duplicateSupplier.id },
+            data: { supplierId: supplierId }
+          });
+
+          // Delete the duplicate supplier
+          await tx.supplier.delete({
+            where: { id: duplicateSupplier.id }
+          });
+
+          // Update the current supplier's name and other fields
+          await tx.supplier.update({
+            where: { id: supplierId },
+            data: { 
+              name: newName,
+              ...updateData,
+              updatedAt: new Date()
+            }
+          });
+        });
+
+        console.log(`✅ Successfully reconciled supplier "${newName}" by merging ${duplicateSupplier.Invoice.length} invoices`);
+
+        return NextResponse.json({
+          success: true,
+          message: `Supplier updated and reconciled with existing duplicate. Merged ${duplicateSupplier.Invoice.length} invoices.`,
+          reconciledInvoices: duplicateSupplier.Invoice.length
+        });
+      } else {
+        // No duplicate found, just update the name
+        updateData.name = newName;
+      }
+    }
+
+    // Handle other field updates
+    if ('country' in body) {
+      updateData.country = body.country;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: 'No valid fields to update' },
@@ -274,12 +345,18 @@ export async function PUT(
       );
     }
 
+    updateData.updatedAt = new Date();
+
     const updatedSupplier = await prisma.supplier.update({
       where: { id: supplierId },
       data: updateData
     });
 
-    return NextResponse.json(updatedSupplier);
+    return NextResponse.json({
+      success: true,
+      message: 'Supplier updated successfully',
+      supplier: updatedSupplier
+    });
   } catch (error: any) {
     console.error('Error updating supplier:', error.message);
     return NextResponse.json(

@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, ClockIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, ClockIcon, BuildingOfficeIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import { useUploadedSources } from '@/hooks/useUploadedSources'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import UploadModal from '@/components/upload/upload-modal'
+import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 
 // Interface for supplier data
@@ -19,6 +20,7 @@ interface Supplier {
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
+  country?: string | null;
 }
 
 export default function SuppliersPage() {
@@ -31,6 +33,11 @@ export default function SuppliersPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [totalPayables, setTotalPayables] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Edit dialog states
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch suppliers data
   const fetchSuppliers = async () => {
@@ -322,7 +329,7 @@ export default function SuppliersPage() {
                 Status
               </th>
               <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                <span className="sr-only">View</span>
+                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
@@ -351,12 +358,22 @@ export default function SuppliersPage() {
                   </span>
                 </td>
                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                  <Link
-                    href={`/dashboard/suppliers/${supplier.id}`}
-                    className="text-[#595CFF] hover:text-[#484adb]"
-                  >
-                    View<span className="sr-only">, {supplier.name}</span>
-                  </Link>
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      onClick={() => handleEditSupplier(supplier)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                      title="Edit supplier"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                      <span className="sr-only">Edit {supplier.name}</span>
+                    </button>
+                    <Link
+                      href={`/dashboard/suppliers/${supplier.id}`}
+                      className="text-[#595CFF] hover:text-[#484adb]"
+                    >
+                      View<span className="sr-only">, {supplier.name}</span>
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -364,6 +381,54 @@ export default function SuppliersPage() {
         </table>
       </div>
     );
+  };
+
+  // Handle edit supplier
+  const handleEditSupplier = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setIsEditDialogOpen(true);
+  };
+
+  // Handle save supplier
+  const handleSaveSupplier = async (data: { name: string; country?: string }) => {
+    if (!selectedSupplier) {
+      return { success: false, message: 'No supplier selected' };
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/suppliers/${selectedSupplier.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Refresh suppliers data
+        await fetchSuppliers();
+        return {
+          success: true,
+          message: result.message,
+          reconciledInvoices: result.reconciledInvoices
+        };
+      } else {
+        return {
+          success: false,
+          message: result.error || 'Failed to update supplier'
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'Failed to update supplier'
+      };
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -404,6 +469,20 @@ export default function SuppliersPage() {
         isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
         renderSourceContent={renderSourceContent}
       />
+
+      {selectedSupplier && (
+        <EditEntityDialog
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setSelectedSupplier(null);
+          }}
+          entityType="supplier"
+          entity={selectedSupplier}
+          onSave={handleSaveSupplier}
+          isLoading={isUpdating}
+        />
+      )}
     </div>
   );
 } 

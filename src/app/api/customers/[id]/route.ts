@@ -242,6 +242,19 @@ export async function PUT(
             );
         }
 
+        // Check if customer exists
+        const existingCustomer = await prisma.customer.findUnique({
+            where: { id: customerId },
+            include: { Invoice: true }
+        });
+
+        if (!existingCustomer) {
+            return NextResponse.json(
+                { error: 'Customer not found' },
+                { status: 404 }
+            );
+        }
+
         // Handle both old paymentTerms and new paymentTermsData
         const updateData: any = {};
 
@@ -253,6 +266,64 @@ export async function PUT(
             }
         }
 
+        // Handle name changes with reconciliation
+        if ('name' in body && body.name !== existingCustomer.name) {
+            const newName = body.name.trim();
+            
+            // Check if another customer with this name already exists
+            const duplicateCustomer = await prisma.customer.findFirst({
+                where: {
+                    name: newName,
+                    id: { not: customerId } // Exclude the current customer
+                },
+                include: { Invoice: true }
+            });
+
+            if (duplicateCustomer) {
+                console.log(`🔄 Found duplicate customer with name "${newName}". Reconciling...`);
+                
+                // Use a transaction to ensure data consistency
+                await prisma.$transaction(async (tx) => {
+                    // Move all invoices from the duplicate customer to the current customer
+                    await tx.invoice.updateMany({
+                        where: { customerId: duplicateCustomer.id },
+                        data: { customerId: customerId }
+                    });
+
+                    // Delete the duplicate customer
+                    await tx.customer.delete({
+                        where: { id: duplicateCustomer.id }
+                    });
+
+                    // Update the current customer's name and other fields
+                    await tx.customer.update({
+                        where: { id: customerId },
+                        data: { 
+                            name: newName,
+                            ...updateData,
+                            updatedAt: new Date()
+                        }
+                    });
+                });
+
+                console.log(`✅ Successfully reconciled customer "${newName}" by merging ${duplicateCustomer.Invoice.length} invoices`);
+
+                return NextResponse.json({
+                    success: true,
+                    message: `Customer updated and reconciled with existing duplicate. Merged ${duplicateCustomer.Invoice.length} invoices.`,
+                    reconciledInvoices: duplicateCustomer.Invoice.length
+                });
+            } else {
+                // No duplicate found, just update the name
+                updateData.name = newName;
+            }
+        }
+
+        // Handle other field updates
+        if ('country' in body) {
+            updateData.country = body.country;
+        }
+
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json(
                 { error: 'No valid fields to update' },
@@ -260,12 +331,18 @@ export async function PUT(
             );
         }
 
+        updateData.updatedAt = new Date();
+
         const updatedCustomer = await prisma.customer.update({
             where: { id: customerId },
             data: updateData
         });
 
-        return NextResponse.json(updatedCustomer);
+        return NextResponse.json({
+            success: true,
+            message: 'Customer updated successfully',
+            customer: updatedCustomer
+        });
     } catch (error: any) {
         console.error('Error updating customer:', error.message);
         return NextResponse.json(
