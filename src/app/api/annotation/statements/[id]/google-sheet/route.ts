@@ -263,7 +263,8 @@ export async function PUT(
         debitAmount: row.debitAmount || null,
         balance: row.balance || null,
         pageNumber: row.pageNumber || null,
-        entityName: row.entityName || null
+        entityName: row.entityName || null,
+        currency: statement.accountCurrency || null // Inherit currency from bank statement
       }));
 
     if (transactionsToCreate.length > 0) {

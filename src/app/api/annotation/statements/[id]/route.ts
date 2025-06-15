@@ -251,6 +251,15 @@ export async function PUT(
           }
         });
 
+        // If accountCurrency was updated, cascade the change to all transactions
+        if (accountCurrency !== undefined && accountCurrency !== existingStatement.accountCurrency) {
+          const updatedTransactions = await tx.transaction.updateMany({
+            where: { bankStatementId: id },
+            data: { currency: accountCurrency }
+          });
+          console.log(`🔄 Updated currency for ${updatedTransactions.count} transactions to ${accountCurrency}`);
+        }
+
         return {
           statement: updatedStatement,
           updatedStatementsCount: updatedStatements.count
@@ -274,54 +283,67 @@ export async function PUT(
       });
     }
 
-    // Handle regular updates (no bank name change)
-    const updateData: any = {};
-    
-    if (accountNumber !== undefined) updateData.accountNumber = accountNumber;
-    if (statementPeriodStart !== undefined) updateData.statementPeriodStart = new Date(statementPeriodStart);
-    if (statementPeriodEnd !== undefined) updateData.statementPeriodEnd = new Date(statementPeriodEnd);
-    if (accountType !== undefined) updateData.accountType = accountType;
-    if (accountCurrency !== undefined) updateData.accountCurrency = accountCurrency;
-    if (startingBalance !== undefined) updateData.startingBalance = new Decimal(startingBalance);
-    if (endingBalance !== undefined) updateData.endingBalance = new Decimal(endingBalance);
-    if (validationStatus !== undefined) updateData.validationStatus = validationStatus;
-    if (validationNotes !== undefined) updateData.validationNotes = validationNotes;
-    if (tenor !== undefined) updateData.tenor = tenor;
-    if (availableLimit !== undefined) updateData.availableLimit = availableLimit ? new Decimal(availableLimit) : null;
-    if (interestRate !== undefined) updateData.interestRate = interestRate;
-    if (validated !== undefined) {
-      updateData.validated = validated;
-      if (validated) {
-        updateData.validatedAt = new Date();
-        if (validatedBy) updateData.validatedBy = validatedBy;
+    // Handle regular updates (no bank name change) using transaction for currency cascading
+    const result = await prisma.$transaction(async (tx) => {
+      const updateData: any = {};
+      
+      if (accountNumber !== undefined) updateData.accountNumber = accountNumber;
+      if (statementPeriodStart !== undefined) updateData.statementPeriodStart = new Date(statementPeriodStart);
+      if (statementPeriodEnd !== undefined) updateData.statementPeriodEnd = new Date(statementPeriodEnd);
+      if (accountType !== undefined) updateData.accountType = accountType;
+      if (accountCurrency !== undefined) updateData.accountCurrency = accountCurrency;
+      if (startingBalance !== undefined) updateData.startingBalance = new Decimal(startingBalance);
+      if (endingBalance !== undefined) updateData.endingBalance = new Decimal(endingBalance);
+      if (validationStatus !== undefined) updateData.validationStatus = validationStatus;
+      if (validationNotes !== undefined) updateData.validationNotes = validationNotes;
+      if (tenor !== undefined) updateData.tenor = tenor;
+      if (availableLimit !== undefined) updateData.availableLimit = availableLimit ? new Decimal(availableLimit) : null;
+      if (interestRate !== undefined) updateData.interestRate = interestRate;
+      if (validated !== undefined) {
+        updateData.validated = validated;
+        if (validated) {
+          updateData.validatedAt = new Date();
+          if (validatedBy) updateData.validatedBy = validatedBy;
+        }
       }
-    }
 
-    // Update statement
-    const updatedStatement = await prisma.bankStatement.update({
-      where: { id },
-      data: updateData,
-      include: {
-        bank: true,
-        transactions: {
-          orderBy: {
-            id: 'asc'
-          }
-        },
+      // Update statement
+      const updatedStatement = await tx.bankStatement.update({
+        where: { id },
+        data: updateData,
+        include: {
+          bank: true,
+          transactions: {
+            orderBy: {
+              id: 'asc'
+            }
+          },
+        }
+      });
+
+      // If accountCurrency was updated, cascade the change to all transactions
+      if (accountCurrency !== undefined && accountCurrency !== existingStatement.accountCurrency) {
+        const updatedTransactions = await tx.transaction.updateMany({
+          where: { bankStatementId: id },
+          data: { currency: accountCurrency }
+        });
+        console.log(`🔄 Updated currency for ${updatedTransactions.count} transactions to ${accountCurrency}`);
       }
+
+      return updatedStatement;
     });
 
     // Update facility projections if this is a facility account and facility fields were updated
     if (isFacilityFieldsUpdate) {
-      const updatedEndingBalance = parseFloat(updatedStatement.endingBalance.toString());
-      if (isFacilityAccount(updatedStatement.accountType, updatedEndingBalance)) {
+      const updatedEndingBalance = parseFloat(result.endingBalance.toString());
+      if (isFacilityAccount(result.accountType, updatedEndingBalance)) {
         console.log(`Facility ${id} updated - projections will be refreshed when centralized service is next run`);
       }
     }
 
     return NextResponse.json({
       success: true,
-      data: convertDecimalsToNumbers(updatedStatement)
+      data: convertDecimalsToNumbers(result)
     });
 
   } catch (error: any) {
@@ -353,7 +375,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: false,
-      error: error.message || 'Failed to update statement'
+      error: error.message || 'An unexpected error occurred while updating statement'
     }, { status: 500 });
   }
 } 
