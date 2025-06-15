@@ -7,12 +7,14 @@ import { TruckIcon, ClockIcon, CurrencyDollarIcon, DocumentTextIcon, BanknotesIc
 import { clsx } from 'clsx'
 import PaymentTermsEditor from '@/components/shared/PaymentTermsEditor'
 import type { PaymentTermsData } from '@/types/paymentTerms'
+import { formatCurrency } from '@/lib/format'
 
 interface InvoiceWithMatches {
   id: number;
   invoiceNumber: string;
   invoiceDate: string;
   total: number;
+  currency: string;
   invoiceStatus: string;
   dueDate: string;
   paidAmount: number;
@@ -38,13 +40,13 @@ interface SupplierDetail {
   phone: string;
   industry: string;
   relationshipSince: string;
-  purchasesPastYear: string;
+  purchasesPastYear: number;
   paymentTerms: number;
   paymentTermsData: PaymentTermsData | null;
   paymentStatus: string;
   supplierRating: string;
-  dueNext30Days: string;
-  averageInvoiceAmount: string;
+  dueNext30Days: number;
+  averageInvoiceAmount: number;
   country: string;
   totalPayables: number;
   averagePaymentTime: number | null;
@@ -196,7 +198,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Due Next 30 Days</h3>
-            <p className="text-2xl font-bold text-gray-900">{supplier.dueNext30Days || '$0.00'}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(supplier.dueNext30Days || 0)}</p>
             <p className="mt-1 text-sm text-gray-500">Upcoming payments</p>
           </div>
           
@@ -213,7 +215,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Total Outstanding</h3>
             <p className="text-2xl font-bold text-gray-900">
-              ${supplier.totalPayables.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+              {formatCurrency(supplier.totalPayables)}
             </p>
             <p className="mt-1 text-sm text-gray-500">Amount owed</p>
           </div>
@@ -240,13 +242,13 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.total, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                    ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.paidAmount, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                    ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.remainingAmount, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={clsx(
@@ -309,13 +311,13 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.total, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                      ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.paidAmount, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                      ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.remainingAmount, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={clsx(
@@ -361,7 +363,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                       {new Date(transaction.transactionDate).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${transaction.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(transaction.amount)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {transaction.description || 'N/A'}

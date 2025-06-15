@@ -17,6 +17,7 @@ interface InvoiceWithMatches {
   invoiceNumber: string;
   invoiceDate: string;
   total: number;
+  currency: string;
   invoiceStatus: string;
   dueDate: string;
   paidAmount: number;
@@ -121,6 +122,7 @@ export async function GET(
                 invoiceNumber: invoice.invoiceNumber,
                 invoiceDate: invoice.invoiceDate.toISOString().split('T')[0],
                 total: Number(invoice.total),
+                currency: invoice.currency,
                 invoiceStatus: invoice.invoiceStatus,
                 dueDate: new Date(invoice.invoiceDate.getTime() + paymentDays * 24 * 60 * 60 * 1000)
                     .toISOString()
@@ -197,7 +199,7 @@ export async function GET(
                 month: 'short',
                 year: 'numeric'
             }),
-            salesPastYear: `$${customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
+            salesPastYear: customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0),
             paymentTerms: legacyPaymentTerms,
             paymentTermsData: (customer as any).paymentTermsData as PaymentTermsData | null,
             paymentStatus: onTimePaymentPercentage !== null 
@@ -206,7 +208,7 @@ export async function GET(
                   : onTimePaymentPercentage >= 50 ? 'Fair' : 'Poor'
                 : 'No Data',
             creditScore: 'N/A',
-            averageInvoiceAmount: `$${(customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0) / Math.max(1, customer.Invoice.length)).toLocaleString('en-US', { maximumFractionDigits: 2 })}`,
+            averageInvoiceAmount: customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0) / Math.max(1, customer.Invoice.length),
             country: customer.country || 'N/A',
             totalReceivables,
             averagePaymentTime,

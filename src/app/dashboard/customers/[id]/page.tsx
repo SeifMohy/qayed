@@ -7,12 +7,14 @@ import { UserGroupIcon, ClockIcon, CurrencyDollarIcon, DocumentTextIcon, Banknot
 import { clsx } from 'clsx'
 import PaymentTermsEditor from '@/components/shared/PaymentTermsEditor'
 import type { PaymentTermsData } from '@/types/paymentTerms'
+import { formatCurrency } from '@/lib/format'
 
 interface InvoiceWithMatches {
   id: number;
   invoiceNumber: string;
   invoiceDate: string;
   total: number;
+  currency: string;
   invoiceStatus: string;
   dueDate: string;
   paidAmount: number;
@@ -38,7 +40,7 @@ interface CustomerDetail {
   phone: string;
   industry: string;
   relationshipSince: string;
-  salesPastYear: string;
+  salesPastYear: number;
   paymentTerms: number;
   paymentTermsData: PaymentTermsData | null;
   paymentStatus: string;
@@ -51,7 +53,7 @@ interface CustomerDetail {
   invoices: InvoiceWithMatches[];
   matchedTransactions: MatchedTransaction[];
   notes: string;
-  averageInvoiceAmount: string;
+  averageInvoiceAmount: number;
 }
 
 export default function CustomerProfile({ params }: { params: { id: string } }) {
@@ -200,7 +202,7 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Due Next 30 Days</h3>
             <p className="text-2xl font-bold text-gray-900">
-              ${dueNext30Days.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+              {formatCurrency(dueNext30Days)}
             </p>
             <p className="mt-1 text-sm text-gray-500">Expected payments</p>
           </div>
@@ -218,7 +220,7 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Total Receivables</h3>
             <p className="text-2xl font-bold text-gray-900">
-              ${customer.totalReceivables.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+              {formatCurrency(customer.totalReceivables)}
             </p>
             <p className="mt-1 text-sm text-gray-500">Outstanding amount</p>
           </div>
@@ -245,13 +247,13 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.total, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                    ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.paidAmount, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                    ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                    {formatCurrency(invoice.remainingAmount, invoice.currency)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <span className={clsx(
@@ -314,13 +316,13 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{invoice.invoiceNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${invoice.total.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.total, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                      ${invoice.paidAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.paidAmount, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                      ${invoice.remainingAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(invoice.remainingAmount, invoice.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={clsx(
@@ -366,7 +368,7 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
                       {new Date(transaction.transactionDate).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ${transaction.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      {formatCurrency(transaction.amount)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {transaction.description || 'N/A'}

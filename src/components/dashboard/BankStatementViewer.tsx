@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/lib/format';
 
 type Transaction = {
   date: string;
@@ -367,7 +368,7 @@ export default function BankStatementViewer() {
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Account Currency</p>
-                            <p className="font-medium">{currentAccount.account_currency || 'Not available'}</p>
+                            <p className="font-medium">{currentAccount.account_currency || 'N/A'}</p>
                           </div>
                           <div>
                             <p className="text-sm text-gray-500">Statement Period</p>
@@ -378,8 +379,8 @@ export default function BankStatementViewer() {
                           <div>
                             <p className="text-sm text-gray-500">Balance</p>
                             <p className="font-medium">
-                              Starting: ${currentAccount.starting_balance || '0.00'} |
-                              Ending: ${currentAccount.ending_balance || '0.00'}
+                              Starting: {formatCurrency(parseFloat(currentAccount.starting_balance || '0'), currentAccount.account_currency || 'USD')} |
+                              Ending: {formatCurrency(parseFloat(currentAccount.ending_balance || '0'), currentAccount.account_currency || 'USD')}
                             </p>
                           </div>
                         </div>
@@ -432,10 +433,10 @@ export default function BankStatementViewer() {
                                       {transaction.entity_name || 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
-                                      {transaction.debit_amount ? `$${transaction.debit_amount}` : ''}
+                                      {transaction.debit_amount ? formatCurrency(parseFloat(transaction.debit_amount), currentAccount.account_currency || 'USD') : ''}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">
-                                      {transaction.credit_amount ? `$${transaction.credit_amount}` : ''}
+                                      {transaction.credit_amount ? formatCurrency(parseFloat(transaction.credit_amount), currentAccount.account_currency || 'USD') : ''}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-700">
                                       {transaction.balance || 'N/A'}
