@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon, CreditCardIcon, ChartBarIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import { isFacilityAccount, getFacilityDisplayType, isRegularAccount } from '@/utils/bankStatementUtils'
+import { useSearchParams } from 'next/navigation'
 
 // Define types based on Prisma schema
 type Transaction = {
@@ -82,6 +83,7 @@ type EditFacilityData = {
 }
 
 export default function BankProfile({ params }: { params: { id: string } }) {
+    const searchParams = useSearchParams()
     const [bank, setBank] = useState<Bank | null>(null)
     const [activeTab, setActiveTab] = useState('overview')
     const [isLoading, setIsLoading] = useState(true)
@@ -95,6 +97,14 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         interestRate: ''
     })
     const [isSaving, setIsSaving] = useState(false)
+
+    // Set initial tab based on URL parameter
+    useEffect(() => {
+        const tab = searchParams.get('tab')
+        if (tab && ['overview', 'accounts', 'facilities', 'transactions'].includes(tab)) {
+            setActiveTab(tab)
+        }
+    }, [searchParams])
 
     // Load bank data
     useEffect(() => {

@@ -23,12 +23,24 @@ type Bank = {
 type CreditFacility = {
   id: number;
   name: string;
+  bankId?: number;
   facilityType: string;
   limit: string;
   used: string;
   available: string;
   interestRate: string;
   tenor: string;
+}
+
+// New type for grouped credit facilities
+type GroupedCreditFacility = {
+  bankName: string;
+  bankId: number;
+  totalLimit: number;
+  totalUsed: number;
+  totalAvailable: number;
+  facilityCount: number;
+  facilities: CreditFacility[];
 }
 
 type Transaction = {
@@ -138,19 +150,20 @@ const defaultRecentTransactions: Transaction[] = [
 
 export default function BanksPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
-  const [isUploading, setIsUploading] = useState<string | null>(null);
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
-  const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
-  
-  // State for bank data
-  const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
-  const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>([]);
+
+  const [bankAccounts, setBankAccounts] = useState<Bank[]>(defaultBankAccounts);
+  const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>(defaultCreditFacilities);
+  const [groupedCreditFacilities, setGroupedCreditFacilities] = useState<GroupedCreditFacility[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [totalCash, setTotalCash] = useState<number>(0);
   const [totalObligations, setTotalObligations] = useState<number>(0);
   const [totalCreditAvailable, setTotalCreditAvailable] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [sourceFiles, setSourceFiles] = useState<{ [key: string]: File[] }>({});
+  const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [focusedComponent, setFocusedComponent] = useState<string | null>(null);
+  const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
   
   // Fetch bank statements from API
   useEffect(() => {
@@ -169,6 +182,7 @@ export default function BanksPage() {
           // If no data is available, use default data
           setBankAccounts(defaultBankAccounts);
           setCreditFacilities(defaultCreditFacilities);
+          setGroupedCreditFacilities(groupCreditFacilities(defaultCreditFacilities));
           setRecentTransactions(defaultRecentTransactions);
         }
       } catch (error) {
@@ -176,6 +190,7 @@ export default function BanksPage() {
         // Use default data on error
         setBankAccounts(defaultBankAccounts);
         setCreditFacilities(defaultCreditFacilities);
+        setGroupedCreditFacilities(groupCreditFacilities(defaultCreditFacilities));
         setRecentTransactions(defaultRecentTransactions);
       } finally {
         setIsLoading(false);
@@ -185,6 +200,48 @@ export default function BanksPage() {
     fetchBankData();
     console.log(recentTransactions,'recentTransactions');
   }, []);
+  
+  // Helper function to group credit facilities by bank name
+  const groupCreditFacilities = (facilities: CreditFacility[]): GroupedCreditFacility[] => {
+    const facilitiesGroupedByBank = facilities.reduce((groups: { [key: string]: CreditFacility[] }, facility) => {
+      const bankName = facility.name;
+      if (!groups[bankName]) {
+        groups[bankName] = [];
+      }
+      groups[bankName].push(facility);
+      return groups;
+    }, {});
+    
+    return Object.entries(facilitiesGroupedByBank).map(([bankName, bankFacilities]) => {
+      // Use the bankId from the first facility in the group (they should all have the same bankId)
+      const bankId = bankFacilities[0]?.bankId || 1; // Fallback to 1 if not found
+      
+      const totalLimit = bankFacilities.reduce((sum, facility) => {
+        const limitValue = facility.limit === 'N/A' ? 0 : parseFloat(facility.limit.replace(/[$,]/g, ''));
+        return sum + (isNaN(limitValue) ? 0 : limitValue);
+      }, 0);
+      
+      const totalUsed = bankFacilities.reduce((sum, facility) => {
+        const usedValue = parseFloat(facility.used.replace(/[$,]/g, ''));
+        return sum + (isNaN(usedValue) ? 0 : usedValue);
+      }, 0);
+      
+      const totalAvailable = bankFacilities.reduce((sum, facility) => {
+        const availableValue = facility.available === 'N/A' ? 0 : parseFloat(facility.available.replace(/[$,]/g, ''));
+        return sum + (isNaN(availableValue) ? 0 : availableValue);
+      }, 0);
+      
+      return {
+        bankName,
+        bankId,
+        totalLimit,
+        totalUsed,
+        totalAvailable,
+        facilityCount: bankFacilities.length,
+        facilities: bankFacilities
+      };
+    });
+  };
   
   // Process banks data from the new API
   const processBanksData = (banks: any[]) => {
@@ -281,9 +338,15 @@ export default function BanksPage() {
       const facilityBalance = Math.abs(parseFloat(statement.endingBalance?.toString() || '0'));
       const availableLimit = statement.availableLimit ? parseFloat(statement.availableLimit?.toString() || '0') : 0;
       
+      // Find the bank that contains this statement to get the correct bank ID
+      const parentBank = banks.find(bank => 
+        bank.bankStatements.some((bs: any) => bs.id === statement.id)
+      );
+      
       return {
         id: statement.id,
         name: statement.bankName,
+        bankId: parentBank ? parentBank.id : 1, // Store the actual bank ID
         facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance?.toString() || '0')),
         limit: availableLimit > 0 ? formatCurrency(availableLimit) : 'N/A',
         used: formatCurrency(facilityBalance),
@@ -296,6 +359,9 @@ export default function BanksPage() {
     });
     
     setCreditFacilities(processedFacilities);
+    
+    // Group credit facilities by bank name using the helper function
+    setGroupedCreditFacilities(groupCreditFacilities(processedFacilities));
     
     // Process recent transactions
     // Sort by date descending and take top 5
@@ -569,8 +635,9 @@ export default function BanksPage() {
 
   const areAllSourcesUploaded = PAGE_DATA_SOURCES.banks.every(source => isDataSourceUploaded(source.id));
   
-  const isBankAccountsVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
-  const isCreditFacilitiesVisible = !isLoading && (creditFacilities.length > 0 || isDataSourceUploaded('bankPosition'));
+  // Determine what data sections to show based on data availability
+  const isBanksVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
+  const isCreditFacilitiesVisible = !isLoading && (groupedCreditFacilities.length > 0 || isDataSourceUploaded('bankPosition'));
   const isTransactionsVisible = !isLoading && (recentTransactions.length > 0 || isDataSourceUploaded('bankStatements'));
   
   return (
@@ -621,7 +688,7 @@ export default function BanksPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          ) : !isBankAccountsVisible && (
+          ) : !isBanksVisible && (
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
@@ -719,7 +786,7 @@ export default function BanksPage() {
             <p className="mt-4 text-gray-600">Loading bank accounts...</p>
           </div>
         </div>
-      ) : !isBankAccountsVisible ? (
+      ) : !isBanksVisible ? (
         <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
           <div className="p-12 text-center bg-white">
             <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -819,37 +886,48 @@ export default function BanksPage() {
                   Bank Name
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Facility Type
+                  Total Limit
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Limit
+                  Total Used
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Used
+                  Total Available
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Available
+                  Facilities Count
                 </th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Interest Rate
-                </th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Tenor
+                <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                  <span className="sr-only">View Details</span>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
-              {creditFacilities.map((facility) => (
-                <tr key={facility.id}>
+              {groupedCreditFacilities.map((group, index) => (
+                <tr key={index}>
                   <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                    {facility.name}
+                    {group.bankName}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.facilityType}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.limit}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.used}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.available}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.interestRate}</td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{facility.tenor}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
+                    {group.totalLimit > 0 ? formatCurrency(group.totalLimit) : 'N/A'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
+                    {formatCurrency(group.totalUsed)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
+                    {group.totalAvailable > 0 ? formatCurrency(group.totalAvailable) : 'N/A'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                    {group.facilityCount} {group.facilityCount === 1 ? 'facility' : 'facilities'}
+                  </td>
+                  <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                    <Link 
+                      href={`/dashboard/banks/${group.bankId}?tab=facilities`}
+                      className="text-[#595CFF] hover:text-[#484adb]"
+                    >
+                      View<span className="sr-only">, {group.bankName}</span>
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -925,4 +1003,4 @@ export default function BanksPage() {
       )}
     </div>
   )
-} 
+}
