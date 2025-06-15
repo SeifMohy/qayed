@@ -226,6 +226,48 @@ model RecurringPayment {
   @@index([type, isActive])
 }
 
+// Currency Management Models
+model Currency {
+  id                    Int                  @id @default(autoincrement())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  code                  String               @unique // ISO 4217 currency codes (USD, EUR, GBP, CNY, EGP)
+  name                  String               // Full name (US Dollar, Euro, etc.)
+  symbol                String               // Currency symbol ($, €, £, ¥, £E)
+  isActive              Boolean              @default(true)
+  isBaseCurrency        Boolean              @default(false) // EGP will be the base currency
+  decimalPlaces         Int                  @default(2) // Number of decimal places for this currency
+  
+  // Relationships
+  baseCurrencyRates     CurrencyRate[]       @relation("BaseCurrency")
+  targetCurrencyRates   CurrencyRate[]       @relation("TargetCurrency")
+  
+  @@index([code, isActive])
+  @@index([isBaseCurrency])
+}
+
+model CurrencyRate {
+  id                    Int                  @id @default(autoincrement())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  baseCurrencyId        Int                  // Currency to convert from (usually EGP)
+  targetCurrencyId      Int                  // Currency to convert to
+  rate                  Decimal              // Exchange rate (how much of target currency = 1 base currency)
+  inverseRate           Decimal              // Inverse rate for quick conversion (how much of base currency = 1 target currency)
+  effectiveDate         DateTime             // When this rate becomes effective
+  expiryDate            DateTime?            // When this rate expires (optional)
+  source                String?              // Source of the exchange rate (e.g., "Central Bank", "API", "Manual")
+  isActive              Boolean              @default(true)
+  
+  // Relationships
+  baseCurrency          Currency             @relation("BaseCurrency", fields: [baseCurrencyId], references: [id])
+  targetCurrency        Currency             @relation("TargetCurrency", fields: [targetCurrencyId], references: [id])
+  
+  @@unique([baseCurrencyId, targetCurrencyId, effectiveDate])
+  @@index([baseCurrencyId, targetCurrencyId, isActive])
+  @@index([effectiveDate, isActive])
+}
+
 // Phase 1: Enums
 enum CashflowType {
   CUSTOMER_RECEIVABLE
