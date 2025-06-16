@@ -47,123 +47,12 @@ type GroupedCreditFacility = {
   currency: string;
 }
 
-type Transaction = {
-  id: number;
-  bank: string;
-  date: string;
-  description: string;
-  amount: string;
-  type: 'credit' | 'debit';
-  currency: string;
-}
-
-const defaultBankAccounts: Bank[] = [
-  {
-    id: 1,
-    name: 'First National Bank',
-    cashBalance: '$758,492.32',
-    bankPayments: '$42,000.00',
-    lastUpdate: 'Today at 9:41 AM',
-    currency: 'USD',
-  },
-  {
-    id: 2,
-    name: 'Central Finance',
-    cashBalance: '$245,872.12',
-    bankPayments: '$18,750.00',
-    lastUpdate: 'Today at 9:41 AM',
-    currency: 'USD',
-  },
-  {
-    id: 3,
-    name: 'International Banking',
-    cashBalance: '$419,617.65',
-    bankPayments: '$0.00',
-    lastUpdate: 'Today at 9:41 AM',
-    currency: 'USD',
-  },
-]
-
-const defaultCreditFacilities: CreditFacility[] = [
-  {
-    id: 1,
-    name: 'First National Bank',
-    facilityType: 'Line of Credit',
-    limit: '$1,000,000.00',
-    used: '$350,000.00',
-    available: '$650,000.00',
-    interestRate: '5.25%',
-    tenor: '5 years',
-    currency: 'USD',
-  },
-  {
-    id: 2,
-    name: 'Central Finance',
-    facilityType: 'Term Loan',
-    limit: '$500,000.00',
-    used: '$500,000.00',
-    available: '$0.00',
-    interestRate: '4.75%',
-    tenor: '3 years',
-    currency: 'USD',
-  },
-]
-
-const defaultRecentTransactions: Transaction[] = [
-  {
-    id: 1,
-    bank: 'First National Bank',
-    date: 'Jul 5, 2023',
-    description: 'Payment from Enterprise Solutions',
-    amount: '$86,000.00',
-    type: 'credit',
-    currency: 'USD',
-  },
-  {
-    id: 2,
-    bank: 'First National Bank',
-    date: 'Jul 3, 2023',
-    description: 'Payment to Tech Innovations Ltd',
-    amount: '$42,000.00',
-    type: 'debit',
-    currency: 'USD',
-  },
-  {
-    id: 3,
-    bank: 'Central Finance',
-    date: 'Jul 1, 2023',
-    description: 'Quarterly Loan Payment',
-    amount: '$18,750.00',
-    type: 'debit',
-    currency: 'USD',
-  },
-  {
-    id: 4,
-    bank: 'International Banking',
-    date: 'Jun 28, 2023',
-    description: 'Payment from Retail Chain Corp (EUR)',
-    amount: '€32,450.00',
-    type: 'credit',
-    currency: 'EUR',
-  },
-  {
-    id: 5,
-    bank: 'First National Bank',
-    date: 'Jun 25, 2023',
-    description: 'Payment to Global Shipping Co.',
-    amount: '$18,500.00',
-    type: 'debit',
-    currency: 'USD',
-  },
-]
-
 export default function BanksPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
 
-  const [bankAccounts, setBankAccounts] = useState<Bank[]>(defaultBankAccounts);
-  const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>(defaultCreditFacilities);
+  const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
+  const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>([]);
   const [groupedCreditFacilities, setGroupedCreditFacilities] = useState<GroupedCreditFacility[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [totalCash, setTotalCash] = useState<number>(0);
   const [totalObligations, setTotalObligations] = useState<number>(0);
   const [totalCreditAvailable, setTotalCreditAvailable] = useState<number>(0);
@@ -184,30 +73,28 @@ export default function BanksPage() {
         const response = await fetch('/api/banks');
         const data = await response.json();
         
-        if (data.success && data.banks) {
+        if (data.success && data.banks && data.banks.length > 0) {
           // Process the banks data (now async)
           await processBanksData(data.banks);
         } else {
-          // If no data is available, use default data
-          setBankAccounts(defaultBankAccounts);
-          setCreditFacilities(defaultCreditFacilities);
-          setGroupedCreditFacilities(groupCreditFacilities(defaultCreditFacilities));
-          setRecentTransactions(defaultRecentTransactions);
+          // If no data is available, leave arrays empty
+          console.log('No bank data available from database');
+          setBankAccounts([]);
+          setCreditFacilities([]);
+          setGroupedCreditFacilities([]);
         }
       } catch (error) {
         console.error('Error fetching bank data:', error);
-        // Use default data on error
-        setBankAccounts(defaultBankAccounts);
-        setCreditFacilities(defaultCreditFacilities);
-        setGroupedCreditFacilities(groupCreditFacilities(defaultCreditFacilities));
-        setRecentTransactions(defaultRecentTransactions);
+        // On error, leave arrays empty instead of using defaults
+        setBankAccounts([]);
+        setCreditFacilities([]);
+        setGroupedCreditFacilities([]);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchBankData();
-    console.log(recentTransactions,'recentTransactions');
   }, []);
   
   // Helper function to format interest rate
@@ -298,7 +185,6 @@ export default function BanksPage() {
     let totalPositiveBalance = 0;
     let totalNegativeBalance = 0;
     let totalAvailableCredit = 0;
-    const allTransactions: any[] = [];
     const facilityBankStatements: any[] = [];
     
     // Process each bank
@@ -362,11 +248,14 @@ export default function BanksPage() {
           
           console.log(`  🏭 Facility: +${facilityAmountEGP} to bank facilities, total bank facilities: ${bankFacilityBalanceEGP}`);
           
-          // Add to facility bank statements
-          if (facilityAmountEGP !== 0) facilityBankStatements.push({
-            ...statement,
-            endingBalanceEGP: balanceInEGP
-          });
+          // Add to facility bank statements for later processing
+          if (facilityAmountEGP !== 0) {
+            facilityBankStatements.push({
+              ...statement,
+              endingBalanceEGP: balanceInEGP,
+              bankName: bank.name
+            });
+          }
           
           // Add available credit from facility available limit
           if (statement.availableLimit) {
@@ -413,18 +302,6 @@ export default function BanksPage() {
         if (statementEndDate > latestUpdate) {
           latestUpdate = statementEndDate;
         }
-        
-        // Collect transactions for this statement
-        if (statement.transactions && statement.transactions.length > 0) {
-          console.log(statement.transactions,'statement.transactions');
-          statement.transactions.forEach((transaction: any) => {
-            allTransactions.push({
-              ...transaction,
-              bankName: bank.name,
-              statementId: statement.id
-            });
-          });
-        }
       }
       
       console.log(`🏦 ${bank.name} FINAL: Cash=${formatEGP(totalCashBalanceEGP)}, Facilities=${formatEGP(bankFacilityBalanceEGP)}`);
@@ -438,25 +315,6 @@ export default function BanksPage() {
         lastUpdate: latestUpdate.toLocaleDateString(),
         currency: 'EGP'
       });
-    }
-    
-    console.log('All collected transactions:', allTransactions);
-    
-    // Debug: Verify total calculation by summing up displayed bank balances
-    const manualTotal = processedBanks.reduce((sum, bank) => {
-      const balance = parseFloat(bank.cashBalance.replace(/[^0-9.-]/g, ''));
-      console.log(`🏦 ${bank.name}: ${bank.cashBalance} (parsed: ${balance})`);
-      return sum + balance;
-    }, 0);
-    
-    console.log('🧮 Manual total from displayed balances:', formatEGP(manualTotal));
-    console.log('🏧 System calculated total:', formatEGP(totalPositiveBalance));
-    console.log('📊 Difference:', formatEGP(Math.abs(manualTotal - totalPositiveBalance)));
-    
-    if (Math.abs(manualTotal - totalPositiveBalance) > 0.01) {
-      console.warn('⚠️ MISMATCH: Manual calculation does not match system total!');
-    } else {
-      console.log('✅ VERIFIED: Manual calculation matches system total');
     }
     
     // Set total cash, obligations, and available credit
@@ -525,64 +383,6 @@ export default function BanksPage() {
     
     // Group credit facilities by bank name using the helper function
     setGroupedCreditFacilities(groupCreditFacilities(processedFacilities));
-    
-    // Process recent transactions (convert to EGP)
-    console.log(allTransactions,'allTransactions');
-    const sortedTransactions = allTransactions.sort((a, b) => 
-      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-    ).slice(0, 5);
-    
-    console.log('Sorted transactions:', sortedTransactions);
-    
-    const processedTransactions: Transaction[] = [];
-    for (const [index, transaction] of sortedTransactions.entries()) {
-      console.log('Processing transaction:', transaction);
-      
-      const isCredit = parseFloat(transaction.creditAmount || '0') > 0;
-      let amount = isCredit 
-        ? parseFloat(transaction.creditAmount || '0') 
-        : parseFloat(transaction.debitAmount || '0');
-      
-      // Convert transaction amount to EGP if needed
-      const transactionCurrency = transaction.currency || 'EGP';
-      if (transactionCurrency !== 'EGP' && amount !== 0) {
-        try {
-          const response = await fetch('/api/currency/convert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount: amount,
-              fromCurrency: transactionCurrency,
-              toCurrency: 'EGP'
-            }),
-          });
-          
-          const conversionData = await response.json();
-          if (conversionData.success) {
-            amount = conversionData.conversion.convertedAmount;
-          }
-        } catch (error) {
-          const defaultRate = transactionCurrency === 'USD' ? 50 : 1;
-          amount = amount * defaultRate;
-        }
-      }
-      
-      const processedTransaction = {
-        id: index,
-        bank: transaction.bankName,
-        date: new Date(transaction.transactionDate).toLocaleDateString(),
-        description: transaction.description || 'Unknown Transaction',
-        amount: formatEGP(amount),
-        type: (isCredit ? 'credit' : 'debit') as 'credit' | 'debit',
-        currency: 'EGP'
-      };
-      
-      console.log('Processed transaction:', processedTransaction);
-      processedTransactions.push(processedTransaction);
-    }
-    
-    console.log('Final processed transactions:', processedTransactions);
-    setRecentTransactions(processedTransactions);
   };
   
   // Format currency (updated to always use EGP)
@@ -791,7 +591,6 @@ export default function BanksPage() {
   // Determine what data sections to show based on data availability
   const isBanksVisible = !isLoading && (bankAccounts.length > 0 || isDataSourceUploaded('bankStatements'));
   const isCreditFacilitiesVisible = !isLoading && (groupedCreditFacilities.length > 0 || isDataSourceUploaded('bankPosition'));
-  const isTransactionsVisible = !isLoading && (recentTransactions.length > 0 || isDataSourceUploaded('bankStatements'));
   
   return (
     <div>
@@ -874,7 +673,7 @@ export default function BanksPage() {
             <div className="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
               <button
                 type="button"
-                onClick={() => openUploadModal('recentTransactions')}
+                onClick={() => openUploadModal('bankObligations')}
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
@@ -1080,73 +879,6 @@ export default function BanksPage() {
                     >
                       View<span className="sr-only">, {group.bankName}</span>
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Recent Transactions */}
-      <h2 className="mt-8 text-lg font-medium text-gray-900">Recent Transactions</h2>
-      {isLoading ? (
-        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-          <div className="p-12 text-center bg-white">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading transactions...</p>
-          </div>
-        </div>
-      ) : !isTransactionsVisible ? (
-        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-          <div className="p-12 text-center bg-white">
-            <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-semibold text-gray-900">No transaction data available</h3>
-            <p className="mt-1 text-sm text-gray-500">Upload Bank Statements to view recent transactions.</p>
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={() => openUploadModal('recentTransactions')}
-                className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
-              >
-                <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                Upload Bank Statements
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-          <table className="min-w-full divide-y divide-gray-300">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                  Date
-                </th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Bank
-                </th>
-                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                  Description
-                </th>
-                <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
-              {recentTransactions.map((transaction) => (
-                <tr key={transaction.id}>
-                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900 sm:pl-6">
-                    {transaction.date}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{transaction.bank}</td>
-                  <td className="px-3 py-4 text-sm text-gray-900">{transaction.description}</td>
-                  <td className={clsx(
-                    'whitespace-nowrap px-3 py-4 text-sm text-right font-medium',
-                    transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                  )}>
-                    {transaction.type === 'credit' ? '+' : '-'} {transaction.amount}
                   </td>
                 </tr>
               ))}
