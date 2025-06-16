@@ -11,6 +11,7 @@ import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { processBankStatements } from '@/components/upload/BankStatementUploader'
 import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatementUtils'
+import { formatCurrencyByCode, formatEGP } from '@/lib/format'
 
 type Bank = {
   id: number;
@@ -18,6 +19,7 @@ type Bank = {
   cashBalance: string;
   bankPayments: string;
   lastUpdate: string;
+  currency: string;
 }
 
 type CreditFacility = {
@@ -30,6 +32,7 @@ type CreditFacility = {
   available: string;
   interestRate: string;
   tenor: string;
+  currency: string;
 }
 
 // New type for grouped credit facilities
@@ -41,6 +44,7 @@ type GroupedCreditFacility = {
   totalAvailable: number;
   facilityCount: number;
   facilities: CreditFacility[];
+  currency: string;
 }
 
 type Transaction = {
@@ -60,6 +64,7 @@ const defaultBankAccounts: Bank[] = [
     cashBalance: '$758,492.32',
     bankPayments: '$42,000.00',
     lastUpdate: 'Today at 9:41 AM',
+    currency: 'USD',
   },
   {
     id: 2,
@@ -67,6 +72,7 @@ const defaultBankAccounts: Bank[] = [
     cashBalance: '$245,872.12',
     bankPayments: '$18,750.00',
     lastUpdate: 'Today at 9:41 AM',
+    currency: 'USD',
   },
   {
     id: 3,
@@ -74,6 +80,7 @@ const defaultBankAccounts: Bank[] = [
     cashBalance: '$419,617.65',
     bankPayments: '$0.00',
     lastUpdate: 'Today at 9:41 AM',
+    currency: 'USD',
   },
 ]
 
@@ -87,6 +94,7 @@ const defaultCreditFacilities: CreditFacility[] = [
     available: '$650,000.00',
     interestRate: '5.25%',
     tenor: '5 years',
+    currency: 'USD',
   },
   {
     id: 2,
@@ -97,6 +105,7 @@ const defaultCreditFacilities: CreditFacility[] = [
     available: '$0.00',
     interestRate: '4.75%',
     tenor: '3 years',
+    currency: 'USD',
   },
 ]
 
@@ -176,8 +185,8 @@ export default function BanksPage() {
         const data = await response.json();
         
         if (data.success && data.banks) {
-          // Process the banks data
-          processBanksData(data.banks);
+          // Process the banks data (now async)
+          await processBanksData(data.banks);
         } else {
           // If no data is available, use default data
           setBankAccounts(defaultBankAccounts);
@@ -201,208 +210,6 @@ export default function BanksPage() {
     console.log(recentTransactions,'recentTransactions');
   }, []);
   
-  // Helper function to group credit facilities by bank name
-  const groupCreditFacilities = (facilities: CreditFacility[]): GroupedCreditFacility[] => {
-    const facilitiesGroupedByBank = facilities.reduce((groups: { [key: string]: CreditFacility[] }, facility) => {
-      const bankName = facility.name;
-      if (!groups[bankName]) {
-        groups[bankName] = [];
-      }
-      groups[bankName].push(facility);
-      return groups;
-    }, {});
-    
-    return Object.entries(facilitiesGroupedByBank).map(([bankName, bankFacilities]) => {
-      // Use the bankId from the first facility in the group (they should all have the same bankId)
-      const bankId = bankFacilities[0]?.bankId || 1; // Fallback to 1 if not found
-      
-      const totalLimit = bankFacilities.reduce((sum, facility) => {
-        const limitValue = facility.limit === 'N/A' ? 0 : parseFloat(facility.limit.replace(/[$,]/g, ''));
-        return sum + (isNaN(limitValue) ? 0 : limitValue);
-      }, 0);
-      
-      const totalUsed = bankFacilities.reduce((sum, facility) => {
-        const usedValue = parseFloat(facility.used.replace(/[$,]/g, ''));
-        return sum + (isNaN(usedValue) ? 0 : usedValue);
-      }, 0);
-      
-      const totalAvailable = bankFacilities.reduce((sum, facility) => {
-        const availableValue = facility.available === 'N/A' ? 0 : parseFloat(facility.available.replace(/[$,]/g, ''));
-        return sum + (isNaN(availableValue) ? 0 : availableValue);
-      }, 0);
-      
-      return {
-        bankName,
-        bankId,
-        totalLimit,
-        totalUsed,
-        totalAvailable,
-        facilityCount: bankFacilities.length,
-        facilities: bankFacilities
-      };
-    });
-  };
-  
-  // Process banks data from the new API
-  const processBanksData = (banks: any[]) => {
-    if (!banks || banks.length === 0) {
-      return;
-    }
-    
-    // Process banks for display
-    const processedBanks: Bank[] = [];
-    let totalPositiveBalance = 0;
-    let totalNegativeBalance = 0;
-    let totalAvailableCredit = 0;
-    const allTransactions: any[] = [];
-    const facilityBankStatements: any[] = [];
-    
-    // Process each bank
-    banks.forEach((bank: any) => {
-      let totalCashBalance = 0;
-      let bankFacilityBalance = 0; // Track facility balance per bank
-      let latestUpdate = new Date(0);
-      
-      // Process each bank statement
-      bank.bankStatements.forEach((statement: any) => {
-        const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
-        
-        // Determine if this is a facility account using the new logic
-        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
-        
-        if (isFacility) {
-          const facilityAmount = Math.abs(endingBalance);
-          bankFacilityBalance += facilityAmount;
-          totalNegativeBalance += facilityAmount;
-          
-          // Add to facility bank statements
-          if (facilityAmount !== 0) facilityBankStatements.push(statement);
-          
-          // Add available credit from facility available limit
-          if (statement.availableLimit) {
-            const availableLimit = parseFloat(statement.availableLimit?.toString() || '0');
-            if (availableLimit > 0) {
-              // Available credit = Total Limit - Used Amount
-              const availableCredit = Math.max(0, availableLimit - facilityAmount);
-              totalAvailableCredit += availableCredit;
-            }
-          }
-        } else {
-          // Regular account - both positive and negative balances contribute to cash position
-          // Negative balances in current accounts should be deducted from total cash on hand
-          totalCashBalance += endingBalance; // This can be negative for current accounts
-          totalPositiveBalance += endingBalance; // Include negative balances in total cash calculation
-        }
-        
-        // Track the latest update date
-        const statementEndDate = new Date(statement.statementPeriodEnd);
-        if (statementEndDate > latestUpdate) {
-          latestUpdate = statementEndDate;
-        }
-        
-        // Collect transactions for this statement
-        if (statement.transactions && statement.transactions.length > 0) {
-          console.log(statement.transactions,'statement.transactions');
-          statement.transactions.forEach((transaction: any) => {
-            allTransactions.push({
-              ...transaction,
-              bankName: bank.name,
-              statementId: statement.id
-            });
-          });
-        }
-      });
-      
-      // Add bank to processed banks using the actual bank ID
-      processedBanks.push({
-        id: bank.id, // Use the actual bank ID instead of statement ID
-        name: bank.name,
-        cashBalance: formatCurrency(totalCashBalance),
-        bankPayments: formatCurrency(bankFacilityBalance), // Use bank-specific facility balance
-        lastUpdate: latestUpdate.toLocaleDateString()
-      });
-    });
-    
-    console.log('All collected transactions:', allTransactions);
-    
-    // Set total cash, obligations, and available credit
-    setTotalCash(totalPositiveBalance);
-    setTotalObligations(totalNegativeBalance);
-    setTotalCreditAvailable(totalAvailableCredit);
-    
-    // Update banks state
-    setBankAccounts(processedBanks);
-    
-    // Process credit facilities from facility accounts
-    const processedFacilities: CreditFacility[] = facilityBankStatements.map((statement: any) => {
-      const facilityBalance = Math.abs(parseFloat(statement.endingBalance?.toString() || '0'));
-      const availableLimit = statement.availableLimit ? parseFloat(statement.availableLimit?.toString() || '0') : 0;
-      
-      // Find the bank that contains this statement to get the correct bank ID
-      const parentBank = banks.find(bank => 
-        bank.bankStatements.some((bs: any) => bs.id === statement.id)
-      );
-      
-      return {
-        id: statement.id,
-        name: statement.bankName,
-        bankId: parentBank ? parentBank.id : 1, // Store the actual bank ID
-        facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance?.toString() || '0')),
-        limit: availableLimit > 0 ? formatCurrency(availableLimit) : 'N/A',
-        used: formatCurrency(facilityBalance),
-        available: availableLimit > 0 
-          ? formatCurrency(Math.max(0, availableLimit - facilityBalance))
-          : 'N/A',
-        interestRate: formatInterestRate(statement.interestRate),
-        tenor: formatTenor(statement.tenor)
-      };
-    });
-    
-    setCreditFacilities(processedFacilities);
-    
-    // Group credit facilities by bank name using the helper function
-    setGroupedCreditFacilities(groupCreditFacilities(processedFacilities));
-    
-    // Process recent transactions
-    // Sort by date descending and take top 5
-    console.log(allTransactions,'allTransactions');
-    const sortedTransactions = allTransactions.sort((a, b) => 
-      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-    ).slice(0, 5);
-    
-    console.log('Sorted transactions:', sortedTransactions);
-    
-    const processedTransactions: Transaction[] = sortedTransactions.map((transaction: any, index: number) => {
-      console.log('Processing transaction:', transaction);
-      
-      const isCredit = parseFloat(transaction.creditAmount || '0') > 0;
-      const amount = isCredit 
-        ? parseFloat(transaction.creditAmount || '0') 
-        : parseFloat(transaction.debitAmount || '0');
-      
-      const processedTransaction = {
-        id: index,
-        bank: transaction.bankName,
-        date: new Date(transaction.transactionDate).toLocaleDateString(),
-        description: transaction.description || 'Unknown Transaction',
-        amount: formatCurrency(amount),
-        type: (isCredit ? 'credit' : 'debit') as 'credit' | 'debit',
-        currency: transaction.currency || 'USD'
-      };
-      
-      console.log('Processed transaction:', processedTransaction);
-      return processedTransaction;
-    });
-    
-    console.log('Final processed transactions:', processedTransactions);
-    setRecentTransactions(processedTransactions);
-  };
-  
-  // Format currency
-  const formatCurrency = (amount: number): string => {
-    return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   // Helper function to format interest rate
   const formatInterestRate = (rate: string | null): string => {
     if (!rate || rate.trim() === '') return 'N/A';
@@ -435,6 +242,352 @@ export default function BanksPage() {
       return `${cleanTenor} days`;
     }
     return cleanTenor;
+  };
+  
+  // Helper function to group credit facilities by bank name
+  const groupCreditFacilities = (facilities: CreditFacility[]): GroupedCreditFacility[] => {
+    const facilitiesGroupedByBank = facilities.reduce((groups: { [key: string]: CreditFacility[] }, facility) => {
+      const bankName = facility.name;
+      if (!groups[bankName]) {
+        groups[bankName] = [];
+      }
+      groups[bankName].push(facility);
+      return groups;
+    }, {});
+    
+    return Object.entries(facilitiesGroupedByBank).map(([bankName, bankFacilities]) => {
+      // Use the bankId from the first facility in the group (they should all have the same bankId)
+      const bankId = bankFacilities[0]?.bankId || 1; // Fallback to 1 if not found
+      
+      const totalLimit = bankFacilities.reduce((sum, facility) => {
+        const limitValue = facility.limit === 'N/A' ? 0 : parseFloat(facility.limit.replace(/[^0-9.-]/g, ''));
+        return sum + (isNaN(limitValue) ? 0 : limitValue);
+      }, 0);
+      
+      const totalUsed = bankFacilities.reduce((sum, facility) => {
+        const usedValue = parseFloat(facility.used.replace(/[^0-9.-]/g, ''));
+        return sum + (isNaN(usedValue) ? 0 : usedValue);
+      }, 0);
+      
+      const totalAvailable = bankFacilities.reduce((sum, facility) => {
+        const availableValue = facility.available === 'N/A' ? 0 : parseFloat(facility.available.replace(/[^0-9.-]/g, ''));
+        return sum + (isNaN(availableValue) ? 0 : availableValue);
+      }, 0);
+      
+      return {
+        bankName,
+        bankId,
+        totalLimit,
+        totalUsed,
+        totalAvailable,
+        facilityCount: bankFacilities.length,
+        facilities: bankFacilities,
+        currency: 'EGP' // All facilities now in EGP
+      };
+    });
+  };
+  
+  // Process banks data from the new API
+  const processBanksData = async (banks: any[]) => {
+    if (!banks || banks.length === 0) {
+      return;
+    }
+    
+    // Process banks for display
+    const processedBanks: Bank[] = [];
+    let totalPositiveBalance = 0;
+    let totalNegativeBalance = 0;
+    let totalAvailableCredit = 0;
+    const allTransactions: any[] = [];
+    const facilityBankStatements: any[] = [];
+    
+    // Process each bank
+    for (const bank of banks) {
+      let totalCashBalanceEGP = 0;
+      let bankFacilityBalanceEGP = 0; // Track facility balance per bank in EGP
+      let latestUpdate = new Date(0);
+      
+      console.log(`\n🏦 Processing bank: ${bank.name}`);
+      
+      // Process each bank statement
+      for (const statement of bank.bankStatements) {
+        const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
+        const statementCurrency = statement.accountCurrency?.trim() || 'EGP';
+        
+        console.log(`  📋 Statement ${statement.id}: ${endingBalance} ${statementCurrency} (Account: ${statement.accountNumber})`);
+        
+        // Convert amount to EGP if needed
+        let balanceInEGP = endingBalance;
+        if (statementCurrency !== 'EGP' && endingBalance !== 0) {
+          try {
+            // Convert to EGP using the currency conversion API
+            const response = await fetch('/api/currency/convert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount: Math.abs(endingBalance),
+                fromCurrency: statementCurrency,
+                toCurrency: 'EGP'
+              }),
+            });
+            
+            const conversionData = await response.json();
+            if (conversionData.success) {
+              balanceInEGP = endingBalance < 0 ? -conversionData.conversion.convertedAmount : conversionData.conversion.convertedAmount;
+              console.log(`💱 Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name}`);
+            } else {
+              // Fallback to a default exchange rate if conversion fails
+              const defaultRate = statementCurrency === 'USD' ? 50 : 1; // 50 EGP per USD as per user's calculation
+              balanceInEGP = endingBalance * defaultRate;
+              console.log(`⚠️ Using default rate for ${statementCurrency}: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
+            }
+          } catch (error) {
+            console.error('Currency conversion error:', error);
+            // Fallback to default rate
+            const defaultRate = statementCurrency === 'USD' ? 50 : 1;
+            balanceInEGP = endingBalance * defaultRate;
+            console.log(`❌ Conversion failed, using default rate: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
+          }
+        }
+        
+        // Determine if this is a facility account using the new logic
+        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
+        
+        console.log(`  💳 Account Type: ${statement.accountType}, Is Facility: ${isFacility}, Balance in EGP: ${balanceInEGP}`);
+        
+        if (isFacility) {
+          const facilityAmountEGP = Math.abs(balanceInEGP);
+          bankFacilityBalanceEGP += facilityAmountEGP;
+          totalNegativeBalance += facilityAmountEGP;
+          
+          console.log(`  🏭 Facility: +${facilityAmountEGP} to bank facilities, total bank facilities: ${bankFacilityBalanceEGP}`);
+          
+          // Add to facility bank statements
+          if (facilityAmountEGP !== 0) facilityBankStatements.push({
+            ...statement,
+            endingBalanceEGP: balanceInEGP
+          });
+          
+          // Add available credit from facility available limit
+          if (statement.availableLimit) {
+            let availableLimitEGP = parseFloat(statement.availableLimit?.toString() || '0');
+            if (statementCurrency !== 'EGP' && availableLimitEGP !== 0) {
+              try {
+                const response = await fetch('/api/currency/convert', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    amount: availableLimitEGP,
+                    fromCurrency: statementCurrency,
+                    toCurrency: 'EGP'
+                  }),
+                });
+                
+                const conversionData = await response.json();
+                if (conversionData.success) {
+                  availableLimitEGP = conversionData.conversion.convertedAmount;
+                }
+              } catch (error) {
+                console.error('Limit conversion error:', error);
+                const defaultRate = statementCurrency === 'USD' ? 50 : 1;
+                availableLimitEGP = availableLimitEGP * defaultRate;
+              }
+            }
+            
+            if (availableLimitEGP > 0) {
+              // Available credit = Total Limit - Used Amount
+              const availableCredit = Math.max(0, availableLimitEGP - facilityAmountEGP);
+              totalAvailableCredit += availableCredit;
+            }
+          }
+        } else {
+          // Regular account - both positive and negative balances contribute to cash position
+          totalCashBalanceEGP += balanceInEGP; // This can be negative for current accounts
+          totalPositiveBalance += balanceInEGP; // Include negative balances in total cash calculation
+          
+          console.log(`  🏦 Regular Account: +${balanceInEGP} to bank cash, bank total: ${totalCashBalanceEGP}, global total: ${totalPositiveBalance}`);
+        }
+        
+        // Track the latest update date
+        const statementEndDate = new Date(statement.statementPeriodEnd);
+        if (statementEndDate > latestUpdate) {
+          latestUpdate = statementEndDate;
+        }
+        
+        // Collect transactions for this statement
+        if (statement.transactions && statement.transactions.length > 0) {
+          console.log(statement.transactions,'statement.transactions');
+          statement.transactions.forEach((transaction: any) => {
+            allTransactions.push({
+              ...transaction,
+              bankName: bank.name,
+              statementId: statement.id
+            });
+          });
+        }
+      }
+      
+      console.log(`🏦 ${bank.name} FINAL: Cash=${formatEGP(totalCashBalanceEGP)}, Facilities=${formatEGP(bankFacilityBalanceEGP)}`);
+      
+      // Add bank to processed banks using EGP currency
+      processedBanks.push({
+        id: bank.id,
+        name: bank.name,
+        cashBalance: formatEGP(totalCashBalanceEGP),
+        bankPayments: formatEGP(bankFacilityBalanceEGP),
+        lastUpdate: latestUpdate.toLocaleDateString(),
+        currency: 'EGP'
+      });
+    }
+    
+    console.log('All collected transactions:', allTransactions);
+    
+    // Debug: Verify total calculation by summing up displayed bank balances
+    const manualTotal = processedBanks.reduce((sum, bank) => {
+      const balance = parseFloat(bank.cashBalance.replace(/[^0-9.-]/g, ''));
+      console.log(`🏦 ${bank.name}: ${bank.cashBalance} (parsed: ${balance})`);
+      return sum + balance;
+    }, 0);
+    
+    console.log('🧮 Manual total from displayed balances:', formatEGP(manualTotal));
+    console.log('🏧 System calculated total:', formatEGP(totalPositiveBalance));
+    console.log('📊 Difference:', formatEGP(Math.abs(manualTotal - totalPositiveBalance)));
+    
+    if (Math.abs(manualTotal - totalPositiveBalance) > 0.01) {
+      console.warn('⚠️ MISMATCH: Manual calculation does not match system total!');
+    } else {
+      console.log('✅ VERIFIED: Manual calculation matches system total');
+    }
+    
+    // Set total cash, obligations, and available credit
+    setTotalCash(totalPositiveBalance);
+    setTotalObligations(totalNegativeBalance);
+    setTotalCreditAvailable(totalAvailableCredit);
+    
+    // Update banks state
+    setBankAccounts(processedBanks);
+    
+    // Process credit facilities from facility accounts (convert to EGP)
+    const processedFacilities: CreditFacility[] = [];
+    for (const statement of facilityBankStatements) {
+      const facilityBalance = Math.abs(statement.endingBalanceEGP || 0);
+      let availableLimitEGP = 0;
+      
+      if (statement.availableLimit) {
+        availableLimitEGP = parseFloat(statement.availableLimit?.toString() || '0');
+        const statementCurrency = statement.accountCurrency?.trim() || 'EGP';
+        
+        if (statementCurrency !== 'EGP' && availableLimitEGP !== 0) {
+          try {
+            const response = await fetch('/api/currency/convert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount: availableLimitEGP,
+                fromCurrency: statementCurrency,
+                toCurrency: 'EGP'
+              }),
+            });
+            
+            const conversionData = await response.json();
+            if (conversionData.success) {
+              availableLimitEGP = conversionData.conversion.convertedAmount;
+            }
+          } catch (error) {
+            const defaultRate = statementCurrency === 'USD' ? 50 : 1;
+            availableLimitEGP = availableLimitEGP * defaultRate;
+          }
+        }
+      }
+      
+      // Find the bank that contains this statement to get the correct bank ID
+      const parentBank = banks.find(bank => 
+        bank.bankStatements.some((bs: any) => bs.id === statement.id)
+      );
+      
+      processedFacilities.push({
+        id: statement.id,
+        name: statement.bankName,
+        bankId: parentBank ? parentBank.id : 1,
+        facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance?.toString() || '0')),
+        limit: availableLimitEGP > 0 ? formatEGP(availableLimitEGP) : 'N/A',
+        used: formatEGP(facilityBalance),
+        available: availableLimitEGP > 0 
+          ? formatEGP(Math.max(0, availableLimitEGP - facilityBalance))
+          : 'N/A',
+        interestRate: formatInterestRate(statement.interestRate),
+        tenor: formatTenor(statement.tenor),
+        currency: 'EGP'
+      });
+    }
+    
+    setCreditFacilities(processedFacilities);
+    
+    // Group credit facilities by bank name using the helper function
+    setGroupedCreditFacilities(groupCreditFacilities(processedFacilities));
+    
+    // Process recent transactions (convert to EGP)
+    console.log(allTransactions,'allTransactions');
+    const sortedTransactions = allTransactions.sort((a, b) => 
+      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+    ).slice(0, 5);
+    
+    console.log('Sorted transactions:', sortedTransactions);
+    
+    const processedTransactions: Transaction[] = [];
+    for (const [index, transaction] of sortedTransactions.entries()) {
+      console.log('Processing transaction:', transaction);
+      
+      const isCredit = parseFloat(transaction.creditAmount || '0') > 0;
+      let amount = isCredit 
+        ? parseFloat(transaction.creditAmount || '0') 
+        : parseFloat(transaction.debitAmount || '0');
+      
+      // Convert transaction amount to EGP if needed
+      const transactionCurrency = transaction.currency || 'EGP';
+      if (transactionCurrency !== 'EGP' && amount !== 0) {
+        try {
+          const response = await fetch('/api/currency/convert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: amount,
+              fromCurrency: transactionCurrency,
+              toCurrency: 'EGP'
+            }),
+          });
+          
+          const conversionData = await response.json();
+          if (conversionData.success) {
+            amount = conversionData.conversion.convertedAmount;
+          }
+        } catch (error) {
+          const defaultRate = transactionCurrency === 'USD' ? 50 : 1;
+          amount = amount * defaultRate;
+        }
+      }
+      
+      const processedTransaction = {
+        id: index,
+        bank: transaction.bankName,
+        date: new Date(transaction.transactionDate).toLocaleDateString(),
+        description: transaction.description || 'Unknown Transaction',
+        amount: formatEGP(amount),
+        type: (isCredit ? 'credit' : 'debit') as 'credit' | 'debit',
+        currency: 'EGP'
+      };
+      
+      console.log('Processed transaction:', processedTransaction);
+      processedTransactions.push(processedTransaction);
+    }
+    
+    console.log('Final processed transactions:', processedTransactions);
+    setRecentTransactions(processedTransactions);
+  };
+  
+  // Format currency (updated to always use EGP)
+  const formatCurrency = (amount: number, currency: string = 'EGP'): string => {
+    return formatEGP(amount);
   };
   
   const handleFilesChange = (sourceId: string, files: File[]) => {
@@ -702,7 +855,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Cash on Hand"
-            value={formatCurrency(totalCash)}
+            value={formatEGP(totalCash)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -731,7 +884,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Bank Obligations"
-            value={formatCurrency(totalObligations)}
+            value={formatEGP(totalObligations)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -765,7 +918,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Credit Available"
-            value={totalCreditAvailable > 0 ? formatCurrency(totalCreditAvailable) : 'N/A'}
+            value={totalCreditAvailable > 0 ? formatEGP(totalCreditAvailable) : 'N/A'}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -909,13 +1062,13 @@ export default function BanksPage() {
                     {group.bankName}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
-                    {group.totalLimit > 0 ? formatCurrency(group.totalLimit) : 'N/A'}
+                    {group.totalLimit > 0 ? formatEGP(group.totalLimit) : 'N/A'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
-                    {formatCurrency(group.totalUsed)}
+                    {formatEGP(group.totalUsed)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">
-                    {group.totalAvailable > 0 ? formatCurrency(group.totalAvailable) : 'N/A'}
+                    {group.totalAvailable > 0 ? formatEGP(group.totalAvailable) : 'N/A'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                     {group.facilityCount} {group.facilityCount === 1 ? 'facility' : 'facilities'}

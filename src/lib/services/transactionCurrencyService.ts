@@ -66,7 +66,11 @@ export class TransactionCurrencyService {
       where: {
         currency: {
           not: null,
-          not: ''
+        },
+        AND: {
+          currency: {
+            not: ''
+          }
         }
       }
     });
@@ -150,7 +154,11 @@ export class TransactionCurrencyService {
       where: {
         currency: {
           not: null,
-          not: ''
+        },
+        AND: {
+          currency: {
+            not: ''
+          }
         }
       }
     });
@@ -241,7 +249,11 @@ export class TransactionCurrencyService {
       where: {
         currency: {
           not: null,
-          not: ''
+        },
+        AND: {
+          currency: {
+            not: ''
+          }
         }
       }
     });
