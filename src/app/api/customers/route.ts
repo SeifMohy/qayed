@@ -26,6 +26,53 @@ interface CustomerResponse {
   status: string;
 }
 
+// Helper function to convert amount to EGP
+async function convertToEGP(amount: number, fromCurrency: string): Promise<number> {
+  if (fromCurrency === 'EGP' || amount === 0) {
+    return amount;
+  }
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/currency/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: Math.abs(amount),
+        fromCurrency,
+        toCurrency: 'EGP'
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.success) {
+      return amount < 0 ? -data.conversion.convertedAmount : data.conversion.convertedAmount;
+    } else {
+      console.warn(`Currency conversion failed for ${fromCurrency} to EGP:`, data.error);
+      // Fallback to default exchange rates
+      const defaultRates: Record<string, number> = {
+        'USD': 50,
+        'EUR': 52.63,
+        'GBP': 62.5,
+        'CNY': 6.9
+      };
+      const rate = defaultRates[fromCurrency] || 1;
+      return amount * rate;
+    }
+  } catch (error) {
+    console.error('Currency conversion error:', error);
+    // Fallback to default exchange rates
+    const defaultRates: Record<string, number> = {
+      'USD': 50,
+      'EUR': 52.63,
+      'GBP': 62.5,
+      'CNY': 6.9
+    };
+    const rate = defaultRates[fromCurrency] || 1;
+    return amount * rate;
+  }
+}
+
 export async function GET() {
   console.log('🔍 Starting customers API request...');
   
@@ -56,8 +103,11 @@ export async function GET() {
     
     console.log(`✅ Successfully fetched ${customers.length} customers from database`);
 
-    // Transform the data to include calculated metrics
-    const customersWithTotals: CustomerResponse[] = customers.map((customer) => {
+    // Currency conversion cache to avoid duplicate API calls
+    const conversionCache = new Map<string, number>();
+
+    // Transform the data to include calculated metrics with currency conversion
+    const customersWithTotals: CustomerResponse[] = await Promise.all(customers.map(async (customer) => {
       // Calculate payment terms from paymentTermsData or default to 30
       const paymentDays = (() => {
         const termsData = (customer as any).paymentTermsData as PaymentTermsData | null;
@@ -77,26 +127,49 @@ export async function GET() {
 
       const paymentDates: Date[] = [];
 
-      customer.Invoice.forEach(invoice => {
-        const totalPaid = invoice.TransactionMatch.reduce((sum, match) => {
-          return sum + Number(match.Transaction.creditAmount || 0);
-        }, 0);
+      for (const invoice of customer.Invoice) {
+        // Convert total paid amount to EGP
+        let totalPaidEGP = 0;
+        for (const match of invoice.TransactionMatch) {
+          const cacheKey = `${invoice.currency}-EGP`;
+          let conversionRate = conversionCache.get(cacheKey);
+          
+          if (conversionRate === undefined) {
+            const creditAmountEGP = await convertToEGP(Number(match.Transaction.creditAmount || 0), invoice.currency);
+            conversionRate = Number(match.Transaction.creditAmount || 0) === 0 ? 1 : creditAmountEGP / Number(match.Transaction.creditAmount || 0);
+            conversionCache.set(cacheKey, conversionRate);
+          }
+          
+          totalPaidEGP += Number(match.Transaction.creditAmount || 0) * conversionRate;
+        }
         
-        const remaining = Number(invoice.total) - totalPaid;
-        totalReceivables += Math.max(0, remaining);
+        // Convert invoice total to EGP
+        const cacheKey = `${invoice.currency}-EGP`;
+        let conversionRate = conversionCache.get(cacheKey);
+        
+        if (conversionRate === undefined) {
+          const invoiceTotalEGP = await convertToEGP(Number(invoice.total), invoice.currency);
+          conversionRate = Number(invoice.total) === 0 ? 1 : invoiceTotalEGP / Number(invoice.total);
+          conversionCache.set(cacheKey, conversionRate);
+        }
+        
+        const invoiceTotalEGP = Number(invoice.total) * conversionRate;
+        const remainingEGP = invoiceTotalEGP - totalPaidEGP;
+        
+        totalReceivables += Math.max(0, remainingEGP);
 
         // Check if overdue
         const dueDate = new Date(invoice.invoiceDate);
         dueDate.setDate(dueDate.getDate() + paymentDays);
-        if (remaining > 0 && new Date() > dueDate) {
-          overdueAmount += remaining;
+        if (remainingEGP > 0 && new Date() > dueDate) {
+          overdueAmount += remainingEGP;
         }
 
         // Collect payment dates
         invoice.TransactionMatch.forEach(match => {
           paymentDates.push(new Date(match.Transaction.transactionDate));
         });
-      });
+      }
 
       // Find the latest payment date
       const latestPaymentDate = paymentDates.length > 0 
@@ -123,8 +196,8 @@ export async function GET() {
         name: customer.name,
         country: customer.country,
         paymentTerms: paymentDays,
-        totalReceivables,
-        overdueAmount,
+        totalReceivables: Math.round(totalReceivables * 100) / 100, // Round to 2 decimal places
+        overdueAmount: Math.round(overdueAmount * 100) / 100,
         lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
         nextPayment: lastInvoiceDate,
         status
@@ -138,11 +211,11 @@ export async function GET() {
       });
 
       return transformedCustomer;
-    });
+    }));
 
-    console.log(`✅ Successfully transformed ${customersWithTotals.length} customers`);
-    console.log('📊 Total receivables:', customersWithTotals.reduce((sum, c) => sum + c.totalReceivables, 0));
-    console.log('📊 Total overdue:', customersWithTotals.reduce((sum, c) => sum + c.overdueAmount, 0));
+    console.log(`✅ Successfully transformed ${customersWithTotals.length} customers with EGP conversion`);
+    console.log('📊 Total receivables (EGP):', customersWithTotals.reduce((sum, c) => sum + c.totalReceivables, 0));
+    console.log('📊 Total overdue (EGP):', customersWithTotals.reduce((sum, c) => sum + c.overdueAmount, 0));
 
     return NextResponse.json(customersWithTotals);
   } catch (error: any) {
