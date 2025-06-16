@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon, PencilIcon, CalendarIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
@@ -18,6 +18,7 @@ interface Customer {
   name: string;
   totalReceivables: number;
   overdueAmount: number;
+  dueNext30Days: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -295,11 +296,11 @@ export default function CustomersPage() {
         />
 
         <KeyFigureCard
-          title="Overdue Receivables"
-          value={formatCurrency(0)}
-          icon={DocumentArrowUpIcon}
-          iconColor="bg-yellow-600"
-          subtitle="Requires bank statement data"
+          title="Due in 30 Days"
+          value={formatCurrency(customers.reduce((sum, customer) => sum + customer.dueNext30Days, 0))}
+          icon={CalendarIcon}
+          iconColor="bg-amber-600"
+          changeType="increase"
         />
         <KeyFigureCard
           title="Average Payment Time"
@@ -384,7 +385,7 @@ export default function CustomersPage() {
                 Total Receivables
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Next Invoice
+                Due in 30 Days
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Status
@@ -404,7 +405,7 @@ export default function CustomersPage() {
                   {formatCurrency(customer.totalReceivables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {customer.nextPayment ? new Date(customer.nextPayment).toLocaleDateString() : 'N/A'}
+                  {formatCurrency(customer.dueNext30Days)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span

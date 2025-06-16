@@ -21,6 +21,7 @@ interface CustomerResponse {
   paymentTerms: number | null;
   totalReceivables: number;
   overdueAmount: number;
+  dueNext30Days: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -121,9 +122,14 @@ export async function GET() {
         return 30; // Default fallback
       })();
 
-      // Calculate total receivables and overdue amounts based on transaction matches
+      // Calculate total receivables and amounts due in next 30 days
       let totalReceivables = 0;
       let overdueAmount = 0;
+      let dueNext30Days = 0;
+
+      const now = new Date();
+      const thirtyDaysLater = new Date(now);
+      thirtyDaysLater.setDate(now.getDate() + 30);
 
       const paymentDates: Date[] = [];
 
@@ -158,11 +164,18 @@ export async function GET() {
         
         totalReceivables += Math.max(0, remainingEGP);
 
-        // Check if overdue
+        // Calculate due date for this invoice
         const dueDate = new Date(invoice.invoiceDate);
         dueDate.setDate(dueDate.getDate() + paymentDays);
+
+        // Check if overdue
         if (remainingEGP > 0 && new Date() > dueDate) {
           overdueAmount += remainingEGP;
+        }
+
+        // Check if due in next 30 days
+        if (remainingEGP > 0 && dueDate >= now && dueDate <= thirtyDaysLater) {
+          dueNext30Days += remainingEGP;
         }
 
         // Collect payment dates
@@ -198,6 +211,7 @@ export async function GET() {
         paymentTerms: paymentDays,
         totalReceivables: Math.round(totalReceivables * 100) / 100, // Round to 2 decimal places
         overdueAmount: Math.round(overdueAmount * 100) / 100,
+        dueNext30Days: Math.round(dueNext30Days * 100) / 100,
         lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
         nextPayment: lastInvoiceDate,
         status
