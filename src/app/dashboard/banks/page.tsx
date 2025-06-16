@@ -12,6 +12,7 @@ import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/l
 import { processBankStatements } from '@/components/upload/BankStatementUploader'
 import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatementUtils'
 import { formatCurrencyByCode, formatEGP } from '@/lib/format'
+import { currencyCache } from '@/lib/services/currencyCache'
 
 type Bank = {
   id: number;
@@ -179,6 +180,22 @@ export default function BanksPage() {
     if (!banks || banks.length === 0) {
       return;
     }
+
+    // First, collect all unique currencies from bank statements
+    const uniqueCurrencies = new Set<string>();
+    for (const bank of banks) {
+      for (const statement of bank.bankStatements) {
+        const statementCurrency = statement.accountCurrency?.trim() || 'EGP';
+        uniqueCurrencies.add(statementCurrency);
+      }
+    }
+
+    // Preload all currency rates in one API call
+    const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
+    if (currencyList.length > 0) {
+      console.log('🔄 Bank Page - Preloading currency rates for:', currencyList);
+      await currencyCache.preloadRates(currencyList);
+    }
     
     // Process banks for display
     const processedBanks: Bank[] = [];
@@ -202,31 +219,18 @@ export default function BanksPage() {
         
         console.log(`  📋 Statement ${statement.id}: ${endingBalance} ${statementCurrency} (Account: ${statement.accountNumber})`);
         
-        // Convert amount to EGP if needed
+        // Convert amount to EGP if needed using cached rates
         let balanceInEGP = endingBalance;
         if (statementCurrency !== 'EGP' && endingBalance !== 0) {
           try {
-            // Convert to EGP using the currency conversion API
-            const response = await fetch('/api/currency/convert', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                amount: Math.abs(endingBalance),
-                fromCurrency: statementCurrency,
-                toCurrency: 'EGP'
-              }),
-            });
+            const conversion = await currencyCache.convertCurrency(
+              Math.abs(endingBalance),
+              statementCurrency,
+              'EGP'
+            );
             
-            const conversionData = await response.json();
-            if (conversionData.success) {
-              balanceInEGP = endingBalance < 0 ? -conversionData.conversion.convertedAmount : conversionData.conversion.convertedAmount;
-              console.log(`💱 Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name}`);
-            } else {
-              // Fallback to a default exchange rate if conversion fails
-              const defaultRate = statementCurrency === 'USD' ? 50 : 1; // 50 EGP per USD as per user's calculation
-              balanceInEGP = endingBalance * defaultRate;
-              console.log(`⚠️ Using default rate for ${statementCurrency}: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
-            }
+            balanceInEGP = endingBalance < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
+            console.log(`💱 Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
           } catch (error) {
             console.error('Currency conversion error:', error);
             // Fallback to default rate
@@ -262,20 +266,12 @@ export default function BanksPage() {
             let availableLimitEGP = parseFloat(statement.availableLimit?.toString() || '0');
             if (statementCurrency !== 'EGP' && availableLimitEGP !== 0) {
               try {
-                const response = await fetch('/api/currency/convert', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    amount: availableLimitEGP,
-                    fromCurrency: statementCurrency,
-                    toCurrency: 'EGP'
-                  }),
-                });
-                
-                const conversionData = await response.json();
-                if (conversionData.success) {
-                  availableLimitEGP = conversionData.conversion.convertedAmount;
-                }
+                const conversion = await currencyCache.convertCurrency(
+                  availableLimitEGP,
+                  statementCurrency,
+                  'EGP'
+                );
+                availableLimitEGP = conversion.convertedAmount;
               } catch (error) {
                 console.error('Limit conversion error:', error);
                 const defaultRate = statementCurrency === 'USD' ? 50 : 1;
@@ -337,21 +333,14 @@ export default function BanksPage() {
         
         if (statementCurrency !== 'EGP' && availableLimitEGP !== 0) {
           try {
-            const response = await fetch('/api/currency/convert', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                amount: availableLimitEGP,
-                fromCurrency: statementCurrency,
-                toCurrency: 'EGP'
-              }),
-            });
-            
-            const conversionData = await response.json();
-            if (conversionData.success) {
-              availableLimitEGP = conversionData.conversion.convertedAmount;
-            }
+            const conversion = await currencyCache.convertCurrency(
+              availableLimitEGP,
+              statementCurrency,
+              'EGP'
+            );
+            availableLimitEGP = conversion.convertedAmount;
           } catch (error) {
+            console.error('Facility limit conversion error:', error);
             const defaultRate = statementCurrency === 'USD' ? 50 : 1;
             availableLimitEGP = availableLimitEGP * defaultRate;
           }

@@ -9,6 +9,7 @@ import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
 import { isFacilityAccount } from '@/utils/bankStatementUtils'
 import { formatEGP } from '@/lib/format'
+import { currencyCache } from '@/lib/services/currencyCache'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -157,9 +158,25 @@ export default function Dashboard() {
     loadChartJs();
   }, []);
 
-  // Calculate total cash using the same logic as banks page
+  // Calculate total cash using optimized currency conversion
   const calculateTotalCash = async (banks: Bank[]): Promise<number> => {
     let totalPositiveBalance = 0;
+
+    // First, collect all unique currencies from bank statements
+    const uniqueCurrencies = new Set<string>();
+    for (const bank of banks) {
+      for (const statement of bank.bankStatements) {
+        const statementCurrency = (statement as any).accountCurrency?.trim() || 'EGP';
+        uniqueCurrencies.add(statementCurrency);
+      }
+    }
+
+    // Preload all currency rates in one API call
+    const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
+    if (currencyList.length > 0) {
+      console.log('🔄 Dashboard - Preloading currency rates for:', currencyList);
+      await currencyCache.preloadRates(currencyList);
+    }
 
     for (const bank of banks) {
       let totalCashBalanceEGP = 0;
@@ -173,31 +190,18 @@ export default function Dashboard() {
         
         console.log(`  📋 Dashboard - Statement ${statement.id}: ${endingBalance} ${statementCurrency}`);
         
-        // Convert amount to EGP if needed (same logic as banks page)
+        // Convert amount to EGP if needed using cached rates
         let balanceInEGP = endingBalance;
         if (statementCurrency !== 'EGP' && endingBalance !== 0) {
           try {
-            // Convert to EGP using the currency conversion API
-            const response = await fetch('/api/currency/convert', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                amount: Math.abs(endingBalance),
-                fromCurrency: statementCurrency,
-                toCurrency: 'EGP'
-              }),
-            });
+            const conversion = await currencyCache.convertCurrency(
+              Math.abs(endingBalance),
+              statementCurrency,
+              'EGP'
+            );
             
-            const conversionData = await response.json();
-            if (conversionData.success) {
-              balanceInEGP = endingBalance < 0 ? -conversionData.conversion.convertedAmount : conversionData.conversion.convertedAmount;
-              console.log(`💱 Dashboard - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name}`);
-            } else {
-              // Fallback to a default exchange rate if conversion fails
-              const defaultRate = statementCurrency === 'USD' ? 50 : 1; // 50 EGP per USD as per user's calculation
-              balanceInEGP = endingBalance * defaultRate;
-              console.log(`⚠️ Dashboard - Using default rate for ${statementCurrency}: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
-            }
+            balanceInEGP = endingBalance < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
+            console.log(`💱 Dashboard - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
           } catch (error) {
             console.error('Dashboard - Currency conversion error:', error);
             // Fallback to default rate
