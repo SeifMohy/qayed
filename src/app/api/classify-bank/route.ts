@@ -19,7 +19,6 @@ type BatchClassificationResult = {
   reason: string;
   extractedEntities: string[];
   extractedReferences: string[];
-  currency: string | null;
   alternativeCategories: string[];
 };
 
@@ -85,9 +84,8 @@ INSTRUCTIONS:
 2. Consider the credit/debit amounts to determine direction
 3. Extract any company/person names mentioned
 4. Extract any invoice numbers, reference numbers, or IDs
-5. Determine currency if mentioned
-6. Assign a confidence score (0.0 to 1.0)
-7. List alternative classifications if uncertain
+5. Assign a confidence score (0.0 to 1.0)
+6. List alternative classifications if uncertain
 
 RESPONSE FORMAT (JSON only, no other text):
 {
@@ -99,7 +97,6 @@ RESPONSE FORMAT (JSON only, no other text):
       "reason": "Brief explanation of classification reasoning",
       "extractedEntities": ["entity1", "entity2"],
       "extractedReferences": ["ref1", "ref2"],
-      "currency": "USD",
       "alternativeCategories": ["CATEGORY2", "CATEGORY3"]
     }
     // ... repeat for each transaction
@@ -111,7 +108,6 @@ RULES:
 - If unsure, use OTHER category
 - extractedEntities should contain company/person names
 - extractedReferences should contain invoice numbers, reference numbers, or IDs
-- currency should be detected from description if mentioned, otherwise null
 - alternativeCategories should list other possible categories if uncertain
 - IMPORTANT: Return results for ALL ${transactions.length} transactions in the exact same order
 - IMPORTANT: Use the exact transactionId provided for each transaction`;
@@ -187,6 +183,7 @@ RULES:
       console.error('Parse error:', parseError);
       
       // Return fallback classifications for all transactions
+      // Currency is completely removed from AI classification
       return transactions.map(transaction => ({
         transactionId: transaction.id,
         category: 'OTHER',
@@ -194,7 +191,6 @@ RULES:
         reason: 'Failed to parse AI response, defaulting to OTHER category',
         extractedEntities: [],
         extractedReferences: [],
-        currency: null,
         alternativeCategories: []
       }));
     }
@@ -270,21 +266,23 @@ export async function POST(request: Request) {
             // Map string category to enum
             const categoryEnum = mapCategoryToEnum(result.category);
             
+            // Prepare update data - currency is NOT included to preserve bank statement currency
+            const updateData: any = {
+              category: categoryEnum,
+              confidence: result.confidence,
+              classificationReason: result.reason,
+              extractedEntities: result.extractedEntities,
+              extractedReferences: result.extractedReferences,
+              alternativeCategories: result.alternativeCategories,
+              classifiedAt: new Date(),
+              classificationMethod: 'LLM',
+              llmModel: MODEL_NAME
+            };
+            
             // Update the transaction with classification results
             await prisma.transaction.update({
               where: { id: result.transactionId },
-              data: {
-                category: categoryEnum,
-                confidence: result.confidence,
-                classificationReason: result.reason,
-                extractedEntities: result.extractedEntities,
-                extractedReferences: result.extractedReferences,
-                currency: result.currency,
-                alternativeCategories: result.alternativeCategories,
-                classifiedAt: new Date(),
-                classificationMethod: 'LLM',
-                llmModel: MODEL_NAME
-              }
+              data: updateData
             });
 
             classifiedCount++;
