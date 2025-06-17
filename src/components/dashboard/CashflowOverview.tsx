@@ -8,6 +8,8 @@ import { Badge } from '@/components/shared/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/shared/ui/alert';
 import RecurringPaymentForm from './RecurringPaymentForm';
 import RecurringPaymentsList from './RecurringPaymentsList';
+import { formatEGP } from '@/lib/format';
+import { currencyCache } from '@/lib/services/currencyCache';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -151,12 +153,7 @@ export default function CashflowOverview() {
 
   // Helper functions - moved to top to avoid hoisting issues
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+    return formatEGP(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -270,6 +267,57 @@ export default function CashflowOverview() {
     try {
       setLoading(true);
       
+      console.log('🔄 Fetching unified cashflow data with currency conversion...');
+      
+      // Use the new unified API endpoint that handles multi-currency conversion
+      const unifiedResponse = await fetch(
+        `/api/cashflow/unified?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&range=custom&customEndDate=${dateRange.endDate}`
+      );
+      const unifiedData = await unifiedResponse.json();
+      
+      if (unifiedData.success) {
+        console.log('✅ Unified cashflow data received:', unifiedData.metadata);
+        
+        // Set all data from the unified response
+        setSummary(unifiedData.summary);
+        setPositions(unifiedData.positions);
+        setProjections(unifiedData.projections);
+        setPositionSummary(unifiedData.positionSummary);
+        setAlerts(unifiedData.alerts);
+        
+        // Set effective date range from API response
+        if (unifiedData.positionSummary && unifiedData.positionSummary.effectiveStartDate) {
+          setEffectiveDateRange({
+            startDate: unifiedData.positionSummary.effectiveStartDate,
+            endDate: dateRange.endDate
+          });
+        }
+        
+        console.log(`💰 Cash position summary:`);
+        console.log(`   - Starting balance: ${formatCurrency(unifiedData.positionSummary.startingBalance)}`);
+        console.log(`   - Currency: ${unifiedData.metadata.currency}`);
+        console.log(`   - Total projections: ${unifiedData.metadata.totalProjections}`);
+        console.log(`   - Conversion note: ${unifiedData.metadata.conversionNote}`);
+        
+      } else {
+        console.error('❌ Failed to fetch unified cashflow data:', unifiedData.error);
+        // Fallback to existing API calls if unified fails
+        await fetchCashflowDataFallback();
+      }
+    } catch (error) {
+      console.error('❌ Error fetching unified cashflow data:', error);
+      // Fallback to existing API calls
+      await fetchCashflowDataFallback();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback method using separate API calls (original implementation)
+  const fetchCashflowDataFallback = async () => {
+    try {
+      console.log('🔄 Using fallback cashflow data fetching...');
+      
       // Fetch projections summary with current date range (using centralized service)
       const projectionsResponse = await fetch(
         `/api/cashflow/projections?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&includeRelated=true&useCentralized=true`
@@ -301,9 +349,7 @@ export default function CashflowOverview() {
         }
       }
     } catch (error) {
-      console.error('Error fetching cashflow data:', error);
-    } finally {
-      setLoading(false);
+      console.error('❌ Error in fallback cashflow data fetch:', error);
     }
   };
 
@@ -608,13 +654,13 @@ export default function CashflowOverview() {
         },
         title: {
           display: true,
-          text: `Date Range: ${formatDate(effectiveDateRange?.startDate || dateRange.startDate)} - ${formatDate(effectiveDateRange?.endDate || dateRange.endDate)}`
+          text: `Date Range: ${formatDate(effectiveDateRange?.startDate || dateRange.startDate)} - ${formatDate(effectiveDateRange?.endDate || dateRange.endDate)} (All amounts in EGP)`
         }
       },
       y: {
         title: {
           display: true,
-          text: 'Cash Balance'
+          text: 'Cash Balance (EGP)'
         },
         min: chartData?.chartMin,
         max: chartData?.chartMax,
@@ -652,13 +698,13 @@ export default function CashflowOverview() {
         },
         title: {
           display: true,
-          text: `Date Range: ${formatDate(effectiveDateRange?.startDate || dateRange.startDate)} - ${formatDate(effectiveDateRange?.endDate || dateRange.endDate)}`
+          text: `Date Range: ${formatDate(effectiveDateRange?.startDate || dateRange.startDate)} - ${formatDate(effectiveDateRange?.endDate || dateRange.endDate)} (All amounts in EGP)`
         }
       },
       y: {
         title: {
           display: true,
-          text: 'Daily Cash Flows'
+          text: 'Daily Cash Flows (EGP)'
         },
         ticks: {
           callback: function(value: any) {
@@ -767,9 +813,14 @@ export default function CashflowOverview() {
               </span>
             )}
           </div>
-          <Badge variant="outline" className="text-blue-800 border-blue-300">
-            {dateRange.preset === 'custom' ? 'Custom Range' : dateRange.preset.toUpperCase()}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-blue-800 border-blue-300">
+              {dateRange.preset === 'custom' ? 'Custom Range' : dateRange.preset.toUpperCase()}
+            </Badge>
+            <Badge variant="outline" className="text-green-800 border-green-300">
+              All amounts in EGP
+            </Badge>
+          </div>
         </div>
       </div>
 
@@ -781,14 +832,14 @@ export default function CashflowOverview() {
               <DollarSign className="h-5 w-5 text-green-600" />
               <div>
                 <span className="text-sm font-medium text-green-800">
-                  Current Balance: {formatCurrency(positionSummary.startingBalance)}
+                  Current Cash on Hand: {formatCurrency(positionSummary.startingBalance)}
                 </span>
                 <span className="text-xs text-green-600 ml-2">
                   (as of {formatDate(positionSummary.latestBalanceDate)})
                 </span>
                 {positionSummary.startingBalance === 0 && (
                   <span className="text-xs text-orange-600 ml-2">
-                    (No bank statements found - using $0 as starting balance)
+                    (No bank statements found - using £E 0 as starting balance)
                   </span>
                 )}
               </div>
@@ -799,6 +850,9 @@ export default function CashflowOverview() {
               </div>
               <Badge variant="outline" className="text-green-800 border-green-300">
                 {positionSummary.totalDays} days
+              </Badge>
+              <Badge variant="outline" className="text-green-800 border-green-300">
+                Multi-currency converted to EGP
               </Badge>
               {effectiveDateRange && effectiveDateRange.startDate !== dateRange.startDate && (
                 <Badge variant="outline" className="text-blue-800 border-blue-300">
@@ -815,7 +869,7 @@ export default function CashflowOverview() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Inflows</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Inflows (EGP)</CardTitle>
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -823,14 +877,14 @@ export default function CashflowOverview() {
                 {formatCurrency(summary.totalInflows)}
               </div>
               <p className="text-xs text-gray-600">
-                From {summary.projectedItems} projections
+                From {summary.projectedItems} projections (multi-currency converted)
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Outflows</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Outflows (EGP)</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
@@ -838,14 +892,14 @@ export default function CashflowOverview() {
                 {formatCurrency(summary.totalOutflows)}
               </div>
               <p className="text-xs text-gray-600">
-                Upcoming obligations
+                Upcoming obligations (multi-currency converted)
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Net Cashflow</CardTitle>
+              <CardTitle className="text-sm font-medium">Net Cashflow (EGP)</CardTitle>
               <DollarSign className={`h-4 w-4 ${summary.netCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`} />
             </CardHeader>
             <CardContent>
@@ -853,7 +907,7 @@ export default function CashflowOverview() {
                 {formatCurrency(summary.netCashflow)}
               </div>
               <p className="text-xs text-gray-600">
-                {summary.netCashflow >= 0 ? 'Positive' : 'Negative'} position
+                {summary.netCashflow >= 0 ? 'Positive' : 'Negative'} position (all currencies in EGP)
               </p>
             </CardContent>
           </Card>
@@ -907,10 +961,10 @@ export default function CashflowOverview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Alerts & Notifications
+              Alerts & Notifications (EGP)
             </CardTitle>
             <CardDescription>
-              Important cashflow alerts requiring attention
+              Important cashflow alerts requiring attention - all amounts converted to EGP
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -943,9 +997,9 @@ export default function CashflowOverview() {
       {/* Cash Position Timeline */}
       <Card>
         <CardHeader>
-          <CardTitle>Daily Cash Position</CardTitle>
+          <CardTitle>Daily Cash Position (EGP)</CardTitle>
           <CardDescription>
-            Daily cash flow projections and running balance
+            Daily cash flow projections and running balance - all amounts converted from multiple currencies to EGP
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -953,10 +1007,10 @@ export default function CashflowOverview() {
             <div className="space-y-4">
               <div className="grid grid-cols-6 gap-4 text-sm font-medium text-gray-600 border-b pb-2">
                 <div>Date</div>
-                <div>Inflows</div>
-                <div>Outflows</div>
-                <div>Net</div>
-                <div>Balance</div>
+                <div>Inflows (EGP)</div>
+                <div>Outflows (EGP)</div>
+                <div>Net (EGP)</div>
+                <div>Balance (EGP)</div>
                 <div>Items</div>
               </div>
               {(() => {
@@ -1029,10 +1083,10 @@ export default function CashflowOverview() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <RefreshCw className="h-5 w-5 text-blue-600" />
-                Recurring Payments
+                Recurring Payments (Multi-Currency)
               </CardTitle>
               <CardDescription>
-                Add recurring income and expenses for better projections
+                Add recurring income and expenses in any currency - automatically converted to EGP in projections
               </CardDescription>
             </div>
             {recurringViewMode === 'list' && (
