@@ -27,7 +27,12 @@ class CurrencyCache {
    */
   private async fetchRates(currencies?: string[], baseCurrency = 'EGP'): Promise<CachedRateData> {
     try {
-      const url = new URL('/api/currency/rates-bulk', window.location.origin);
+      // Handle both client-side and server-side usage
+      const baseUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : (process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000');
+      
+      const url = new URL('/api/currency/rates-bulk', baseUrl);
       if (currencies && currencies.length > 0) {
         url.searchParams.set('currencies', currencies.join(','));
       }
@@ -128,24 +133,27 @@ class CurrencyCache {
 
       if (toCurrency === 'EGP') {
         // Converting to EGP (base currency)
-        if (!rateData.rates[fromCurrency]) {
+        // Use inverse rate since rates are stored as EGP-to-foreign, but we need foreign-to-EGP
+        if (!rateData.rateDetails[fromCurrency]) {
           throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
         }
-        exchangeRate = rateData.rates[fromCurrency];
-        source = rateData.rateDetails[fromCurrency]?.source || 'Database';
+        exchangeRate = rateData.rateDetails[fromCurrency].inverseRate;
+        source = rateData.rateDetails[fromCurrency].source;
       } else if (fromCurrency === 'EGP') {
         // Converting from EGP (base currency)
+        // Use direct rate since we're converting from EGP to foreign currency
         if (!rateData.rates[toCurrency]) {
           throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
         }
-        exchangeRate = 1 / rateData.rates[toCurrency]; // Inverse rate
+        exchangeRate = rateData.rates[toCurrency];
         source = rateData.rateDetails[toCurrency]?.source || 'Database';
       } else {
         // Cross conversion through EGP
-        if (!rateData.rates[fromCurrency] || !rateData.rates[toCurrency]) {
+        if (!rateData.rateDetails[fromCurrency] || !rateData.rateDetails[toCurrency]) {
           throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
         }
-        exchangeRate = rateData.rates[fromCurrency] / rateData.rates[toCurrency];
+        // For cross conversion: (foreign1 to EGP) / (foreign2 to EGP) = foreign1 to foreign2
+        exchangeRate = rateData.rateDetails[fromCurrency].inverseRate / rateData.rateDetails[toCurrency].inverseRate;
         source = 'Cross-rate via EGP';
       }
 
