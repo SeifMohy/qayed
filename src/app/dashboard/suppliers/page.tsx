@@ -17,7 +17,7 @@ interface Supplier {
   id: number;
   name: string;
   totalPayables: number;
-  dueNext30Days: number;
+  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -235,10 +235,10 @@ export default function SuppliersPage() {
           change={suppliers.length > 0 ? `${suppliers.length} suppliers` : "No suppliers"}
         />
         <KeyFigureCard
-          title="Due in 30 Days"
-          value={formatCurrency(suppliers.reduce((sum, supplier) => sum + supplier.dueNext30Days, 0))}
+          title="Total Paid"
+          value={formatCurrency(suppliers.reduce((sum, supplier) => sum + supplier.paidAmount, 0))}
           icon={CalendarIcon}
-          iconColor="bg-amber-600"
+          iconColor="bg-green-600"
           changeType="increase"
         />
         <KeyFigureCard
@@ -324,7 +324,7 @@ export default function SuppliersPage() {
                 Total Payables
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Due in 30 Days
+                Paid
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Status
@@ -344,7 +344,7 @@ export default function SuppliersPage() {
                   {formatCurrency(supplier.totalPayables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(supplier.dueNext30Days)}
+                  {formatCurrency(supplier.paidAmount)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span

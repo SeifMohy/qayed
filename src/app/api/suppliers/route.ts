@@ -20,7 +20,7 @@ interface SupplierResponse {
   country: string | null;
   paymentTerms: number | null;
   totalPayables: number;
-  dueNext30Days: number;
+  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -116,13 +116,9 @@ export async function GET() {
         return 30; // Default fallback
       })();
 
-      // Calculate total payables and due amounts based on transaction matches
+      // Calculate total payables and paid amounts based on transaction matches
       let totalPayables = 0;
-      let dueNext30Days = 0;
-
-      const now = new Date();
-      const thirtyDaysLater = new Date(now);
-      thirtyDaysLater.setDate(now.getDate() + 30);
+      let paidAmount = 0;
 
       const paymentDates: Date[] = [];
 
@@ -156,13 +152,7 @@ export async function GET() {
         const remainingEGP = invoiceTotalEGP - totalPaidEGP;
         
         totalPayables += Math.max(0, remainingEGP);
-
-        // Check if due in next 30 days
-        const dueDate = new Date(invoice.invoiceDate);
-        dueDate.setDate(dueDate.getDate() + paymentDays);
-        if (remainingEGP > 0 && dueDate >= now && dueDate <= thirtyDaysLater) {
-          dueNext30Days += remainingEGP;
-        }
+        paidAmount += totalPaidEGP;
 
         // Collect payment dates
         invoice.TransactionMatch.forEach(match => {
@@ -175,10 +165,12 @@ export async function GET() {
         ? paymentDates.reduce((latest, current) => current > latest ? current : latest)
         : null;
 
-      // Determine status based on due amounts
+      // Determine status based on payment status
       let status = 'On Time';
-      if (dueNext30Days > 0) {
-        status = dueNext30Days > 1000 ? 'Due Soon' : 'Current';
+      if (totalPayables > 0) {
+        status = totalPayables > 1000 ? 'Outstanding' : 'Current';
+      } else if (paidAmount > 0) {
+        status = 'Paid';
       }
 
       return {
@@ -187,7 +179,7 @@ export async function GET() {
         country: supplier.country,
         paymentTerms: paymentDays,
         totalPayables: Math.round(totalPayables * 100) / 100, // Round to 2 decimal places
-        dueNext30Days: Math.round(dueNext30Days * 100) / 100,
+        paidAmount: Math.round(paidAmount * 100) / 100,
         lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
         nextPayment: null, // Will be calculated based on invoice due dates
         status
@@ -196,7 +188,7 @@ export async function GET() {
 
     console.log(`✅ Successfully transformed ${suppliersWithTotals.length} suppliers with EGP conversion`);
     console.log('📊 Total payables (EGP):', suppliersWithTotals.reduce((sum, s) => sum + s.totalPayables, 0));
-    console.log('📊 Total due next 30 days (EGP):', suppliersWithTotals.reduce((sum, s) => sum + s.dueNext30Days, 0));
+    console.log('📊 Total paid amount (EGP):', suppliersWithTotals.reduce((sum, s) => sum + s.paidAmount, 0));
 
     return NextResponse.json(suppliersWithTotals);
   } catch (error: any) {

@@ -21,7 +21,7 @@ interface CustomerResponse {
   paymentTerms: number | null;
   totalReceivables: number;
   overdueAmount: number;
-  dueNext30Days: number;
+  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -122,14 +122,12 @@ export async function GET() {
         return 30; // Default fallback
       })();
 
-      // Calculate total receivables and amounts due in next 30 days
+      // Calculate total receivables and paid amounts
       let totalReceivables = 0;
       let overdueAmount = 0;
-      let dueNext30Days = 0;
+      let paidAmount = 0;
 
       const now = new Date();
-      const thirtyDaysLater = new Date(now);
-      thirtyDaysLater.setDate(now.getDate() + 30);
 
       const paymentDates: Date[] = [];
 
@@ -163,6 +161,7 @@ export async function GET() {
         const remainingEGP = invoiceTotalEGP - totalPaidEGP;
         
         totalReceivables += Math.max(0, remainingEGP);
+        paidAmount += totalPaidEGP;
 
         // Calculate due date for this invoice
         const dueDate = new Date(invoice.invoiceDate);
@@ -171,11 +170,6 @@ export async function GET() {
         // Check if overdue
         if (remainingEGP > 0 && new Date() > dueDate) {
           overdueAmount += remainingEGP;
-        }
-
-        // Check if due in next 30 days
-        if (remainingEGP > 0 && dueDate >= now && dueDate <= thirtyDaysLater) {
-          dueNext30Days += remainingEGP;
         }
 
         // Collect payment dates
@@ -198,10 +192,12 @@ export async function GET() {
         lastInvoiceDate = new Date(sortedInvoices[0].invoiceDate).toISOString().split('T')[0];
       }
 
-      // Determine status based on overdue amount
+      // Determine status based on payment status
       let status = 'On Time';
       if (overdueAmount > 0) {
         status = overdueAmount > 1000 ? 'Overdue' : 'Due Soon';
+      } else if (totalReceivables === 0 && paidAmount > 0) {
+        status = 'Paid';
       }
 
       const transformedCustomer = {
@@ -211,7 +207,7 @@ export async function GET() {
         paymentTerms: paymentDays,
         totalReceivables: Math.round(totalReceivables * 100) / 100, // Round to 2 decimal places
         overdueAmount: Math.round(overdueAmount * 100) / 100,
-        dueNext30Days: Math.round(dueNext30Days * 100) / 100,
+        paidAmount: Math.round(paidAmount * 100) / 100,
         lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
         nextPayment: lastInvoiceDate,
         status
@@ -221,6 +217,7 @@ export async function GET() {
         name: transformedCustomer.name,
         totalReceivables: transformedCustomer.totalReceivables,
         overdueAmount: transformedCustomer.overdueAmount,
+        paidAmount: transformedCustomer.paidAmount,
         lastPayment: transformedCustomer.lastPayment
       });
 
@@ -230,6 +227,7 @@ export async function GET() {
     console.log(`✅ Successfully transformed ${customersWithTotals.length} customers with EGP conversion`);
     console.log('📊 Total receivables (EGP):', customersWithTotals.reduce((sum, c) => sum + c.totalReceivables, 0));
     console.log('📊 Total overdue (EGP):', customersWithTotals.reduce((sum, c) => sum + c.overdueAmount, 0));
+    console.log('📊 Total paid amount (EGP):', customersWithTotals.reduce((sum, c) => sum + c.paidAmount, 0));
 
     return NextResponse.json(customersWithTotals);
   } catch (error: any) {

@@ -18,7 +18,7 @@ interface Customer {
   name: string;
   totalReceivables: number;
   overdueAmount: number;
-  dueNext30Days: number;
+  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -296,10 +296,10 @@ export default function CustomersPage() {
         />
 
         <KeyFigureCard
-          title="Due in 30 Days"
-          value={formatCurrency(customers.reduce((sum, customer) => sum + customer.dueNext30Days, 0))}
+          title="Total Paid"
+          value={formatCurrency(customers.reduce((sum, customer) => sum + customer.paidAmount, 0))}
           icon={CalendarIcon}
-          iconColor="bg-amber-600"
+          iconColor="bg-green-600"
           changeType="increase"
         />
         <KeyFigureCard
@@ -385,7 +385,7 @@ export default function CustomersPage() {
                 Total Receivables
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                Due in 30 Days
+                Paid
               </th>
               <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                 Status
@@ -405,7 +405,7 @@ export default function CustomersPage() {
                   {formatCurrency(customer.totalReceivables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(customer.dueNext30Days)}
+                  {formatCurrency(customer.paidAmount)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span
