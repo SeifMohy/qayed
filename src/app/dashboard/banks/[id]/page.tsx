@@ -7,6 +7,7 @@ import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIc
 import { clsx } from 'clsx'
 import { isFacilityAccount, getFacilityDisplayType, isRegularAccount } from '@/utils/bankStatementUtils'
 import { useSearchParams } from 'next/navigation'
+import { formatCurrencyByCode } from '@/lib/format'
 
 // Define types based on Prisma schema
 type Transaction = {
@@ -139,29 +140,11 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         fetchBankData()
     }, [params.id])
 
-    // Helper function to format currency
+    // Helper function to format currency - uses the centralized utility
     const formatCurrency = (amount: number | string, currency?: string): string => {
         const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-        const absAmount = Math.abs(numAmount)
-        
-        // Map database currency values to proper currency codes
-        const currencyMap: Record<string, string> = {
-            'EGP': 'EGP',
-            'Egyptian Pound': 'EGP',
-            'USD': 'USD',
-            'US DOLLAR': 'USD',
-            'US Dollar': 'USD'
-        }
-        
-        const currencyCode = currency ? currencyMap[currency] || 'USD' : 'USD'
-        
-        // Format based on currency
-        switch (currencyCode) {
-            case 'EGP':
-                return `EGP ${absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-            default:
-                return `$${absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-        }
+        const currencyCode = currency || 'USD'
+        return formatCurrencyByCode(numAmount, currencyCode)
     }
 
     // Helper function to format date
@@ -321,7 +304,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         if (!bank) return { totalCashBalance: 0, currentOutstanding: 0 }
         
         const totalCashBalance = bank.bankStatements
-            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance)) && parseFloat(statement.endingBalance) > 0)
+            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance)))
             .reduce((sum, statement) => sum + parseFloat(statement.endingBalance), 0)
         
         const currentOutstanding = bank.bankStatements
