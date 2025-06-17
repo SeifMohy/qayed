@@ -10,7 +10,7 @@ import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
-import { formatEGP } from '@/lib/format'
+import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
 
 // Interface for customer data
 interface Customer {
@@ -230,7 +230,7 @@ export default function CustomersPage() {
 
   // Format currency - Updated to use EGP
   const formatCurrency = (amount: number) => {
-    return formatEGP(amount);
+    return formatEGPForKeyCard(amount);
   };
 
   // Handle edit customer

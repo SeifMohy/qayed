@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
 import { isFacilityAccount } from '@/utils/bankStatementUtils'
-import { formatEGP } from '@/lib/format'
+import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { currencyCache } from '@/lib/services/currencyCache'
 
 // Dynamically import Chart.js components
@@ -124,8 +124,7 @@ export default function Dashboard() {
   const [metadata, setMetadata] = useState<DashboardMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartLoaded, setChartLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshingProjections, setRefreshingProjections] = useState(false);
+  const [error, setError] = useState<string | null>(null);  const [refreshingProjections, setRefreshingProjections] = useState(false);
 
   // Load chart.js when component mounts
   useEffect(() => {
@@ -697,9 +696,7 @@ export default function Dashboard() {
                     <KeyFigureCard
                       key={index}
                       title={stat.title}
-                      value={formatCurrency(stat.value)}
-                      change={`${Math.abs(stat.change).toFixed(1)}%`}
-                      changeType={stat.changeType}
+                      value={formatEGPForKeyCard(stat.value)}
                       icon={IconComponent}
                       iconColor={stat.iconColor}
                       interpretation={stat.interpretation}
@@ -757,7 +754,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-semibold text-red-600">
-                              -{formatCurrency(payment.amount)}
+                              -{formatEGPForKeyCard(payment.amount)}
                             </p>
                             <span className={clsx(
                               'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
@@ -796,7 +793,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-semibold text-green-600">
-                              +{formatCurrency(payment.amount)}
+                              +{formatEGPForKeyCard(payment.amount)}
                             </p>
                             <span className={clsx(
                               'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
@@ -835,7 +832,7 @@ export default function Dashboard() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-semibold text-purple-600">
-                              -{formatCurrency(payment.amount)}
+                              -{formatEGPForKeyCard(payment.amount)}
                             </p>
                             <span className="inline-flex items-center rounded-full bg-purple-100 text-purple-800 px-2 py-1 text-xs font-medium">
                               {payment.type}

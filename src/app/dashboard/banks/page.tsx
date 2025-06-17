@@ -11,7 +11,7 @@ import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { processBankStatements } from '@/components/upload/BankStatementUploader'
 import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatementUtils'
-import { formatCurrencyByCode, formatEGP } from '@/lib/format'
+import { formatCurrencyByCode, formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { currencyCache } from '@/lib/services/currencyCache'
 
 type Bank = {
@@ -643,7 +643,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Cash on Hand"
-            value={formatEGP(totalCash)}
+            value={formatEGPForKeyCard(totalCash)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -672,7 +672,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Bank Obligations"
-            value={formatEGP(totalObligations)}
+            value={formatEGPForKeyCard(totalObligations)}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -706,7 +706,7 @@ export default function BanksPage() {
           )}
           <KeyFigureCard
             title="Total Credit Available"
-            value={totalCreditAvailable > 0 ? formatEGP(totalCreditAvailable) : 'N/A'}
+            value={totalCreditAvailable > 0 ? formatEGPForKeyCard(totalCreditAvailable) : 'N/A'}
             icon={() => (
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

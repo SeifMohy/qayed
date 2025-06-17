@@ -76,7 +76,13 @@ export default function KeyFigureCard({
         </p>
       </dt>
       <dd className={clsx('flex flex-col', Icon ? 'ml-16' : '')}>
-        <p className="text-2xl font-semibold text-gray-900">{value}</p>
+        <p className={clsx(
+          'font-semibold text-gray-900 break-words',
+          // Responsive font sizing based on content length
+          value.length > 15 ? 'text-xl' : value.length > 10 ? 'text-2xl' : 'text-3xl'
+        )}>
+          {value}
+        </p>
         
         {subtitle && (
           <p className="mt-1 text-sm text-gray-500">{subtitle}</p>

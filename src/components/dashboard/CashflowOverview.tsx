@@ -8,7 +8,7 @@ import { Badge } from '@/components/shared/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/shared/ui/alert';
 import RecurringPaymentForm from './RecurringPaymentForm';
 import RecurringPaymentsList from './RecurringPaymentsList';
-import { formatEGP } from '@/lib/format';
+import { formatEGP, formatEGPForKeyCard } from '@/lib/format';
 import { currencyCache } from '@/lib/services/currencyCache';
 import { 
   TrendingUp, 
@@ -153,7 +153,7 @@ export default function CashflowOverview() {
 
   // Helper functions - moved to top to avoid hoisting issues
   const formatCurrency = (amount: number) => {
-    return formatEGP(amount);
+    return formatEGPForKeyCard(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -873,7 +873,7 @@ export default function CashflowOverview() {
               <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl font-bold text-green-600 break-words">
                 {formatCurrency(summary.totalInflows)}
               </div>
               <p className="text-xs text-gray-600">
@@ -888,7 +888,7 @@ export default function CashflowOverview() {
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-xl sm:text-2xl font-bold text-red-600 break-words">
                 {formatCurrency(summary.totalOutflows)}
               </div>
               <p className="text-xs text-gray-600">
@@ -903,7 +903,7 @@ export default function CashflowOverview() {
               <DollarSign className={`h-4 w-4 ${summary.netCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${summary.netCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-xl sm:text-2xl font-bold break-words ${summary.netCashflow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(summary.netCashflow)}
               </div>
               <p className="text-xs text-gray-600">

@@ -145,4 +145,38 @@ export async function convertAndFormatCurrency(
     // Fallback to original amount
     return formatCurrencyByCode(amount, fromCurrency);
   }
+}
+
+/**
+ * Format currency amount for key cards - no decimal places, compact format for large numbers
+ */
+export function formatCurrencyForKeyCard(value: number, currency = 'EGP'): string {
+  const symbols: Record<string, string> = {
+    'EGP': '£E',
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'CNY': '¥',
+  };
+
+  const symbol = symbols[currency] || currency;
+  
+  // For very large numbers, use compact notation
+  if (Math.abs(value) >= 1000000000) {
+    return `${symbol} ${(value / 1000000000).toFixed(1)}B`;
+  } else if (Math.abs(value) >= 1000000) {
+    return `${symbol} ${(value / 1000000).toFixed(1)}M`;
+  } else if (Math.abs(value) >= 1000) {
+    return `${symbol} ${(value / 1000).toFixed(0)}K`;
+  }
+  
+  // For smaller numbers, format without decimals
+  return `${symbol} ${Math.round(value).toLocaleString('en-US')}`;
+}
+
+/**
+ * Format EGP amount for key cards - no decimal places, compact format for large numbers
+ */
+export function formatEGPForKeyCard(value: number): string {
+  return formatCurrencyForKeyCard(value, 'EGP');
 } 
