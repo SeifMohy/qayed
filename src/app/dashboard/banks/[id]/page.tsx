@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import { isFacilityAccount, getFacilityDisplayType, isRegularAccount } from '@/utils/bankStatementUtils'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrencyByCode } from '@/lib/format'
+import { currencyCache } from '@/lib/services/currencyCache'
 
 // Define types based on Prisma schema
 type Transaction = {
@@ -90,6 +91,17 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     
+    // Converted financial metrics in EGP
+    const [financialMetricsEGP, setFinancialMetricsEGP] = useState({ 
+        totalCashBalance: 0, 
+        currentOutstanding: 0 
+    })
+    const [cashFlowDataEGP, setCashFlowDataEGP] = useState({ 
+        labels: [] as string[], 
+        inflows: [] as number[], 
+        outflows: [] as number[] 
+    })
+    
     // Edit facility state
     const [editingFacility, setEditingFacility] = useState<number | null>(null)
     const [editFacilityData, setEditFacilityData] = useState<EditFacilityData>({
@@ -140,8 +152,37 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         fetchBankData()
     }, [params.id])
 
-    // Helper function to format currency - uses the centralized utility
-    const formatCurrency = (amount: number | string, currency?: string): string => {
+    // Calculate EGP metrics when bank data changes
+    useEffect(() => {
+        if (bank) {
+            calculateFinancialMetricsEGP()
+            calculateCashFlowDataEGP()
+        }
+    }, [bank])
+
+    // Helper function to convert amount to EGP
+    const convertToEGP = async (amount: number, fromCurrency: string): Promise<number> => {
+        if (fromCurrency === 'EGP' || !fromCurrency) {
+            return amount
+        }
+        
+        try {
+            const conversion = await currencyCache.convertCurrency(amount, fromCurrency, 'EGP')
+            return conversion.convertedAmount
+        } catch (error) {
+            console.warn(`Failed to convert ${amount} ${fromCurrency} to EGP:`, error)
+            return amount // Return original amount if conversion fails
+        }
+    }
+
+    // Helper function to format currency - always displays in EGP for consistency
+    const formatCurrency = (amount: number | string): string => {
+        const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+        return formatCurrencyByCode(numAmount, 'EGP')
+    }
+
+    // Helper function to format currency with original currency (for individual account display)
+    const formatCurrencyOriginal = (amount: number | string, currency?: string): string => {
         const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
         const currencyCode = currency || 'USD'
         return formatCurrencyByCode(numAmount, currencyCode)
@@ -199,7 +240,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             .map(statement => ({
                 id: statement.id,
                 accountNumber: statement.accountNumber,
-                balance: formatCurrency(parseFloat(statement.endingBalance), statement.accountCurrency || undefined),
+                balance: formatCurrencyOriginal(parseFloat(statement.endingBalance), statement.accountCurrency || undefined),
                 type: statement.accountType || 'Bank Account',
                 currency: statement.accountCurrency || 'USD',
                 interestRate: 'N/A',
@@ -216,10 +257,10 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             .map(statement => ({
                 id: statement.id,
                 facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance)),
-                limit: statement.availableLimit ? formatCurrency(parseFloat(statement.availableLimit), statement.accountCurrency || undefined) : 'N/A',
-                used: formatCurrency(Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined),
+                limit: statement.availableLimit ? formatCurrencyOriginal(parseFloat(statement.availableLimit), statement.accountCurrency || undefined) : 'N/A',
+                used: formatCurrencyOriginal(Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined),
                 available: statement.availableLimit 
-                    ? formatCurrency(parseFloat(statement.availableLimit) - Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined)
+                    ? formatCurrencyOriginal(parseFloat(statement.availableLimit) - Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined)
                     : 'N/A',
                 interestRate: formatInterestRate(statement.interestRate),
                 tenor: formatTenor(statement.tenor),
@@ -239,8 +280,8 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                 account: statement.accountNumber,
                 description: transaction.description || 'No description',
                 amount: transaction.creditAmount 
-                    ? formatCurrency(parseFloat(transaction.creditAmount), statement.accountCurrency || undefined)
-                    : formatCurrency(parseFloat(transaction.debitAmount || '0'), statement.accountCurrency || undefined),
+                    ? formatCurrencyOriginal(parseFloat(transaction.creditAmount), statement.accountCurrency || undefined)
+                    : formatCurrencyOriginal(parseFloat(transaction.debitAmount || '0'), statement.accountCurrency || undefined),
                 type: (transaction.creditAmount && parseFloat(transaction.creditAmount) > 0) ? 'credit' as const : 'debit' as const
             }))
         )
@@ -299,19 +340,89 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         return { labels, inflows, outflows }
     }
 
-    // Calculate financial metrics
-    const calculateFinancialMetrics = () => {
-        if (!bank) return { totalCashBalance: 0, currentOutstanding: 0 }
+    // Calculate financial metrics in EGP
+    const calculateFinancialMetricsEGP = async () => {
+        if (!bank) return
         
-        const totalCashBalance = bank.bankStatements
-            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance)))
-            .reduce((sum, statement) => sum + parseFloat(statement.endingBalance), 0)
+        let totalCashBalanceEGP = 0
+        let currentOutstandingEGP = 0
         
-        const currentOutstanding = bank.bankStatements
-            .filter(statement => isFacilityAccount(statement.accountType, parseFloat(statement.endingBalance)))
-            .reduce((sum, statement) => sum + Math.abs(parseFloat(statement.endingBalance)), 0)
+        // Convert regular accounts to EGP
+        for (const statement of bank.bankStatements.filter(s => 
+            isRegularAccount(s.accountType, parseFloat(s.endingBalance))
+        )) {
+            const balanceEGP = await convertToEGP(
+                parseFloat(statement.endingBalance), 
+                statement.accountCurrency || 'USD'
+            )
+            totalCashBalanceEGP += balanceEGP
+        }
         
-        return { totalCashBalance, currentOutstanding }
+        // Convert facilities to EGP
+        for (const statement of bank.bankStatements.filter(s => 
+            isFacilityAccount(s.accountType, parseFloat(s.endingBalance))
+        )) {
+            const outstandingEGP = await convertToEGP(
+                Math.abs(parseFloat(statement.endingBalance)), 
+                statement.accountCurrency || 'USD'
+            )
+            currentOutstandingEGP += outstandingEGP
+        }
+        
+        setFinancialMetricsEGP({
+            totalCashBalance: totalCashBalanceEGP,
+            currentOutstanding: currentOutstandingEGP
+        })
+    }
+
+    // Calculate cash flow data in EGP
+    const calculateCashFlowDataEGP = async () => {
+        if (!bank) return
+        
+        // Collect all transactions from all statements
+        const allTransactions = bank.bankStatements.flatMap(statement =>
+            statement.transactions.map(transaction => ({
+                ...transaction,
+                accountCurrency: statement.accountCurrency || 'USD'
+            }))
+        )
+
+        // Group transactions by month
+        const monthlyData: { [key: string]: { inflows: number, outflows: number } } = {}
+        
+        for (const transaction of allTransactions) {
+            const date = new Date(transaction.transactionDate)
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = { inflows: 0, outflows: 0 }
+            }
+            
+            const creditAmount = parseFloat(transaction.creditAmount || '0')
+            const debitAmount = parseFloat(transaction.debitAmount || '0')
+            
+            if (creditAmount > 0) {
+                const creditEGP = await convertToEGP(creditAmount, transaction.accountCurrency)
+                monthlyData[monthKey].inflows += creditEGP
+            }
+            if (debitAmount > 0) {
+                const debitEGP = await convertToEGP(debitAmount, transaction.accountCurrency)
+                monthlyData[monthKey].outflows += debitEGP
+            }
+        }
+
+        // Sort months and prepare chart data
+        const sortedMonths = Object.keys(monthlyData).sort()
+        const labels = sortedMonths.map(month => {
+            const [year, monthNum] = month.split('-')
+            const date = new Date(parseInt(year), parseInt(monthNum) - 1)
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        })
+        
+        const inflows = sortedMonths.map(month => monthlyData[month].inflows)
+        const outflows = sortedMonths.map(month => monthlyData[month].outflows)
+        
+        setCashFlowDataEGP({ labels, inflows, outflows })
     }
 
     // Handle facility edit
@@ -401,7 +512,6 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const facilities = processFacilitiesData()
     const transactions = processTransactionsData()
     const cashFlowData = processCashFlowData()
-    const financialMetrics = calculateFinancialMetrics()
 
     return (
         <div>
@@ -513,7 +623,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                         <dl>
                                             <dt className="truncate text-sm font-medium text-gray-500">Current Cash Balance</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetrics.totalCashBalance)}</div>
+                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetricsEGP.totalCashBalance)}</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -547,7 +657,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                         <dl>
                                             <dt className="truncate text-sm font-medium text-gray-500">Current Outstanding</dt>
                                             <dd>
-                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetrics.currentOutstanding)}</div>
+                                                <div className="text-lg font-medium text-gray-900">{formatCurrency(financialMetricsEGP.currentOutstanding)}</div>
                                             </dd>
                                         </dl>
                                     </div>
@@ -562,7 +672,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                             <h3 className="text-lg font-medium leading-6 text-gray-900">Cash Flow - {bank.name}</h3>
                         </div>
                         <div className="p-6">
-                            {cashFlowData.labels.length > 0 ? (
+                            {cashFlowDataEGP.labels.length > 0 ? (
                                 <div className="space-y-6">
                                     {/* Chart Legend */}
                                     <div className="flex items-center justify-center space-x-6 text-sm">
@@ -581,8 +691,8 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                         {/* Calculate max value for scaling */}
                                         {(() => {
                                             const maxValue = Math.max(
-                                                ...cashFlowData.inflows,
-                                                ...cashFlowData.outflows,
+                                                ...cashFlowDataEGP.inflows,
+                                                ...cashFlowDataEGP.outflows,
                                                 1 // Minimum value to avoid division by zero
                                             );
                                             const chartHeight = 300; // Fixed chart height in pixels
@@ -595,7 +705,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                                         <span>{formatCurrency(maxValue * 0.75)}</span>
                                                         <span>{formatCurrency(maxValue * 0.5)}</span>
                                                         <span>{formatCurrency(maxValue * 0.25)}</span>
-                                                        <span>$0</span>
+                                                        <span>EGP 0</span>
                                                     </div>
                                                     
                                                     {/* Chart area */}
@@ -612,12 +722,12 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                                             
                                                             {/* Bars */}
                                                             <div className="absolute inset-0 flex items-end justify-between px-2">
-                                                                {cashFlowData.labels.map((label, index) => {
-                                                                    const inflow = cashFlowData.inflows[index];
-                                                                    const outflow = cashFlowData.outflows[index];
+                                                                {cashFlowDataEGP.labels.map((label, index) => {
+                                                                    const inflow = cashFlowDataEGP.inflows[index];
+                                                                    const outflow = cashFlowDataEGP.outflows[index];
                                                                     const inflowHeight = (inflow / maxValue) * chartHeight;
                                                                     const outflowHeight = (outflow / maxValue) * chartHeight;
-                                                                    const barWidth = Math.max(40, (100 / cashFlowData.labels.length) - 10); // Responsive bar width
+                                                                    const barWidth = Math.max(40, (100 / cashFlowDataEGP.labels.length) - 10); // Responsive bar width
                                                                     
                                                                     return (
                                                                         <div key={index} className="flex flex-col items-center" style={{ width: `${barWidth}px` }}>
@@ -684,25 +794,25 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                                             <div>
                                                 <p className="text-sm text-gray-500">Total Inflows</p>
                                                 <p className="text-lg font-semibold text-green-600">
-                                                    {formatCurrency(cashFlowData.inflows.reduce((sum, val) => sum + val, 0))}
+                                                    {formatCurrency(cashFlowDataEGP.inflows.reduce((sum, val) => sum + val, 0))}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-gray-500">Total Outflows</p>
                                                 <p className="text-lg font-semibold text-red-600">
-                                                    {formatCurrency(cashFlowData.outflows.reduce((sum, val) => sum + val, 0))}
+                                                    {formatCurrency(cashFlowDataEGP.outflows.reduce((sum, val) => sum + val, 0))}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-sm text-gray-500">Net Cash Flow</p>
                                                 <p className={`text-lg font-semibold ${
-                                                    (cashFlowData.inflows.reduce((sum, val) => sum + val, 0) - 
-                                                     cashFlowData.outflows.reduce((sum, val) => sum + val, 0)) >= 0 
+                                                    (cashFlowDataEGP.inflows.reduce((sum, val) => sum + val, 0) - 
+                                                     cashFlowDataEGP.outflows.reduce((sum, val) => sum + val, 0)) >= 0 
                                                         ? 'text-green-600' : 'text-red-600'
                                                 }`}>
                                                     {formatCurrency(
-                                                        cashFlowData.inflows.reduce((sum, val) => sum + val, 0) - 
-                                                        cashFlowData.outflows.reduce((sum, val) => sum + val, 0)
+                                                        cashFlowDataEGP.inflows.reduce((sum, val) => sum + val, 0) - 
+                                                        cashFlowDataEGP.outflows.reduce((sum, val) => sum + val, 0)
                                                     )}
                                                 </p>
                                             </div>
