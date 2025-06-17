@@ -125,6 +125,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [chartLoaded, setChartLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshingProjections, setRefreshingProjections] = useState(false);
 
   // Load chart.js when component mounts
   useEffect(() => {
@@ -242,141 +243,186 @@ export default function Dashboard() {
     return customers.reduce((sum: number, customer: Customer) => sum + customer.totalReceivables, 0);
   };
 
-  // Fetch dashboard data using the same APIs as individual pages
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // Fetch data from the same APIs used by individual pages
-        const [banksRes, suppliersRes, customersRes, timelineRes, historicalRes] = await Promise.all([
-          fetch('/api/banks'),
-          fetch('/api/suppliers'),
-          fetch('/api/customers'),
-          fetch('/api/dashboard/timeline'),
-          fetch('/api/dashboard/historical-cashflow')
-        ]);
+      // Fetch data from the same APIs used by individual pages
+      const [banksRes, suppliersRes, customersRes, timelineRes, historicalRes] = await Promise.all([
+        fetch('/api/banks'),
+        fetch('/api/suppliers'),
+        fetch('/api/customers'),
+        fetch('/api/dashboard/timeline'),
+        fetch('/api/dashboard/historical-cashflow')
+      ]);
 
-        if (!banksRes.ok || !suppliersRes.ok || !customersRes.ok || !timelineRes.ok || !historicalRes.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-
-        const [banksData, suppliersData, customersData, timelineData, historicalData] = await Promise.all([
-          banksRes.json(),
-          suppliersRes.json(),
-          customersRes.json(),
-          timelineRes.json(),
-          historicalRes.json()
-        ]);
-
-        // Calculate totals using the same logic as individual pages
-        const totalCash = banksData.success ? await calculateTotalCash(banksData.banks) : 0;
-        const totalPayables = Array.isArray(suppliersData) ? calculateTotalPayables(suppliersData) : 0;
-        const totalReceivables = Array.isArray(customersData) ? calculateTotalReceivables(customersData) : 0;
-
-        // Get outstanding bank payments from the original dashboard stats API
-        const bankPaymentsRes = await fetch('/api/dashboard/stats');
-        let outstandingBankPayments = 0;
-        let metadata = null;
-        
-        if (bankPaymentsRes.ok) {
-          const bankPaymentsData = await bankPaymentsRes.json();
-          if (bankPaymentsData.success) {
-            const bankPaymentStat = bankPaymentsData.stats.find(
-              (stat: any) => stat.title === 'Outstanding Bank Payments (30 days)'
-            );
-            outstandingBankPayments = bankPaymentStat?.value || 0;
-            metadata = bankPaymentsData.metadata;
-          }
-        }
-
-        // Create stats array with calculated values
-        const calculatedStats: DashboardStat[] = [
-          {
-            title: 'Total Cash On Hand',
-            value: totalCash,
-            change: 0, // You might want to calculate this based on historical data
-            changeType: 'neutral' as const,
-            icon: 'CurrencyDollarIcon',
-            iconColor: 'bg-green-500',
-            dataSource: 'bankStatements'
-          },
-          {
-            title: 'Outstanding Payables',
-            value: totalPayables,
-            change: 0, // You might want to calculate this based on historical data
-            changeType: 'neutral' as const,
-            icon: 'BanknotesIcon',
-            iconColor: 'bg-red-500',
-            interpretation: 'positive' as const,
-            dataSource: 'accountsPayable'
-          },
-          {
-            title: 'Outstanding Receivables',
-            value: totalReceivables,
-            change: 0, // You might want to calculate this based on historical data
-            changeType: 'neutral' as const,
-            icon: 'CreditCardIcon',
-            iconColor: 'bg-blue-500',
-            dataSource: 'accountsReceivable'
-          },
-          {
-            title: 'Outstanding Bank Payments (30 days)',
-            value: outstandingBankPayments,
-            change: 0,
-            changeType: 'neutral' as const,
-            icon: 'ArrowTrendingUpIcon',
-            iconColor: 'bg-purple-500',
-            interpretation: 'negative' as const,
-            dataSource: 'bankPosition'
-          },
-        ];
-
-        setStats(calculatedStats);
-        setMetadata(metadata || {
-          referenceDate: new Date().toISOString(),
-          referenceDateFormatted: new Date().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          bankName: banksData.banks?.[0]?.name || 'Multiple Banks',
-          accountNumber: '',
-          note: 'Data calculated from banks, suppliers, and customers pages'
-        });
-
-        if (timelineData.success) {
-          setTimeline(timelineData.timeline);
-        }
-
-        if (historicalData.success) {
-          setHistoricalPositions(historicalData.positions);
-        }
-
-        // Fetch projected positions based on the reference date
-        const referenceDate = metadata?.referenceDate || new Date().toISOString();
-        const nextDay = new Date(referenceDate);
-        nextDay.setDate(nextDay.getDate() + 1);
-
-        const projectedRes = await fetch(`/api/cashflow/position?date=${nextDay.toISOString().split('T')[0]}&range=30d`);
-        if (projectedRes.ok) {
-          const projectedData = await projectedRes.json();
-          if (projectedData.success) {
-            setProjectedPositions(projectedData.positions);
-          }
-        }
-
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
-      } finally {
-        setLoading(false);
+      if (!banksRes.ok || !suppliersRes.ok || !customersRes.ok || !timelineRes.ok || !historicalRes.ok) {
+        throw new Error('Failed to fetch dashboard data');
       }
-    };
 
+      const [banksData, suppliersData, customersData, timelineData, historicalData] = await Promise.all([
+        banksRes.json(),
+        suppliersRes.json(),
+        customersRes.json(),
+        timelineRes.json(),
+        historicalRes.json()
+      ]);
+
+      // Calculate totals using the same logic as individual pages
+      const totalCash = banksData.success ? await calculateTotalCash(banksData.banks) : 0;
+      const totalPayables = Array.isArray(suppliersData) ? calculateTotalPayables(suppliersData) : 0;
+      const totalReceivables = Array.isArray(customersData) ? calculateTotalReceivables(customersData) : 0;
+
+      // Get outstanding bank payments from the original dashboard stats API
+      const bankPaymentsRes = await fetch('/api/dashboard/stats');
+      let outstandingBankPayments = 0;
+      let metadata = null;
+      
+      if (bankPaymentsRes.ok) {
+        const bankPaymentsData = await bankPaymentsRes.json();
+        if (bankPaymentsData.success) {
+          const bankPaymentStat = bankPaymentsData.stats.find(
+            (stat: any) => stat.title === 'Outstanding Bank Payments (30 days)'
+          );
+          outstandingBankPayments = bankPaymentStat?.value || 0;
+          metadata = bankPaymentsData.metadata;
+        }
+      }
+
+      // Create stats array with calculated values
+      const calculatedStats: DashboardStat[] = [
+        {
+          title: 'Total Cash On Hand',
+          value: totalCash,
+          change: 0, // You might want to calculate this based on historical data
+          changeType: 'neutral' as const,
+          icon: 'CurrencyDollarIcon',
+          iconColor: 'bg-green-500',
+          dataSource: 'bankStatements'
+        },
+        {
+          title: 'Outstanding Payables',
+          value: totalPayables,
+          change: 0, // You might want to calculate this based on historical data
+          changeType: 'neutral' as const,
+          icon: 'BanknotesIcon',
+          iconColor: 'bg-red-500',
+          interpretation: 'positive' as const,
+          dataSource: 'accountsPayable'
+        },
+        {
+          title: 'Outstanding Receivables',
+          value: totalReceivables,
+          change: 0, // You might want to calculate this based on historical data
+          changeType: 'neutral' as const,
+          icon: 'CreditCardIcon',
+          iconColor: 'bg-blue-500',
+          dataSource: 'accountsReceivable'
+        },
+        {
+          title: 'Outstanding Bank Payments (30 days)',
+          value: outstandingBankPayments,
+          change: 0,
+          changeType: 'neutral' as const,
+          icon: 'ArrowTrendingUpIcon',
+          iconColor: 'bg-purple-500',
+          interpretation: 'negative' as const,
+          dataSource: 'bankPosition'
+        },
+      ];
+
+      setStats(calculatedStats);
+      setMetadata(metadata || {
+        referenceDate: new Date().toISOString(),
+        referenceDateFormatted: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        bankName: banksData.banks?.[0]?.name || 'Multiple Banks',
+        accountNumber: '',
+        note: 'Data calculated from banks, suppliers, and customers pages'
+      });
+
+      if (timelineData.success) {
+        setTimeline(timelineData.timeline);
+      }
+
+      if (historicalData.success) {
+        setHistoricalPositions(historicalData.positions);
+      }
+
+      // Fetch projected positions based on the reference date
+      const referenceDate = metadata?.referenceDate || new Date().toISOString();
+      const nextDay = new Date(referenceDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      // Use the unified cashflow API to get projections that align with the cashflow page
+      const projectedRes = await fetch(`/api/cashflow/unified?startDate=${nextDay.toISOString().split('T')[0]}&range=30d`);
+      if (projectedRes.ok) {
+        const projectedData = await projectedRes.json();
+        if (projectedData.success) {
+          setProjectedPositions(projectedData.positions);
+          
+          console.log('✅ Dashboard using unified cashflow projections');
+          console.log(`   - Total projections: ${projectedData.metadata.totalProjections}`);
+          console.log(`   - Starting balance: ${projectedData.metadata.startingBalance}`);
+          console.log(`   - Currency: ${projectedData.metadata.currency}`);
+        }
+      }
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  const refreshProjections = async () => {
+    try {
+      setRefreshingProjections(true);
+      
+      console.log('🚀 Dashboard: Starting centralized projection refresh...');
+      
+      // Use the same centralized refresh endpoint as the cashflow page
+      const response = await fetch('/api/cashflow/projections/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year
+          forceRecalculate: true
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Dashboard: Centralized projection refresh completed successfully');
+        console.log('📊 Summary:', data.summary);
+        
+        // Refresh the dashboard data to show updated projections
+        await fetchDashboardData();
+        console.log('✅ Dashboard data refreshed with updated projections');
+        
+      } else {
+        console.error('❌ Dashboard: Projection refresh failed:', data.error);
+        throw new Error(`Projection refresh failed: ${data.error}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Dashboard: Error during projection refresh:', error);
+      alert(`Failed to refresh projections: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setRefreshingProjections(false);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     return formatEGP(amount);
@@ -541,7 +587,7 @@ export default function Dashboard() {
         display: true,
         title: {
           display: true,
-          text: 'Amount (USD)',
+          text: 'Amount (EGP)',
           font: {
             size: 14,
             weight: 'bold' as const
@@ -602,12 +648,27 @@ export default function Dashboard() {
       <div className="py-10">
         <header>
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900">
-              Dashboard
-            </h1>
-            <p className="mt-2 text-sm text-gray-600">
-              Real-time overview of your financial position and upcoming obligations
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900">
+                  Dashboard
+                </h1>
+                <p className="mt-2 text-sm text-gray-600">
+                  Real-time overview of your financial position and upcoming obligations
+                </p>
+              </div>
+              
+              <div className="mt-4 sm:mt-0">
+                <button
+                  onClick={refreshProjections}
+                  disabled={refreshingProjections}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowPathIcon className={`h-4 w-4 mr-2 ${refreshingProjections ? 'animate-spin' : ''}`} />
+                  {refreshingProjections ? 'Refreshing...' : 'Refresh Projections'}
+                </button>
+              </div>
+            </div>
             
             {/* Reference Date Information */}
             {metadata && (
