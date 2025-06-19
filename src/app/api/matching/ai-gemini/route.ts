@@ -253,42 +253,42 @@ export async function POST(request: NextRequest) {
 
     for (const match of matches) {
       try {
-        // Check for existing approved match to avoid duplicates
-        const existingApprovedMatch = await prisma.transactionMatch.findFirst({
-          where: {
-            transactionId: match.transactionId,
-            invoiceId: match.invoiceId,
-            status: 'APPROVED'
-          }
-        });
-
-        if (existingApprovedMatch) {
-          console.log(`⏭️  Approved match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId}`);
-          duplicateMatches++;
-          continue;
-        }
-
-        // Check for existing pending match to avoid creating multiple pending matches
-        const existingPendingMatch = await prisma.transactionMatch.findFirst({
-          where: {
-            transactionId: match.transactionId,
-            invoiceId: match.invoiceId,
-            status: 'PENDING'
-          }
-        });
-
-        if (existingPendingMatch) {
-          console.log(`⏭️  Pending match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId}`);
-          duplicateMatches++;
-          continue;
-        }
-
         // Determine transaction category based on invoice
         const invoice = invoices.find(inv => inv.id === match.invoiceId);
         const transactionCategory = invoice?.customerId ? 'CUSTOMER_PAYMENT' : 'SUPPLIER_PAYMENT';
 
-        await prisma.transactionMatch.create({
-          data: {
+        // First check if there's an existing approved match - don't overwrite those
+        const existingMatch = await prisma.transactionMatch.findUnique({
+          where: {
+            transactionId_invoiceId: {
+              transactionId: match.transactionId,
+              invoiceId: match.invoiceId
+            }
+          }
+        });
+
+        if (existingMatch && existingMatch.status === 'APPROVED') {
+          console.log(`⏭️  Approved match already exists for transaction ${match.transactionId} and invoice ${match.invoiceId} - skipping`);
+          duplicateMatches++;
+          continue;
+        }
+
+        // Use upsert to handle the unique constraint gracefully
+        const result = await prisma.transactionMatch.upsert({
+          where: {
+            transactionId_invoiceId: {
+              transactionId: match.transactionId,
+              invoiceId: match.invoiceId
+            }
+          },
+          update: {
+            // Only update if the existing match is still PENDING
+            matchScore: match.matchScore,
+            matchReason: match.matchReason,
+            passedStrictCriteria: match.passedStrictCriteria,
+            updatedAt: new Date()
+          },
+          create: {
             transactionId: match.transactionId,
             invoiceId: match.invoiceId,
             matchType: MatchType.SUGGESTED,
@@ -303,8 +303,16 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date()
           }
         });
-        savedMatches++;
-        console.log(`✅ Saved match for transaction ${match.transactionId} and invoice ${match.invoiceId} (score: ${match.matchScore})`);
+
+        // Check if this was an existing match that we updated vs a new one we created
+        const wasCreated = result.createdAt.getTime() === result.updatedAt.getTime();
+        if (wasCreated) {
+          savedMatches++;
+          console.log(`✅ Created new match for transaction ${match.transactionId} and invoice ${match.invoiceId} (score: ${match.matchScore})`);
+        } else {
+          duplicateMatches++;
+          console.log(`🔄 Updated existing match for transaction ${match.transactionId} and invoice ${match.invoiceId} (score: ${match.matchScore})`);
+        }
       } catch (error) {
         console.error(`❌ Error saving match for transaction ${match.transactionId} and invoice ${match.invoiceId}:`, error);
         errorMatches++;
