@@ -183,65 +183,102 @@ export async function POST(request: NextRequest) {
     let processedGroups = 0;
     let totalProcessedInvoices = 0;
 
-    // Process each invoice group
-    for (const group of invoiceGroups) {
-      console.log(`🏢 Processing ${group.invoiceType} group: ${group.entityName} (${group.invoices.length} invoices)`);
+    // Process invoice groups in batches of 3 simultaneously
+    const batchSize = 5;
+    const groupBatches = [];
+    
+    for (let i = 0; i < invoiceGroups.length; i += batchSize) {
+      groupBatches.push(invoiceGroups.slice(i, i + batchSize));
+    }
+
+    console.log(`🚀 Processing ${invoiceGroups.length} invoice groups in ${groupBatches.length} batches of ${batchSize}`);
+
+    for (const batch of groupBatches) {
+      console.log(`🏢 Processing batch of ${batch.length} groups: ${batch.map(g => `${g.entityName} (${g.invoiceType})`).join(', ')}`);
       
-      // Filter transactions by category based on invoice type
-      const relevantTransactions = transactions.filter(t => {
-        const categoryMatch = group.invoiceType === 'CUSTOMER' 
-          ? t.category === 'CUSTOMER_PAYMENT'
-          : t.category === 'SUPPLIER_PAYMENT';
-        
-        if (!categoryMatch) return false;
+      // Process each group in the batch in parallel
+      const batchPromises = batch.map(async (group) => {
+        try {
+          // Filter transactions by category based on invoice type
+          const relevantTransactions = transactions.filter(t => {
+            const categoryMatch = group.invoiceType === 'CUSTOMER' 
+              ? t.category === 'CUSTOMER_PAYMENT'
+              : t.category === 'SUPPLIER_PAYMENT';
+            
+            if (!categoryMatch) return false;
 
-        // Filter by currency - transaction currency must match any invoice currency in the group
-        const groupCurrencies = [...new Set(group.invoices.map(inv => inv.currency))];
-        const currencyMatch = t.currency && groupCurrencies.includes(t.currency);
-        
-        if (!currencyMatch) return false;
+            // Filter by currency - transaction currency must match any invoice currency in the group
+            const groupCurrencies = [...new Set(group.invoices.map(inv => inv.currency))];
+            const currencyMatch = t.currency && groupCurrencies.includes(t.currency);
+            
+            if (!currencyMatch) return false;
 
-        // Additional filtering for date range (within 90 days of any invoice in group)
-        const groupDateRange = getGroupDateRange(group.invoices);
-        const transactionDate = new Date(t.transactionDate);
-        const daysDiff = Math.min(
-          Math.abs(transactionDate.getTime() - groupDateRange.earliest.getTime()),
-          Math.abs(transactionDate.getTime() - groupDateRange.latest.getTime())
-        ) / (1000 * 60 * 60 * 24);
+            // Additional filtering for date range (within 90 days of any invoice in group)
+            const groupDateRange = getGroupDateRange(group.invoices);
+            const transactionDate = new Date(t.transactionDate);
+            const daysDiff = Math.min(
+              Math.abs(transactionDate.getTime() - groupDateRange.earliest.getTime()),
+              Math.abs(transactionDate.getTime() - groupDateRange.latest.getTime())
+            ) / (1000 * 60 * 60 * 24);
 
-        return daysDiff <= 90; // Extended range for grouped analysis
+            return daysDiff <= 90; // Extended range for grouped analysis
+          });
+
+          console.log(`📋 Found ${relevantTransactions.length} relevant ${group.invoiceType} transactions for ${group.entityName}`);
+
+          if (relevantTransactions.length === 0) {
+            return {
+              group,
+              matches: [],
+              error: null
+            };
+          }
+
+          // Use Gemini to analyze the group of invoices against relevant transactions
+          const analysisResult = await analyzeGroupWithGemini(group, relevantTransactions);
+          
+          if (analysisResult.matches && analysisResult.matches.length > 0) {
+            console.log(`✨ Found ${analysisResult.matches.length} AI matches for ${group.entityName} group`);
+            return {
+              group,
+              matches: analysisResult.matches,
+              error: null
+            };
+          } else {
+            console.log(`❓ No AI matches found for ${group.entityName} group`);
+            return {
+              group,
+              matches: [],
+              error: null
+            };
+          }
+        } catch (error) {
+          console.error(`❌ Error analyzing ${group.entityName} group:`, error);
+          return {
+            group,
+            matches: [],
+            error: error as Error
+          };
+        }
       });
 
-      console.log(`📋 Found ${relevantTransactions.length} relevant ${group.invoiceType} transactions for ${group.entityName}`);
-
-      if (relevantTransactions.length === 0) {
-        processedGroups++;
-        totalProcessedInvoices += group.invoices.length;
-        continue;
-      }
-
-      try {
-        // Use Gemini to analyze the group of invoices against relevant transactions
-        const analysisResult = await analyzeGroupWithGemini(group, relevantTransactions);
-        
-        if (analysisResult.matches && analysisResult.matches.length > 0) {
-          console.log(`✨ Found ${analysisResult.matches.length} AI matches for ${group.entityName} group`);
-          matches.push(...analysisResult.matches);
-        } else {
-          console.log(`❓ No AI matches found for ${group.entityName} group`);
-        }
-      } catch (error) {
-        console.error(`❌ Error analyzing ${group.entityName} group:`, error);
-        processedGroups++;
-        totalProcessedInvoices += group.invoices.length;
-        continue;
-      }
-
-      processedGroups++;
-      totalProcessedInvoices += group.invoices.length;
+      // Wait for all groups in the batch to complete
+      const batchResults = await Promise.all(batchPromises);
       
-      // Add delay to respect rate limits
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // Process results from the batch
+      for (const result of batchResults) {
+        if (result.matches.length > 0) {
+          matches.push(...result.matches);
+        }
+        processedGroups++;
+        totalProcessedInvoices += result.group.invoices.length;
+      }
+      
+      // Add delay between batches to respect rate limits
+      if (groupBatches.indexOf(batch) < groupBatches.length - 1) {
+        console.log('⏳ Waiting 500ms before processing next batch...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     }
 
     console.log(`🎯 Found ${matches.length} total potential matches from ${processedGroups} groups`);
