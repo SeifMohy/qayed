@@ -367,10 +367,10 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         </div>
       )}
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Statement Info & Validation */}
-        <div className="lg:col-span-1 space-y-6">
+      {/* Content Layout */}
+      <div className="space-y-6">
+        {/* Top Row - Statement Info & Validation side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Statement Metadata */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
@@ -395,19 +395,17 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
           </div>
         </div>
 
-        {/* Right Column - Transactions */}
-        <div className="lg:col-span-2">
-          <div className="bg-white shadow rounded-lg">
-            <TransactionManager
-              statementId={statementId}
-              transactions={statement.transactions}
-              onUpdate={handleTransactionsUpdate}
-              onValidate={handleValidation}
-              disabled={statement.locked}
-              googleSheetId={statement.googleSheetId}
-              startingBalance={statement.startingBalance}
-            />
-          </div>
+        {/* Bottom Row - Transactions (full width) */}
+        <div className="bg-white shadow rounded-lg">
+          <TransactionManager
+            statementId={statementId}
+            transactions={statement.transactions}
+            onUpdate={handleTransactionsUpdate}
+            onValidate={handleValidation}
+            disabled={statement.locked}
+            googleSheetId={statement.googleSheetId}
+            startingBalance={statement.startingBalance}
+          />
         </div>
       </div>
     </div>
