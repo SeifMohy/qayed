@@ -122,9 +122,13 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { matchId, action, notes } = await request.json();
+    const body = await request.json();
+    const { matchId, action, notes } = body;
+
+    console.log('Match update request:', { matchId, action, notes, body });
 
     if (!matchId || !action) {
+      console.error('Missing required fields:', { matchId, action });
       return NextResponse.json({
         success: false,
         error: 'Match ID and action are required',
@@ -133,23 +137,56 @@ export async function PUT(request: NextRequest) {
 
     const validActions = ['approve', 'reject', 'dispute'];
     if (!validActions.includes(action)) {
+      console.error('Invalid action:', action);
       return NextResponse.json({
         success: false,
         error: 'Invalid action. Must be approve, reject, or dispute',
       }, { status: 400 });
     }
 
+    // First check if the match exists
+    const existingMatch = await prisma.transactionMatch.findUnique({
+      where: { id: matchId },
+      include: {
+        Transaction: {
+          select: {
+            id: true,
+            description: true,
+          },
+        },
+        Invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+          },
+        },
+      },
+    });
+
+    if (!existingMatch) {
+      console.error('Match not found:', matchId);
+      return NextResponse.json({
+        success: false,
+        error: `Match with ID ${matchId} not found`,
+      }, { status: 404 });
+    }
+
+    console.log('Existing match found:', existingMatch);
+
     // Map action to status
     const statusMap = {
       approve: 'APPROVED',
       reject: 'REJECTED',
       dispute: 'DISPUTED',
-    };
+    } as const;
+
+    const newStatus = statusMap[action as keyof typeof statusMap] as MatchStatus;
+    console.log('Updating match status to:', newStatus);
 
     const updatedMatch = await prisma.transactionMatch.update({
       where: { id: matchId },
       data: {
-        status: statusMap[action as keyof typeof statusMap] as MatchStatus,
+        status: newStatus,
         verifiedAt: new Date(),
         verifiedBy: 'system', // This could be replaced with actual user info when auth is implemented
         verificationNotes: notes || null,
@@ -171,6 +208,8 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    console.log('Match updated successfully:', updatedMatch);
+
     return NextResponse.json({
       success: true,
       message: `Match ${action}d successfully`,
@@ -179,9 +218,26 @@ export async function PUT(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error updating match status:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to update match status';
+    if (error.code === 'P2002') {
+      errorMessage = 'Constraint violation: This match may already exist or have conflicting data';
+    } else if (error.code === 'P2025') {
+      errorMessage = 'Match not found or has been deleted';
+    } else if (error.message) {
+      errorMessage = `Database error: ${error.message}`;
+    }
+
     return NextResponse.json({
       success: false,
-      error: 'Failed to update match status',
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     }, { status: 500 });
   }
 } 

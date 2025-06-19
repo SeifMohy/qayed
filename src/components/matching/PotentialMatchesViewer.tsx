@@ -8,7 +8,6 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   CreditCardIcon,
-  ClockIcon,
   StarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -77,12 +76,7 @@ interface ProcessedMatch {
   error?: string;
 }
 
-interface Toast {
-  id: number;
-  type: 'success' | 'error' | 'info';
-  message: string;
-  duration?: number;
-}
+
 
 export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatchesViewerProps) {
   const [matches, setMatches] = useState<PotentialMatch[]>([]);
@@ -97,7 +91,7 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
   const [processedMatches, setProcessedMatches] = useState<Map<number, ProcessedMatch>>(new Map());
   const [selectedMatches, setSelectedMatches] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+
 
   const fetchMatches = useCallback(async () => {
     try {
@@ -114,10 +108,10 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
         setProcessedMatches(new Map());
         setSelectedMatches(new Set());
       } else {
-        showToast('error', 'Failed to fetch matches');
+        console.error('Failed to fetch matches:', data.error);
       }
     } catch (error) {
-      showToast('error', 'Error fetching matches');
+      console.error('Error fetching matches:', error);
     } finally {
       setLoading(false);
     }
@@ -127,19 +121,11 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
     fetchMatches();
   }, [fetchMatches]);
 
-  const showToast = (type: Toast['type'], message: string, duration = 5000) => {
-    const id = Date.now();
-    const toast: Toast = { id, type, message, duration };
-    setToasts(prev => [...prev, toast]);
-    
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-      }, duration);
-    }
-  };
+
 
   const handleMatchAction = async (matchId: number, action: 'approve' | 'reject' | 'dispute', notes?: string) => {
+    console.log('Attempting to update match:', { matchId, action, notes });
+    
     // Optimistic update
     setProcessedMatches(prev => new Map(prev).set(matchId, {
       id: matchId,
@@ -149,15 +135,21 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
     }));
 
     try {
+      const requestBody = { matchId, action, notes };
+      console.log('Request body:', requestBody);
+
       const response = await fetch('/api/matching/pending', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ matchId, action, notes }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('Response status:', response.status);
+      
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (data.success) {
         // Mark as completed
@@ -168,8 +160,6 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
           isCompleted: true
         }));
         
-        showToast('success', `Match ${action}d successfully`);
-        
         // Remove from selected if it was selected
         setSelectedMatches(prev => {
           const newSet = new Set(prev);
@@ -177,10 +167,13 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
           return newSet;
         });
 
-        // Call update callback without refetching (optimistic)
-        if (onMatchUpdate) {
-          onMatchUpdate();
-        }
+        // Refresh the data to show updated state
+        setTimeout(() => {
+          fetchMatches();
+          if (onMatchUpdate) {
+            onMatchUpdate();
+          }
+        }, 500); // Small delay to ensure database is updated
       } else {
         // Mark as error
         setProcessedMatches(prev => new Map(prev).set(matchId, {
@@ -190,9 +183,12 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
           isCompleted: false,
           error: data.error
         }));
-        showToast('error', `Failed to ${action} match: ${data.error}`);
+        
+        console.error('Match action failed:', data);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Network error during match action:', error);
+      
       setProcessedMatches(prev => new Map(prev).set(matchId, {
         id: matchId,
         action,
@@ -200,28 +196,37 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
         isCompleted: false,
         error: 'Network error'
       }));
-      showToast('error', `Error ${action}ing match`);
+      
+      console.error('Network error while updating match:', error);
     }
   };
 
   const handleBulkAction = async (action: 'approve' | 'reject') => {
     if (selectedMatches.size === 0) {
-      showToast('error', 'No matches selected');
+      console.log('No matches selected');
       return;
     }
 
     const matchIds = Array.from(selectedMatches);
-    showToast('info', `Processing ${matchIds.length} matches...`, 0);
+    console.log(`Processing ${matchIds.length} matches for bulk ${action}...`);
 
     // Process all selected matches
     const promises = matchIds.map(matchId => handleMatchAction(matchId, action));
     
     try {
       await Promise.allSettled(promises);
-      showToast('success', `Bulk ${action} completed for ${matchIds.length} matches`);
+      console.log(`Bulk ${action} completed for ${matchIds.length} matches`);
       setSelectedMatches(new Set());
+      
+      // Refresh data after bulk action
+      setTimeout(() => {
+        fetchMatches();
+        if (onMatchUpdate) {
+          onMatchUpdate();
+        }
+      }, 1000); // Longer delay for bulk operations
     } catch (error) {
-      showToast('error', `Bulk ${action} failed`);
+      console.error(`Bulk ${action} failed:`, error);
     }
   };
 
@@ -315,32 +320,6 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
 
   return (
     <div className="space-y-6">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`max-w-sm w-full p-4 rounded-lg shadow-lg transition-all duration-300 ${
-              toast.type === 'success' ? 'bg-green-500 text-white' :
-              toast.type === 'error' ? 'bg-red-500 text-white' :
-              'bg-blue-500 text-white'
-            }`}
-          >
-            <div className="flex items-center">
-              {toast.type === 'success' && <CheckCircleIcon className="h-5 w-5 mr-2" />}
-              {toast.type === 'error' && <XMarkIcon className="h-5 w-5 mr-2" />}
-              {toast.type === 'info' && <ClockIcon className="h-5 w-5 mr-2" />}
-              <span className="text-sm font-medium">{toast.message}</span>
-              <button
-                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                className="ml-auto text-white hover:text-gray-200"
-              >
-                <XMarkIcon className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Header with filters, stats, and bulk actions */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
