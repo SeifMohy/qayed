@@ -9,7 +9,7 @@ import { BanknotesIcon, UsersIcon, TruckIcon, ChartBarIcon, UserCircleIcon, Cred
 import { clsx } from 'clsx'
 
 // Define a shared key for localStorage
-const STORAGE_KEY = 'radiant_app_uploaded_sources';
+const STORAGE_KEY = 'qayed_app_uploaded_sources';
 
 // Define the context type
 type UploadedSourcesContextType = {
@@ -106,7 +106,7 @@ export default function DashboardLayout({
                   <div className="flex">
                     <div className="flex flex-shrink-0 items-center">
                       <Link href="/dashboard">
-                        <span className="text-xl font-semibold text-gray-900">Radiant</span>
+                        <span className="text-xl font-semibold text-gray-900">Qayed</span>
                       </Link>
                     </div>
                     <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">

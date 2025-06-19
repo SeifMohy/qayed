@@ -19,7 +19,7 @@ const testimonialData: Testimonial[] = [
     name: 'Tina Yards',
     title: 'VP of Sales, Protocol',
     quote:
-      "Thanks to Radiant, we're finding new leads that we never would have found with legal methods.",
+      "Thanks to Qayed, we're able to manage our cashflow with complete financial visibility and control.",
   },
   {
     img: '/testimonials/veronica-winton.jpg',

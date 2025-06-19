@@ -4,8 +4,8 @@ import { AuthProvider } from '@/contexts/auth-context'
 
 export const metadata: Metadata = {
   title: {
-    template: '%s - Radiant',
-    default: 'Radiant - Close every deal',
+    template: '%s - Qayed',
+    default: 'Qayed - Cashflow Management Platform',
   },
 }
 
@@ -24,7 +24,7 @@ export default function RootLayout({
         <link
           rel="alternate"
           type="application/rss+xml"
-          title="The Radiant Blog"
+          title="The Qayed Blog"
           href="/blog/feed.xml"
         />
       </head>

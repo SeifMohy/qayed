@@ -1,11 +1,11 @@
-# Radiant Project
+# Qayed - Cashflow Management Platform
 
-A Next.js application with TypeScript, Tailwind CSS, and best practices for modern web development.
+A Next.js application with TypeScript, Tailwind CSS, and modern web development practices for comprehensive cashflow management and financial visibility.
 
 ## Project Structure
 
 ```
-radiant-ts/
+qayed-ts/
 ├── public/             # Static files
 ├── src/
 │   ├── app/            # Next.js app router pages

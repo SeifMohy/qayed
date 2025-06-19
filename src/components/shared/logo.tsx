@@ -24,28 +24,21 @@ export function Logo({ className }: { className?: string }) {
       }}
     >
       <svg
-        width="250"
-        height="90"
-        viewBox="0 0 200 60"
+        width="400"
+        height="100"
+        viewBox="0 0 400 100"
         xmlns="http://www.w3.org/2000/svg"
+        className="h-full w-auto"
       >
-        <style>
-          {`
-          url('https://fonts.googleapis.com/css2?family=Kanit&display=swap');
-          `}
-        </style>
-
         <text
-          x="50%"
-          y="50%"
-          dominant-baseline="middle"
-          text-anchor="middle"
-          fill="#333"
-          font-family="Kanit, 500"
-          font-size="32"
-          font-weight="bold"
+          x="0"
+          y="75"
+          fontFamily="Georgia, Times, 'Times New Roman', serif"
+          fontSize="80"
+          fontWeight="bold"
+          fill="#000"
         >
-          SKUFLOW
+          Qayed
         </text>
       </svg>
     </motion.div>
