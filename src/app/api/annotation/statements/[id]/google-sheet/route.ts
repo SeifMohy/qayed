@@ -303,13 +303,34 @@ export async function PUT(
       }
     });
 
+    // Trigger automatic re-classification after Google Sheets sync
+    try {
+      console.log(`Triggering automatic re-classification for bank statement ${id} after Google Sheets sync`);
+      
+      // Import the classification service
+      const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
+      
+      // Trigger classification asynchronously (don't wait for it to complete)
+      classifyBankStatementTransactions(id)
+          .then((result) => {
+              console.log(`Re-classification completed for statement ${id}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
+          })
+          .catch((error) => {
+              console.error(`Re-classification failed for statement ${id}:`, error);
+          });
+    } catch (error) {
+      console.error(`Failed to trigger re-classification for statement ${id}:`, error);
+      // Don't fail the main request if classification trigger fails
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         transactionCount: transactionsToCreate.length,
         message: 'Transactions synced successfully from Google Sheets',
         validationStatus: validationResult.status,
-        validationNotes: validationResult.notes
+        validationNotes: validationResult.notes,
+        classificationTriggered: true
       }
     });
 

@@ -58,9 +58,30 @@ export async function PUT(
       }
     });
 
+    // Trigger automatic re-classification for the bank statement after transaction update
+    try {
+      console.log(`Triggering automatic re-classification for bank statement ${bankStatementId} after transaction update`);
+      
+      // Import the classification service
+      const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
+      
+      // Trigger classification asynchronously (don't wait for it to complete)
+      classifyBankStatementTransactions(bankStatementId)
+          .then((result) => {
+              console.log(`Re-classification completed for statement ${bankStatementId}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
+          })
+          .catch((error) => {
+              console.error(`Re-classification failed for statement ${bankStatementId}:`, error);
+          });
+    } catch (error) {
+      console.error(`Failed to trigger re-classification for statement ${bankStatementId}:`, error);
+      // Don't fail the main request if classification trigger fails
+    }
+
     return NextResponse.json({
       success: true,
-      data: updatedTransaction
+      data: updatedTransaction,
+      classificationTriggered: true
     });
 
   } catch (error: any) {

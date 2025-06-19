@@ -980,12 +980,45 @@ export async function POST(request: Request) {
                 })
             );
 
+            // Trigger automatic classification for each saved statement
+            const classificationResults = [];
+            for (const statement of savedStatements) {
+                try {
+                    console.log(`Triggering automatic classification for bank statement ${statement.id}`);
+                    
+                    // Import the classification service
+                    const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
+                    
+                    // Trigger classification asynchronously (don't wait for it to complete)
+                    classifyBankStatementTransactions(statement.id)
+                        .then((result) => {
+                            console.log(`Classification completed for statement ${statement.id}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
+                        })
+                        .catch((error) => {
+                            console.error(`Classification failed for statement ${statement.id}:`, error);
+                        });
+                    
+                    classificationResults.push({
+                        statementId: statement.id,
+                        status: 'triggered'
+                    });
+                } catch (error) {
+                    console.error(`Failed to trigger classification for statement ${statement.id}:`, error);
+                    classificationResults.push({
+                        statementId: statement.id,
+                        status: 'failed',
+                        error: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                }
+            }
+
             return NextResponse.json({
                 success: true,
                 fileName: fileName || "statement",
                 chunksProcessed: chunks.length,
                 structuredData,
-                savedStatements: statementsWithCounts
+                savedStatements: statementsWithCounts,
+                classificationResults
             });
 
         } catch (error: any) {

@@ -105,7 +105,6 @@ RESPONSE FORMAT (JSON only, no other text):
 
 RULES:
 - Be conservative with confidence scores
-- If unsure, use OTHER category
 - extractedEntities should contain company/person names
 - extractedReferences should contain invoice numbers, reference numbers, or IDs
 - alternativeCategories should list other possible categories if uncertain
@@ -219,103 +218,19 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Fetch all bank statements for this bank and their transactions
-    const bankStatements = await prisma.bankStatement.findMany({
-      where: { bankId: bankId },
-      include: {
-        transactions: true // Remove the filter - get ALL transactions
-      }
-    });
+    console.log(`Manual classification request for bank ${bankId}`);
 
-    if (bankStatements.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'No bank statements found for this bank'
-      }, { status: 404 });
-    }
-
-    // Collect all transactions from all statements
-    const allTransactions = bankStatements.flatMap(statement => statement.transactions);
-
-    if (allTransactions.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'No transactions found for this bank'
-      }, { status: 400 });
-    }
-
-    console.log(`Starting batch classification for ${allTransactions.length} transactions across ${bankStatements.length} statements for bank ${bankId}`);
-
-    let classifiedCount = 0;
-    const errors: string[] = [];
-
-    // Process transactions in larger batches since we're doing batch API calls
-    const batchSize = 50; // Can process more per API call now
-    for (let i = 0; i < allTransactions.length; i += batchSize) {
-      const batch = allTransactions.slice(i, i + batchSize);
-      
-      try {
-        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}: ${batch.length} transactions`);
-        
-        // Get batch classification results
-        const batchResults = await classifyTransactionsBatch(batch);
-        
-        // Process each result in the batch
-        for (const result of batchResults) {
-          try {
-            // Map string category to enum
-            const categoryEnum = mapCategoryToEnum(result.category);
-            
-            // Prepare update data - currency is NOT included to preserve bank statement currency
-            const updateData: any = {
-              category: categoryEnum,
-              confidence: result.confidence,
-              classificationReason: result.reason,
-              extractedEntities: result.extractedEntities,
-              extractedReferences: result.extractedReferences,
-              alternativeCategories: result.alternativeCategories,
-              classifiedAt: new Date(),
-              classificationMethod: 'LLM',
-              llmModel: MODEL_NAME
-            };
-            
-            // Update the transaction with classification results
-            await prisma.transaction.update({
-              where: { id: result.transactionId },
-              data: updateData
-            });
-
-            classifiedCount++;
-            console.log(`Classified transaction ${result.transactionId}: ${categoryEnum} (${result.confidence})`);
-          } catch (error: any) {
-            console.error(`Error updating transaction ${result.transactionId}:`, error);
-            errors.push(`Transaction ${result.transactionId}: ${error.message}`);
-          }
-        }
-        
-      } catch (error: any) {
-        console.error(`Error processing batch starting at index ${i}:`, error);
-        // Add errors for all transactions in the failed batch
-        batch.forEach(transaction => {
-          errors.push(`Transaction ${transaction.id}: Batch processing failed - ${error.message}`);
-        });
-      }
-
-      // Add a delay between batches to be respectful to the API
-      if (i + batchSize < allTransactions.length) {
-        console.log(`Completed batch. Waiting 2 seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-
-    console.log(`Batch classification complete for bank ${bankId}. Classified: ${classifiedCount}, Errors: ${errors.length}`);
+    // Import and use the new classification service
+    const { classifyBankTransactions } = await import('@/lib/services/classificationService');
+    
+    const result = await classifyBankTransactions(bankId);
 
     return NextResponse.json({
-      success: true,
-      classifiedCount,
-      totalTransactions: allTransactions.length,
-      bankStatementsProcessed: bankStatements.length,
-      errors: errors.length > 0 ? errors : undefined
+      success: result.success,
+      classifiedCount: result.classifiedCount,
+      totalTransactions: result.totalTransactions,
+      bankStatementsProcessed: result.bankStatementsProcessed,
+      errors: result.errors.length > 0 ? result.errors : undefined
     });
 
   } catch (error: any) {
