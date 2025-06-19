@@ -36,6 +36,7 @@ interface TransactionForMatching {
   confidence?: number | null;
   extractedEntities?: string[];
   extractedReferences?: string[];
+  currency?: string | null;
 }
 
 interface InvoiceGroup {
@@ -164,7 +165,8 @@ export async function POST(request: NextRequest) {
       classificationReason: transaction.classificationReason,
       confidence: transaction.confidence,
       extractedEntities: transaction.extractedEntities,
-      extractedReferences: transaction.extractedReferences
+      extractedReferences: transaction.extractedReferences,
+      currency: transaction.currency
     }));
 
     console.log(`📊 Found ${transactions.length} categorized transactions`);
@@ -192,6 +194,12 @@ export async function POST(request: NextRequest) {
           : t.category === 'SUPPLIER_PAYMENT';
         
         if (!categoryMatch) return false;
+
+        // Filter by currency - transaction currency must match any invoice currency in the group
+        const groupCurrencies = [...new Set(group.invoices.map(inv => inv.currency))];
+        const currencyMatch = t.currency && groupCurrencies.includes(t.currency);
+        
+        if (!currencyMatch) return false;
 
         // Additional filtering for date range (within 90 days of any invoice in group)
         const groupDateRange = getGroupDateRange(group.invoices);
