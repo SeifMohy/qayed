@@ -36,7 +36,6 @@ const navigationItems = [
   { name: 'Suppliers', href: '/dashboard/suppliers', icon: TruckIcon },
   { name: 'Cashflow', href: '/dashboard/cashflow', icon: ChartBarIcon },
   // { name: 'Expenses', href: '/dashboard/expenses', icon: CreditCardIcon },
-  { name: 'Matching', href: '/dashboard/matching', icon: CpuChipIcon },
   { name: 'Matching Approvals', href: '/dashboard/matching-approvals', icon: CheckCircleIcon },
   { name: 'Annotation', href: '/dashboard/annotation/statements', icon: ClipboardDocumentCheckIcon },
 ]
