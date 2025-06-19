@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { MatchType, MatchStatus, TransactionCategory } from '@prisma/client';
 import { CURRENT_CUSTOMER_NAMES } from '@/lib/constants';
+import type { PaymentTermsData } from '@/types/paymentTerms';
 
 // Initialize Gemini AI with error checking
 if (!process.env.GEMINI_API_KEY) {
@@ -21,6 +22,7 @@ interface InvoiceForMatching {
   currency: string;
   customerId?: number | null;
   supplierId?: number | null;
+  paymentTerms?: PaymentTermsData | null;
 }
 
 interface TransactionForMatching {
@@ -86,6 +88,18 @@ export async function POST(request: NextRequest) {
           }
         ]
       },
+      include: {
+        Customer: {
+          select: {
+            paymentTermsData: true
+          }
+        },
+        Supplier: {
+          select: {
+            paymentTermsData: true
+          }
+        }
+      },
       take: 100, // Process in batches for efficiency
       orderBy: {
         invoiceDate: 'desc'
@@ -93,17 +107,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Convert Decimal to number for processing
-    const invoices: InvoiceForMatching[] = rawInvoices.map(invoice => ({
-      id: invoice.id,
-      invoiceNumber: invoice.invoiceNumber,
-      invoiceDate: invoice.invoiceDate,
-      issuerName: invoice.issuerName,
-      receiverName: invoice.receiverName,
-      total: Number(invoice.total),
-      currency: invoice.currency,
-      customerId: invoice.customerId,
-      supplierId: invoice.supplierId
-    }));
+    const invoices: InvoiceForMatching[] = rawInvoices.map(invoice => {
+      // Extract payment terms from Customer or Supplier based on invoice type
+      const paymentTerms = invoice.customerId 
+        ? invoice.Customer?.paymentTermsData as PaymentTermsData | null
+        : invoice.Supplier?.paymentTermsData as PaymentTermsData | null;
+
+      return {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.invoiceDate,
+        issuerName: invoice.issuerName,
+        receiverName: invoice.receiverName,
+        total: Number(invoice.total),
+        currency: invoice.currency,
+        customerId: invoice.customerId,
+        supplierId: invoice.supplierId,
+        paymentTerms
+      };
+    });
 
     // Group invoices by entity name and type
     const invoiceGroups = groupInvoicesByEntity(invoices);
@@ -420,6 +442,31 @@ function getGroupDateRange(invoices: InvoiceForMatching[]): { earliest: Date; la
   };
 }
 
+function formatPaymentTerms(paymentTerms: PaymentTermsData | null | undefined): string {
+  if (!paymentTerms) return 'Standard terms (Net 30 assumed)';
+  
+  let summary = `Payment Period: ${paymentTerms.paymentPeriod}`;
+  
+  if (paymentTerms.downPayment?.required) {
+    const amount = paymentTerms.downPayment.percentage
+      ? `${paymentTerms.downPayment.percentage}%`
+      : paymentTerms.downPayment.amount
+      ? `$${paymentTerms.downPayment.amount}`
+      : 'Amount TBD';
+    summary += `, Down Payment: ${amount} (${paymentTerms.downPayment.dueDate})`;
+  }
+  
+  if (paymentTerms.installments && paymentTerms.installments.length > 0) {
+    summary += `, Installments: ${paymentTerms.installments.length} payments`;
+    paymentTerms.installments.forEach((inst, index) => {
+      const instAmount = inst.percentage ? `${inst.percentage}%` : inst.amount ? `$${inst.amount}` : 'Amount TBD';
+      summary += ` | ${instAmount} due in ${inst.dueDays} days`;
+    });
+  }
+  
+  return summary;
+}
+
 async function analyzeGroupWithGemini(group: InvoiceGroup, transactions: TransactionForMatching[]): Promise<{ matches: MatchResult[] }> {
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
 
@@ -438,6 +485,7 @@ Invoice ${idx + 1}:
 - Amount: ${inv.total} ${inv.currency}
 - Issuer: ${inv.issuerName}
 - Receiver: ${inv.receiverName}
+- Payment Terms: ${formatPaymentTerms(inv.paymentTerms)}
 `).join('')}
 
 RELEVANT ${group.invoiceType} TRANSACTIONS (${transactions.length} total):
@@ -458,7 +506,13 @@ MATCHING CRITERIA:
 1. **Entity Match**: If the transaction entity name matches the invoice counterparty — that is, the issuer for supplier invoices or the receiver for customer invoices — include it as a match regardless of amount or date.
  - ⚠️ Do **not** consider matches to the the current customer names (${CURRENT_CUSTOMER_NAMES.join(', ')}) as valid entity matches, even if they appear in the transaction description.
 2. **Exact Amount Match**: If the invoice amount is **exactly equal** to the transaction amount (credit or debit depending on invoice type), consider it a match, even if other signals are weaker.
-3. **Contextual Match**: If the transaction is consistent with the context of the invoice (e.g., similar amount, date, or description), include it as a potential match.
+3. **Payment Terms Match**: Consider the invoice payment terms when evaluating timing. For example:
+   - "Net 30" means payment expected 30 days after invoice date
+   - "Due on receipt" means immediate payment expected
+   - Down payments should match partial amounts close to invoice date
+   - Installment payments should match the scheduled amounts and timing
+   - If payment terms indicate installments, look for multiple smaller transactions
+4. **Contextual Match**: If the transaction is consistent with the context of the invoice (e.g., similar amount, date, or description), include it as a potential match.
 
 
 RESPONSE FORMAT:
@@ -477,9 +531,19 @@ RESPONSE FORMAT:
 *make sure you return the invoiceId and transactionId in the matches array as as without any other text*
 
 SCORING GUIDELINES:
-provide a score for each match between 0 and 1.
+Provide a score for each match between 0 and 1, considering:
 
-Focus on entity correlation with ${group.entityName}, amount patterns, classification reasoning, and business payment patterns.
+1. **Entity correlation** with ${group.entityName}
+2. **Amount patterns** (exact match = higher score, partial match = consider payment terms)
+3. **Payment timing** relative to invoice date and payment terms:
+   - Transactions matching expected payment dates based on terms get higher scores
+   - Early payments (before due date) are acceptable but score slightly lower
+   - Very late payments (beyond reasonable business terms) score lower
+4. **Payment term compliance**:
+   - Full payment matching invoice amount = highest score
+   - Partial payments matching down payment percentages = high score if terms specify
+   - Installment amounts matching scheduled payments = high score
+5. **Classification reasoning** and business payment patterns
 
 
 `;
