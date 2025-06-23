@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ACCOUNT_TYPES } from '@/utils/bankStatementUtils';
+import { EGYPTIAN_BANKS, isEgyptianBank } from '@/lib/constants';
 
 interface BankStatement {
   id: number;
@@ -49,6 +50,8 @@ export default function StatementMetadataForm({
 }: StatementMetadataFormProps) {
   const [formData, setFormData] = useState({
     bankName: statement.bankName,
+    selectedEgyptianBank: isEgyptianBank(statement.bankName) ? statement.bankName : '',
+    customBankName: isEgyptianBank(statement.bankName) ? '' : statement.bankName,
     accountNumber: statement.accountNumber,
     statementPeriodStart: formatDateForInput(statement.statementPeriodStart),
     statementPeriodEnd: formatDateForInput(statement.statementPeriodEnd),
@@ -65,6 +68,8 @@ export default function StatementMetadataForm({
   useEffect(() => {
     setFormData({
       bankName: statement.bankName,
+      selectedEgyptianBank: isEgyptianBank(statement.bankName) ? statement.bankName : '',
+      customBankName: isEgyptianBank(statement.bankName) ? '' : statement.bankName,
       accountNumber: statement.accountNumber,
       statementPeriodStart: formatDateForInput(statement.statementPeriodStart),
       statementPeriodEnd: formatDateForInput(statement.statementPeriodEnd),
@@ -95,8 +100,8 @@ export default function StatementMetadataForm({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.bankName.trim()) {
-      newErrors.bankName = 'Bank name is required';
+    if (!formData.selectedEgyptianBank && !formData.customBankName.trim()) {
+      newErrors.bankName = 'Bank selection or custom bank name is required';
     }
 
     if (!formData.accountNumber.trim()) {
@@ -140,7 +145,7 @@ export default function StatementMetadataForm({
     }
 
     const updateData = {
-      bankName: formData.bankName.trim(),
+      bankName: formData.selectedEgyptianBank || formData.customBankName.trim(),
       accountNumber: formData.accountNumber.trim(),
       statementPeriodStart: formData.statementPeriodStart,
       statementPeriodEnd: formData.statementPeriodEnd,
@@ -161,6 +166,8 @@ export default function StatementMetadataForm({
   const handleReset = () => {
     setFormData({
       bankName: statement.bankName,
+      selectedEgyptianBank: isEgyptianBank(statement.bankName) ? statement.bankName : '',
+      customBankName: isEgyptianBank(statement.bankName) ? '' : statement.bankName,
       accountNumber: statement.accountNumber,
       statementPeriodStart: formatDateForInput(statement.statementPeriodStart),
       statementPeriodEnd: formatDateForInput(statement.statementPeriodEnd),
@@ -191,17 +198,59 @@ export default function StatementMetadataForm({
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         {/* Bank Name */}
         <div>
-          <label htmlFor="bankName" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="bankSelection" className="block text-sm font-medium text-gray-700">
             Bank Name
           </label>
-          <input
-            type="text"
-            id="bankName"
-            value={formData.bankName}
-            onChange={(e) => handleInputChange('bankName', e.target.value)}
+          
+          {/* Egyptian Banks Dropdown */}
+          <select
+            id="selectedEgyptianBank"
+            value={formData.selectedEgyptianBank}
+            onChange={(e) => {
+              handleInputChange('selectedEgyptianBank', e.target.value);
+              if (e.target.value) {
+                handleInputChange('customBankName', '');
+              }
+            }}
             disabled={disabled}
             className={inputClassName('bankName')}
-          />
+          >
+            <option value="">Select from Egyptian banks</option>
+            {Object.values(EGYPTIAN_BANKS).map((displayName) => (
+              <option key={displayName} value={displayName}>{displayName}</option>
+            ))}
+          </select>
+          
+          {/* Custom Bank Name Input */}
+          <div className="mt-2">
+            <label htmlFor="customBankName" className="block text-sm font-medium text-gray-600">
+              Or enter custom bank name
+            </label>
+            <input
+              type="text"
+              id="customBankName"
+              value={formData.customBankName}
+              onChange={(e) => {
+                handleInputChange('customBankName', e.target.value);
+                if (e.target.value) {
+                  handleInputChange('selectedEgyptianBank', '');
+                }
+              }}
+              disabled={disabled || !!formData.selectedEgyptianBank}
+              placeholder="Enter bank name if not in the list above"
+              className={inputClassName('bankName')}
+            />
+          </div>
+          
+          {/* Show current effective bank name */}
+          {(formData.selectedEgyptianBank || formData.customBankName) && (
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800">
+                <strong>Selected bank:</strong> {formData.selectedEgyptianBank || formData.customBankName}
+              </p>
+            </div>
+          )}
+          
           {errors.bankName && (
             <p className="mt-1 text-sm text-red-600">{errors.bankName}</p>
           )}

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
+import { cleanupOrphanedBank } from '@/lib/services/bankCleanupService';
 
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
@@ -195,6 +196,9 @@ export async function PUT(
 
       // Use a transaction to update bank name across all related records
       const result = await prisma.$transaction(async (tx) => {
+        // Store the old bank ID for potential cleanup
+        const oldBankId = existingStatement.bankId;
+        
         // Find or create the bank with the new name
         let targetBank = await tx.bank.findUnique({
           where: { name: trimmedBankName }
@@ -209,12 +213,17 @@ export async function PUT(
 
         // Update all bank statements that have the same bankId as the current statement
         const updatedStatements = await tx.bankStatement.updateMany({
-          where: { bankId: existingStatement.bankId },
+          where: { bankId: oldBankId },
           data: { 
             bankName: trimmedBankName,
             bankId: targetBank.id
           }
         });
+
+        // Check if the old bank has any remaining bank statements and clean up if orphaned
+        if (oldBankId !== targetBank.id) {
+          await cleanupOrphanedBank(oldBankId, tx);
+        }
 
         // Now update the current statement with any other changes
         const updateData: any = {};

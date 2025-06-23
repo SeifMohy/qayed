@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { EGYPTIAN_BANKS, findEgyptianBankDisplayName } from '@/lib/constants';
 
 // --- Type definitions ---
 type StatementPeriod = {
@@ -116,6 +117,12 @@ Guidelines:
 - account_currency should be one of: USD, EUR, GBP, EGP, CNY, CAD, AUD, JPY based on the extracted currency from the statement
 - account_type should be one of: Current Account (an account with clients own money) or Facility Account (an account with a bank's money) based on the extracted account type from the statement
 
+BANK NAME SELECTION:
+When extracting the bank name, try to match it with one of these Egyptian banks if possible:
+${Object.values(EGYPTIAN_BANKS).map(bank => `- ${bank}`).join('\n')}
+
+If you can identify the bank from the statement text, use the EXACT name from the list above. If you cannot match it to any of the Egyptian banks above, extract the bank name exactly as it appears in the document.
+
 IMPORTANT: Return ONLY valid JSON with no additional text, explanations, or code blocks.
 `.trim();
 
@@ -179,8 +186,16 @@ function mergeAccountStatements(chunkResults: ChunkData[], fileName?: string): S
                 statement.bank_name !== "CONTINUATION" && 
                 statement.bank_name.trim() !== "" && 
                 statement.bank_name.toLowerCase() !== "unknown") {
-                documentBankName = statement.bank_name;
-                console.log(`Found document bank name: "${documentBankName}"`);
+                
+                // Try to match with Egyptian banks first
+                const matchedEgyptianBank = findEgyptianBankDisplayName(statement.bank_name);
+                if (matchedEgyptianBank) {
+                    documentBankName = matchedEgyptianBank;
+                    console.log(`Found and matched document bank name to Egyptian bank: "${documentBankName}"`);
+                } else {
+                    documentBankName = statement.bank_name;
+                    console.log(`Found document bank name (no Egyptian bank match): "${documentBankName}"`);
+                }
                 break;
             }
         }
@@ -213,6 +228,13 @@ function mergeAccountStatements(chunkResults: ChunkData[], fileName?: string): S
                 effectiveBankName.trim() === "" ||
                 effectiveBankName.toLowerCase() === "unknown") {
                 effectiveBankName = documentBankName;
+            } else {
+                // Try to match with Egyptian banks for consistency
+                const matchedEgyptianBank = findEgyptianBankDisplayName(effectiveBankName);
+                if (matchedEgyptianBank) {
+                    effectiveBankName = matchedEgyptianBank;
+                    console.log(`Matched bank name "${statement.bank_name}" to Egyptian bank: "${effectiveBankName}"`);
+                }
             }
             
             // Use account number as the primary key for merging
@@ -252,7 +274,12 @@ function mergeAccountStatements(chunkResults: ChunkData[], fileName?: string): S
                 
                 // Update statement fields with non-empty values from current chunk
                 if (effectiveBankName && effectiveBankName !== "CONTINUATION" && effectiveBankName.trim() !== "") {
-                    existingStatement.bank_name = effectiveBankName;
+                    // Try to match with Egyptian banks for consistency
+                    const matchedEgyptianBank = findEgyptianBankDisplayName(effectiveBankName);
+                    existingStatement.bank_name = matchedEgyptianBank || effectiveBankName;
+                    if (matchedEgyptianBank) {
+                        console.log(`Updated existing statement bank name to Egyptian bank: "${matchedEgyptianBank}"`);
+                    }
                 }
                 if (statement.account_type && statement.account_type !== "CONTINUATION" && statement.account_type.trim() !== "") {
                     existingStatement.account_type = statement.account_type;
