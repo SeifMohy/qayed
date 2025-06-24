@@ -15,6 +15,11 @@ import { GoogleGenAI } from "@google/genai";
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { EGYPTIAN_BANKS, findEgyptianBankDisplayName } from '@/lib/constants';
+import { processBankStatementWithConcurrency } from '@/lib/services/bankStatementConcurrencyService';
+import type { 
+  ProcessingResult,
+  AccountStatement as ConcurrencyAccountStatement
+} from '@/lib/services/bankStatementConcurrencyService';
 
 // --- Type definitions ---
 type StatementPeriod = {
@@ -817,11 +822,12 @@ export async function POST(request: Request) {
             
             console.log(`Final merged result: ${structuredData.account_statements.length} account statements`);
 
-            // Step 4: Save the structured data to the database
-            const savedStatements = [];
-            console.log('Saving merged data to database');
+            // Step 4: Save the structured data to the database with concurrency handling
+            const processingResults: ProcessingResult[] = [];
+            const savedStatementIds: number[] = [];
+            console.log('Processing merged data with concurrency handling');
 
-            // Process each account statement and save to database
+            // Process each account statement with concurrency checks
             for (let i = 0; i < structuredData.account_statements.length; i++) {
                 const statement = structuredData.account_statements[i];
                 console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
@@ -838,126 +844,47 @@ export async function POST(request: Request) {
                         ? statement.bank_name 
                         : (fileName || "Unknown Bank");
 
-                    console.log(`Saving statement with bank name: "${effectiveBankName}" and account: "${statement.account_number}"`);
+                    console.log(`Processing statement with bank name: "${effectiveBankName}" and account: "${statement.account_number}"`);
 
-                    // Convert string values to appropriate types
-                    const startingBalance = convertToDecimal(statement.starting_balance);
-                    const endingBalance = convertToDecimal(statement.ending_balance);
+                    // Create a statement compatible with the concurrency service
+                    const concurrencyStatement: ConcurrencyAccountStatement = {
+                        bank_name: effectiveBankName,
+                        account_number: statement.account_number,
+                        statement_period: statement.statement_period,
+                        account_type: statement.account_type || '',
+                        account_currency: statement.account_currency || '',
+                        starting_balance: statement.starting_balance || '0',
+                        ending_balance: statement.ending_balance || '0',
+                        transactions: statement.transactions
+                    };
 
-                    // Find or create the bank
-                    let bank = await prisma.bank.findUnique({
-                        where: { name: effectiveBankName }
-                    });
+                    // Process with concurrency handling
+                    const result = await processBankStatementWithConcurrency(
+                        concurrencyStatement,
+                        fileName,
+                        fileUrl,
+                        statementText
+                    );
 
-                    if (!bank) {
-                        bank = await prisma.bank.create({
-                            data: { name: effectiveBankName }
-                        });
-                        console.log(`Created new bank: ${bank.name} with ID: ${bank.id}`);
-                    } else {
-                        console.log(`Found existing bank: ${bank.name} with ID: ${bank.id}`);
+                    processingResults.push(result);
+                    if (result.action !== 'SKIP_DUPLICATE') {
+                        savedStatementIds.push(result.bankStatementId);
                     }
 
-                    // Prepare statement period dates - let LLM handle formatting, simple fallbacks only
-                    let statementPeriodStart: Date;
-                    let statementPeriodEnd: Date;
-
-                    try {
-                        if (statement.statement_period.start_date && statement.statement_period.start_date.trim() !== "") {
-                            statementPeriodStart = new Date(statement.statement_period.start_date);
-                        } else {
-                            // Simple fallback - use current date
-                            statementPeriodStart = new Date();
-                        }
-                    } catch (dateError) {
-                        console.warn(`Invalid start date for statement ${i + 1}, using current date`);
-                        statementPeriodStart = new Date();
-                    }
-
-                    try {
-                        if (statement.statement_period.end_date && statement.statement_period.end_date.trim() !== "") {
-                            statementPeriodEnd = new Date(statement.statement_period.end_date);
-                        } else {
-                            // Simple fallback - use current date
-                            statementPeriodEnd = new Date();
-                        }
-                    } catch (dateError) {
-                        console.warn(`Invalid end date for statement ${i + 1}, using current date`);
-                        statementPeriodEnd = new Date();
-                    }
-
-                    // Create the bank statement record
-                    const bankStatement = await prisma.bankStatement.create({
-                        data: {
-                            fileName,
-                            fileUrl,
-                            bankName: effectiveBankName,
-                            accountNumber: statement.account_number,
-                            statementPeriodStart,
-                            statementPeriodEnd,
-                            accountType: statement.account_type || null,
-                            accountCurrency: statement.account_currency || null,
-                            startingBalance: startingBalance || new Decimal(0),
-                            endingBalance: endingBalance || new Decimal(0),
-                            rawTextContent: statementText,
-                            bankId: bank.id, // Link to the bank
-                            // New annotation fields
-                            parsed: true, // Mark as parsed since we just processed it
-                            validated: false, // Not yet validated
-                            validationStatus: 'pending', // Pending validation
-                            // Create transactions in the same operation
-                            transactions: {
-                                create: statement.transactions.map((transaction: TransactionData, index: number) => {
-                                    try {
-                                        // Prepare transaction date - let LLM handle formatting
-                                        let transactionDate: Date;
-                                        try {
-                                            if (transaction.date && transaction.date.trim() !== "") {
-                                                transactionDate = new Date(transaction.date);
-                                            } else {
-                                                // Use statement period start as fallback
-                                                transactionDate = statementPeriodStart;
-                                            }
-                                        } catch {
-                                            // Use statement period start as fallback
-                                            transactionDate = statementPeriodStart;
-                                            console.warn(`Invalid transaction date for transaction ${index + 1}, using statement start date`);
-                                        }
-
-                                        return {
-                                            transactionDate,
-                                            creditAmount: convertToDecimal(transaction.credit_amount) || null,
-                                            debitAmount: convertToDecimal(transaction.debit_amount) || null,
-                                            description: String(transaction.description || ''),
-                                            balance: convertToDecimal(transaction.balance) || null,
-                                            pageNumber: String(transaction.page_number || ''),
-                                            entityName: String(transaction.entity_name || ''),
-                                        };
-                                    } catch (transactionError: any) {
-                                        console.error(`Error processing transaction ${index + 1}:`, transactionError);
-                                        console.error('Transaction data:', transaction);
-                                        throw new Error(`Failed to process transaction ${index + 1}: ${transactionError.message}`);
-                                    }
-                                })
-                            }
-                        }
-                    });
-
-                    console.log(`Saved bank statement ID: ${bankStatement.id} with ${statement.transactions.length} transactions`);
-                    savedStatements.push(bankStatement);
+                    console.log(`Statement ${i + 1} processed: ${result.action} - ${result.message}`);
                 } catch (error) {
-                    console.error(`Error saving bank statement ${i + 1}:`, error);
+                    console.error(`Error processing bank statement ${i + 1}:`, error);
                     // Don't throw error - continue processing other statements
                     console.warn(`Continuing with remaining statements after error with statement ${i + 1}`);
                 }
             }
 
             // Step 5: Perform automatic validation on all saved statements
-            for (const statement of savedStatements) {
+            for (const statementId of savedStatementIds) {
                 try {
                     // Get the statement with transactions for validation
                     const statementWithTransactions = await prisma.bankStatement.findUnique({
-                        where: { id: statement.id },
+                        where: { id: statementId },
                         include: {
                             transactions: {
                                 orderBy: {
@@ -973,7 +900,7 @@ export async function POST(request: Request) {
 
                         // Update statement with validation result
                         await prisma.bankStatement.update({
-                            where: { id: statement.id },
+                            where: { id: statementId },
                             data: {
                                 validated: validationResult.status === 'passed',
                                 validationStatus: validationResult.status,
@@ -982,26 +909,45 @@ export async function POST(request: Request) {
                             }
                         });
 
-                        console.log(`Auto-validation for statement ${statement.id}: ${validationResult.status}`);
+                        console.log(`Auto-validation for statement ${statementId}: ${validationResult.status}`);
                     }
                 } catch (validationError) {
-                    console.error(`Error during auto-validation for statement ${statement.id}:`, validationError);
+                    console.error(`Error during auto-validation for statement ${statementId}:`, validationError);
                     // Don't fail the entire process if validation fails
                 }
             }
 
-            console.log(`Successfully saved ${savedStatements.length} bank statements from ${chunks.length} chunks`);
+            // Log processing summary
+            const totalProcessed = processingResults.length;
+            const duplicatesSkipped = processingResults.filter(r => r.action === 'SKIP_DUPLICATE').length;
+            const merged = processingResults.filter(r => r.action === 'MERGE_DIFFERENT_PERIOD').length;
+            const newStatements = processingResults.filter(r => r.action === 'CREATE_NEW' || r.action === 'ADD_TO_EXISTING_BANK').length;
+            
+            console.log(`Processing Summary: ${totalProcessed} statements processed, ${duplicatesSkipped} duplicates skipped, ${merged} merged, ${newStatements} new statements created from ${chunks.length} chunks`);
 
             // Get transaction counts for each saved statement
             const statementsWithCounts = await Promise.all(
-                savedStatements.map(async (statement) => {
+                savedStatementIds.map(async (statementId) => {
                     const count = await prisma.transaction.count({
-                        where: { bankStatementId: statement.id }
+                        where: { bankStatementId: statementId }
                     });
+                    
+                    // Get the full statement details
+                    const statement = await prisma.bankStatement.findUnique({
+                        where: { id: statementId },
+                        select: {
+                            id: true,
+                            fileName: true,
+                            bankName: true,
+                            accountNumber: true
+                        }
+                    });
+                    
                     return {
-                        id: statement.id,
-                        bankName: statement.bankName,
-                        accountNumber: statement.accountNumber,
+                        id: statementId,
+                        fileName: statement?.fileName || 'Unknown',
+                        bankName: statement?.bankName || 'Unknown',
+                        accountNumber: statement?.accountNumber || 'Unknown',
                         transactionCount: count
                     };
                 })
@@ -1009,30 +955,30 @@ export async function POST(request: Request) {
 
             // Trigger automatic classification for each saved statement
             const classificationResults = [];
-            for (const statement of savedStatements) {
+            for (const statementId of savedStatementIds) {
                 try {
-                    console.log(`Triggering automatic classification for bank statement ${statement.id}`);
+                    console.log(`Triggering automatic classification for bank statement ${statementId}`);
                     
                     // Import the classification service
                     const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
                     
                     // Trigger classification asynchronously (don't wait for it to complete)
-                    classifyBankStatementTransactions(statement.id)
+                    classifyBankStatementTransactions(statementId)
                         .then((result) => {
-                            console.log(`Classification completed for statement ${statement.id}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
+                            console.log(`Classification completed for statement ${statementId}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
                         })
                         .catch((error) => {
-                            console.error(`Classification failed for statement ${statement.id}:`, error);
+                            console.error(`Classification failed for statement ${statementId}:`, error);
                         });
                     
                     classificationResults.push({
-                        statementId: statement.id,
+                        statementId: statementId,
                         status: 'triggered'
                     });
                 } catch (error) {
-                    console.error(`Failed to trigger classification for statement ${statement.id}:`, error);
+                    console.error(`Failed to trigger classification for statement ${statementId}:`, error);
                     classificationResults.push({
-                        statementId: statement.id,
+                        statementId: statementId,
                         status: 'failed',
                         error: error instanceof Error ? error.message : 'Unknown error'
                     });
@@ -1045,7 +991,20 @@ export async function POST(request: Request) {
                 chunksProcessed: chunks.length,
                 structuredData,
                 savedStatements: statementsWithCounts,
-                classificationResults
+                classificationResults,
+                processingResults: processingResults.map(result => ({
+                    action: result.action,
+                    bankStatementId: result.bankStatementId,
+                    transactionCount: result.transactionCount,
+                    message: result.message
+                })),
+                summary: {
+                    totalProcessed,
+                    duplicatesSkipped,
+                    merged,
+                    newStatements,
+                    chunksProcessed: chunks.length
+                }
             });
 
         } catch (error: any) {
