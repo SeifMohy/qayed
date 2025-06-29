@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, BuildingLibraryIcon, BanknotesIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, BuildingLibraryIcon, BanknotesIcon, CreditCardIcon, InformationCircleIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
@@ -21,6 +21,8 @@ type Bank = {
   bankPayments: string;
   lastUpdate: string;
   currency: string;
+  updateStatus?: 'current' | 'slightly_behind' | 'needs_update' | 'no_data';
+  daysBehind?: number;
 }
 
 type CreditFacility = {
@@ -48,6 +50,18 @@ type GroupedCreditFacility = {
   currency: string;
 }
 
+// New interface for metadata
+interface BanksMetadata {
+  referenceDate: string;
+  referenceDateFormatted: string;
+  bankName: string;
+  accountNumber?: string;
+  note: string;
+  totalBanks: number;
+  banksNeedingUpdate: number;
+  banksSlightlyBehind: number;
+}
+
 export default function BanksPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
 
@@ -63,6 +77,7 @@ export default function BanksPage() {
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [focusedComponent, setFocusedComponent] = useState<string | null>(null);
   const [activeDataSources, setActiveDataSources] = useState<string[]>([]);
+  const [metadata, setMetadata] = useState<BanksMetadata | null>(null);
   
   // Fetch bank statements from API
   useEffect(() => {
@@ -77,6 +92,11 @@ export default function BanksPage() {
         if (data.success && data.banks && data.banks.length > 0) {
           // Process the banks data (now async)
           await processBanksData(data.banks);
+          
+          // Set metadata
+          if (data.metadata) {
+            setMetadata(data.metadata);
+          }
         } else {
           // If no data is available, leave arrays empty
           console.log('No bank data available from database');
@@ -130,6 +150,41 @@ export default function BanksPage() {
       return `${cleanTenor} days`;
     }
     return cleanTenor;
+  };
+
+  // Helper function to get status indicator
+  const getStatusIndicator = (status?: string, daysBehind?: number) => {
+    switch (status) {
+      case 'current':
+        return (
+          <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+            <CheckCircleIcon className="h-3 w-3 mr-1" />
+            Current
+          </span>
+        );
+      case 'slightly_behind':
+        return (
+          <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+            <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
+            {daysBehind} days behind
+          </span>
+        );
+      case 'needs_update':
+        return (
+          <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+            <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
+            Needs update ({daysBehind} days)
+          </span>
+        );
+      case 'no_data':
+        return (
+          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
+            No data
+          </span>
+        );
+      default:
+        return null;
+    }
   };
   
   // Helper function to group credit facilities by bank name
@@ -326,7 +381,9 @@ export default function BanksPage() {
         cashBalance: formatEGP(totalCashBalanceEGP),
         bankPayments: formatEGP(bankFacilityBalanceEGP),
         lastUpdate: latestUpdate.toLocaleDateString(),
-        currency: 'EGP'
+        currency: 'EGP',
+        updateStatus: bank.updateStatus,
+        daysBehind: bank.daysBehind
       });
     }
     
@@ -601,7 +658,12 @@ export default function BanksPage() {
   return (
     <div>
       <div className="pb-5 border-b border-gray-200 sm:flex sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Banks & Accounts</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Banks & Accounts</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Overview of your bank accounts, balances, and credit facilities
+          </p>
+        </div>
         <div className="mt-3 flex sm:ml-4 sm:mt-0">
           <button
             type="button"
@@ -621,6 +683,35 @@ export default function BanksPage() {
           </button>
         </div>
       </div>
+
+      {/* Reference Date Information */}
+      {metadata && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <InformationCircleIcon className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-800">
+                Data as of <span className="font-semibold">{metadata.referenceDateFormatted}</span>
+              </p>
+              {(metadata.banksNeedingUpdate > 0 || metadata.banksSlightlyBehind > 0) && (
+                <p className="mt-1 text-sm text-blue-700">
+                  {metadata.banksNeedingUpdate > 0 && (
+                    <span className="text-red-700">
+                      {metadata.banksNeedingUpdate} bank{metadata.banksNeedingUpdate > 1 ? 's' : ''} need{metadata.banksNeedingUpdate === 1 ? 's' : ''} updating
+                    </span>
+                  )}
+                  {metadata.banksNeedingUpdate > 0 && metadata.banksSlightlyBehind > 0 && ', '}
+                  {metadata.banksSlightlyBehind > 0 && (
+                    <span className="text-yellow-700">
+                      {metadata.banksSlightlyBehind} bank{metadata.banksSlightlyBehind > 1 ? 's' : ''} slightly behind
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Modal using the shared component */}
       <UploadModal
@@ -777,6 +868,9 @@ export default function BanksPage() {
                   Bank Obligations
                 </th>
                 <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                  Status
+                </th>
+                <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                   Last Updated
                 </th>
                 <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -792,6 +886,9 @@ export default function BanksPage() {
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900 font-medium">{account.cashBalance}</td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">{account.bankPayments}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm">
+                    {getStatusIndicator(account.updateStatus, account.daysBehind)}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{account.lastUpdate}</td>
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <Link 
