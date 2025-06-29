@@ -212,12 +212,29 @@ export default function BanksPage() {
       
       console.log(`\n🏦 Processing bank: ${bank.name}`);
       
-      // Process each bank statement
-      for (const statement of bank.bankStatements) {
-        const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
-        const statementCurrency = statement.accountCurrency?.trim() || 'EGP';
+      // Group bank statements by account number to get latest statement for each account
+      const accountGroups = bank.bankStatements.reduce((groups: { [key: string]: any[] }, statement: any) => {
+        const accountNumber = statement.accountNumber;
+        if (!groups[accountNumber]) {
+          groups[accountNumber] = [];
+        }
+        groups[accountNumber].push(statement);
+        return groups;
+      }, {});
+      
+      // Process latest statement for each unique account
+      for (const [accountNumber, statements] of Object.entries(accountGroups)) {
+        // Get the statement with the latest end date for this account
+        const latestStatement = (statements as any[]).reduce((latest: any, current: any) => {
+          return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+            ? current 
+            : latest;
+        });
         
-        console.log(`  📋 Statement ${statement.id}: ${endingBalance} ${statementCurrency} (Account: ${statement.accountNumber})`);
+        const endingBalance = parseFloat(latestStatement.endingBalance?.toString() || '0');
+        const statementCurrency = latestStatement.accountCurrency?.trim() || 'EGP';
+        
+        console.log(`  📋 Latest Statement for Account ${accountNumber}: ${endingBalance} ${statementCurrency} (Date: ${latestStatement.statementPeriodEnd})`);
         
         // Convert amount to EGP if needed using cached rates
         let balanceInEGP = endingBalance;
@@ -241,9 +258,9 @@ export default function BanksPage() {
         }
         
         // Determine if this is a facility account using the new logic
-        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
+        const isFacility = isFacilityAccount(latestStatement.accountType, endingBalance);
         
-        console.log(`  💳 Account Type: ${statement.accountType}, Is Facility: ${isFacility}, Balance in EGP: ${balanceInEGP}`);
+        console.log(`  💳 Account Type: ${latestStatement.accountType}, Is Facility: ${isFacility}, Balance in EGP: ${balanceInEGP}`);
         
         if (isFacility) {
           const facilityAmountEGP = Math.abs(balanceInEGP);
@@ -255,15 +272,15 @@ export default function BanksPage() {
           // Add to facility bank statements for later processing
           if (facilityAmountEGP !== 0) {
             facilityBankStatements.push({
-              ...statement,
+              ...latestStatement,
               endingBalanceEGP: balanceInEGP,
               bankName: bank.name
             });
           }
           
           // Add available credit from facility available limit
-          if (statement.availableLimit) {
-            let availableLimitEGP = parseFloat(statement.availableLimit?.toString() || '0');
+          if (latestStatement.availableLimit) {
+            let availableLimitEGP = parseFloat(latestStatement.availableLimit?.toString() || '0');
             if (statementCurrency !== 'EGP' && availableLimitEGP !== 0) {
               try {
                 const conversion = await currencyCache.convertCurrency(
@@ -294,7 +311,7 @@ export default function BanksPage() {
         }
         
         // Track the latest update date
-        const statementEndDate = new Date(statement.statementPeriodEnd);
+        const statementEndDate = new Date(latestStatement.statementPeriodEnd);
         if (statementEndDate > latestUpdate) {
           latestUpdate = statementEndDate;
         }

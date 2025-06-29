@@ -235,37 +235,79 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const processAccountsData = (): AccountDisplay[] => {
         if (!bank) return []
         
-        return bank.bankStatements
-            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance))) // Use new logic for regular accounts
-            .map(statement => ({
-                id: statement.id,
-                accountNumber: statement.accountNumber,
-                balance: formatCurrencyOriginal(parseFloat(statement.endingBalance), statement.accountCurrency || undefined),
-                type: statement.accountType || 'Bank Account',
-                currency: statement.accountCurrency || 'USD',
+        // First filter for regular accounts
+        const regularStatements = bank.bankStatements
+            .filter(statement => isRegularAccount(statement.accountType, parseFloat(statement.endingBalance)))
+        
+        // Group by account number and get the latest statement for each account
+        const accountGroups = regularStatements.reduce((groups: { [key: string]: BankStatement[] }, statement) => {
+            const accountNumber = statement.accountNumber
+            if (!groups[accountNumber]) {
+                groups[accountNumber] = []
+            }
+            groups[accountNumber].push(statement)
+            return groups
+        }, {})
+        
+        // For each account, get the statement with the latest end date
+        return Object.entries(accountGroups).map(([accountNumber, statements]) => {
+            const latestStatement = statements.reduce((latest, current) => {
+                return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+                    ? current 
+                    : latest
+            })
+            
+            return {
+                id: latestStatement.id,
+                accountNumber: latestStatement.accountNumber,
+                balance: formatCurrencyOriginal(parseFloat(latestStatement.endingBalance), latestStatement.accountCurrency || undefined),
+                type: latestStatement.accountType || 'Current Account',
+                currency: latestStatement.accountCurrency || 'USD',
                 interestRate: 'N/A',
-                lastUpdate: `${formatDate(statement.statementPeriodStart)} - ${formatDate(statement.statementPeriodEnd)}`
-            }))
+                lastUpdate: `${formatDate(latestStatement.statementPeriodStart)} - ${formatDate(latestStatement.statementPeriodEnd)}`
+            }
+        })
     }
 
     // Process bank statements into facilities display format (using new facility logic)
     const processFacilitiesData = (): FacilityDisplay[] => {
         if (!bank) return []
         
-        return bank.bankStatements
-            .filter(statement => isFacilityAccount(statement.accountType, parseFloat(statement.endingBalance))) // Use new logic for facilities
-            .map(statement => ({
-                id: statement.id,
-                facilityType: getFacilityDisplayType(statement.accountType, parseFloat(statement.endingBalance)),
-                limit: statement.availableLimit ? formatCurrencyOriginal(parseFloat(statement.availableLimit), statement.accountCurrency || undefined) : 'N/A',
-                used: formatCurrencyOriginal(Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined),
-                available: statement.availableLimit 
-                    ? formatCurrencyOriginal(parseFloat(statement.availableLimit) - Math.abs(parseFloat(statement.endingBalance)), statement.accountCurrency || undefined)
+        // First filter for facility accounts
+        const facilityStatements = bank.bankStatements
+            .filter(statement => isFacilityAccount(statement.accountType, parseFloat(statement.endingBalance)))
+        
+        // Group by account number and get the latest statement for each facility
+        const facilityGroups = facilityStatements.reduce((groups: { [key: string]: BankStatement[] }, statement) => {
+            const accountNumber = statement.accountNumber
+            if (!groups[accountNumber]) {
+                groups[accountNumber] = []
+            }
+            groups[accountNumber].push(statement)
+            return groups
+        }, {})
+        
+        // For each facility account, get the statement with the latest end date
+        return Object.entries(facilityGroups).map(([accountNumber, statements]) => {
+            const latestStatement = statements.reduce((latest, current) => {
+                return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+                    ? current 
+                    : latest
+            })
+            
+            return {
+                id: latestStatement.id,
+                facilityType: getFacilityDisplayType(latestStatement.accountType, parseFloat(latestStatement.endingBalance)),
+                limit: latestStatement.availableLimit ? formatCurrencyOriginal(parseFloat(latestStatement.availableLimit), latestStatement.accountCurrency || undefined) : 'N/A',
+                used: formatCurrencyOriginal(Math.abs(parseFloat(latestStatement.endingBalance)), latestStatement.accountCurrency || undefined),
+                available: latestStatement.availableLimit 
+                    ? formatCurrencyOriginal(parseFloat(latestStatement.availableLimit) - Math.abs(parseFloat(latestStatement.endingBalance)), latestStatement.accountCurrency || undefined)
                     : 'N/A',
-                interestRate: formatInterestRate(statement.interestRate),
-                tenor: formatTenor(statement.tenor),
-                statementId: statement.id
-            }))
+                interestRate: formatInterestRate(latestStatement.interestRate),
+                tenor: formatTenor(latestStatement.tenor),
+                statementId: latestStatement.id
+            }
+        })
     }
 
     // Process transactions for display (latest 10)
@@ -347,26 +389,41 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         let totalCashBalanceEGP = 0
         let currentOutstandingEGP = 0
         
-        // Convert regular accounts to EGP
-        for (const statement of bank.bankStatements.filter(s => 
-            isRegularAccount(s.accountType, parseFloat(s.endingBalance))
-        )) {
-            const balanceEGP = await convertToEGP(
-                parseFloat(statement.endingBalance), 
-                statement.accountCurrency || 'USD'
-            )
-            totalCashBalanceEGP += balanceEGP
-        }
+        // Group statements by account number to get latest statement for each account
+        const accountGroups = bank.bankStatements.reduce((groups: { [key: string]: BankStatement[] }, statement) => {
+            const accountNumber = statement.accountNumber
+            if (!groups[accountNumber]) {
+                groups[accountNumber] = []
+            }
+            groups[accountNumber].push(statement)
+            return groups
+        }, {})
         
-        // Convert facilities to EGP
-        for (const statement of bank.bankStatements.filter(s => 
-            isFacilityAccount(s.accountType, parseFloat(s.endingBalance))
-        )) {
-            const outstandingEGP = await convertToEGP(
-                Math.abs(parseFloat(statement.endingBalance)), 
-                statement.accountCurrency || 'USD'
-            )
-            currentOutstandingEGP += outstandingEGP
+        // Process latest statement for each unique account
+        for (const statements of Object.values(accountGroups)) {
+            const latestStatement = statements.reduce((latest, current) => {
+                return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+                    ? current 
+                    : latest
+            })
+            
+            const balance = parseFloat(latestStatement.endingBalance)
+            
+            if (isRegularAccount(latestStatement.accountType, balance)) {
+                // Convert regular accounts to EGP
+                const balanceEGP = await convertToEGP(
+                    balance, 
+                    latestStatement.accountCurrency || 'USD'
+                )
+                totalCashBalanceEGP += balanceEGP
+            } else if (isFacilityAccount(latestStatement.accountType, balance)) {
+                // Convert facilities to EGP
+                const outstandingEGP = await convertToEGP(
+                    Math.abs(balance), 
+                    latestStatement.accountCurrency || 'USD'
+                )
+                currentOutstandingEGP += outstandingEGP
+            }
         }
         
         setFinancialMetricsEGP({
