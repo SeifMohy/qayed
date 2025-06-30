@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,8 +9,33 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') || '30d';
     const customEndDateParam = searchParams.get('customEndDate');
     
-    // Default to today if no date provided
-    const startDate = dateParam ? new Date(dateParam) : new Date();
+    // Default to latest bank statement date if no date provided  
+    let startDate: Date;
+    if (dateParam) {
+      startDate = new Date(dateParam);
+    } else {
+      // Get the latest bank statement date (same logic as dashboard)
+      try {
+        const latestStatement = await prisma.bankStatement.findFirst({
+          orderBy: { statementPeriodEnd: 'desc' }
+        });
+        
+        if (latestStatement && latestStatement.statementPeriodEnd) {
+          // Use the day after the latest bank statement as the starting point
+          const latestDate = new Date(latestStatement.statementPeriodEnd);
+          startDate = new Date(latestDate);
+          startDate.setDate(latestDate.getDate() + 1);
+          console.log(`📅 Position API: Using latest bank statement date: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
+        } else {
+          // Fallback to today if no bank statements found
+          startDate = new Date();
+          console.warn('⚠️ Position API: No bank statements found, using today as fallback starting date');
+        }
+      } catch (error) {
+        console.error('❌ Position API: Error getting latest bank statement date:', error);
+        startDate = new Date(); // Fallback to today
+      }
+    }
     
     // Calculate end date based on range
     let endDate = new Date(startDate);

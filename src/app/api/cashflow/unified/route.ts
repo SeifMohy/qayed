@@ -16,8 +16,33 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range') || '90d';
     const customEndDateParam = searchParams.get('customEndDate');
     
-    // Default to bank statement date if no date provided
-    const startDate = startDateParam ? new Date(startDateParam) : new Date('2024-06-30');
+    // Default to latest bank statement date if no date provided
+    let startDate: Date;
+    if (startDateParam) {
+      startDate = new Date(startDateParam);
+    } else {
+      // Get the latest bank statement date (same logic as dashboard)
+      try {
+        const latestStatement = await prisma.bankStatement.findFirst({
+          orderBy: { statementPeriodEnd: 'desc' }
+        });
+        
+        if (latestStatement && latestStatement.statementPeriodEnd) {
+          // Use the day after the latest bank statement as the starting point
+          const latestDate = new Date(latestStatement.statementPeriodEnd);
+          startDate = new Date(latestDate);
+          startDate.setDate(latestDate.getDate() + 1);
+          console.log(`📅 Using latest bank statement date: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
+        } else {
+          // Fallback to today if no bank statements found
+          startDate = new Date();
+          console.warn('⚠️ No bank statements found, using today as fallback starting date');
+        }
+      } catch (error) {
+        console.error('❌ Error getting latest bank statement date:', error);
+        startDate = new Date(); // Fallback to today
+      }
+    }
     
     // Calculate end date based on range or use custom end date
     let endDate = new Date(startDate);

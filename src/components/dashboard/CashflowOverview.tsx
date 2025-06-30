@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shared/ui/card';
 import { Button } from '@/components/shared/ui/button';
@@ -132,8 +132,8 @@ export default function CashflowOverview() {
   const [chartLoaded, setChartLoaded] = useState(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [dateRange, setDateRange] = useState<DateRangeState>({
-    startDate: '2024-06-30', // Use bank statement date as default
-    endDate: '2024-09-30', // 90 days forward from bank statement date
+    startDate: new Date().toISOString().split('T')[0], // Will be updated with actual bank statement date
+    endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days from now
     preset: '90d'
   });
   // Add state to track effective dates from API
@@ -238,9 +238,83 @@ export default function CashflowOverview() {
     loadChartJs();
   }, []);
 
-  const updateDateRange = (preset: DateRangeState['preset']) => {
-    // Always start from the effective start date if available, otherwise use a reasonable default
-    const baseStartDate = effectiveDateRange?.startDate ? new Date(effectiveDateRange.startDate) : new Date('2024-06-30');
+  // Function to get the latest bank statement date (same logic as dashboard)
+  const getLatestBankStatementDate = async (): Promise<{ date: string; bankName: string }> => {
+    try {
+      // Use the same API that the dashboard uses to get the reference date
+      const response = await fetch('/api/dashboard/stats');
+      const data = await response.json();
+      
+      if (data.success && data.metadata && data.metadata.referenceDate) {
+        const referenceDate = new Date(data.metadata.referenceDate);
+        return {
+          date: referenceDate.toISOString().split('T')[0],
+          bankName: data.metadata.bankName || 'Bank Statements'
+        };
+      }
+      
+      // Fallback: if dashboard stats fail, use today's date
+      console.warn('⚠️ Could not get latest bank statement date, using today as fallback');
+      return {
+        date: new Date().toISOString().split('T')[0],
+        bankName: 'Current Date'
+      };
+    } catch (error) {
+      console.error('❌ Error fetching latest bank statement date:', error);
+      // Fallback to today's date
+      return {
+        date: new Date().toISOString().split('T')[0],
+        bankName: 'Current Date'
+      };
+    }
+  };
+
+  // Initialize date range with latest bank statement date
+  const initializeDateRange = async () => {
+    const { date: latestDate } = await getLatestBankStatementDate();
+    const startDate = new Date(latestDate);
+    
+    // For initial load, use the next day after the latest bank statement
+    const nextDay = new Date(startDate);
+    nextDay.setDate(startDate.getDate() + 1);
+    
+    const endDate = new Date(nextDay);
+    endDate.setDate(nextDay.getDate() + 90); // 90 days from the day after latest statement
+    
+    setDateRange({
+      startDate: nextDay.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      preset: '90d'
+    });
+    
+    console.log(`📅 Cashflow: Initialized date range from ${nextDay.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]} (based on latest bank statement: ${latestDate})`);
+  };
+
+  // Initialize date range with latest bank statement date on component mount
+  useEffect(() => {
+    const initialize = async () => {
+      await initializeDateRange();
+      setIsInitialized(true);
+    };
+    initialize();
+  }, []);
+
+
+
+  const updateDateRange = async (preset: DateRangeState['preset']) => {
+    // Always start from the effective start date if available, otherwise get latest bank statement date
+    let baseStartDate: Date;
+    
+    if (effectiveDateRange?.startDate) {
+      baseStartDate = new Date(effectiveDateRange.startDate);
+    } else {
+      const { date: latestDate } = await getLatestBankStatementDate();
+      const latestBankDate = new Date(latestDate);
+      // Use the day after the latest bank statement as the starting point
+      baseStartDate = new Date(latestBankDate);
+      baseStartDate.setDate(latestBankDate.getDate() + 1);
+    }
+    
     let startDate = new Date(baseStartDate);
     let endDate = new Date(baseStartDate);
     
@@ -263,7 +337,7 @@ export default function CashflowOverview() {
     });
   };
 
-  const fetchCashflowData = async () => {
+  const fetchCashflowData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -311,7 +385,7 @@ export default function CashflowOverview() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
   // Fallback method using separate API calls (original implementation)
   const fetchCashflowDataFallback = async () => {
@@ -353,7 +427,7 @@ export default function CashflowOverview() {
     }
   };
 
-  const fetchRecurringPayments = async () => {
+  const fetchRecurringPayments = useCallback(async () => {
     try {
       const response = await fetch('/api/cashflow/recurring?includeInactive=true');
       const data = await response.json();
@@ -366,7 +440,7 @@ export default function CashflowOverview() {
     } catch (error) {
       console.error('Error fetching recurring payments:', error);
     }
-  };
+  }, []);
 
   const generateProjections = async () => {
     try {
@@ -549,17 +623,22 @@ export default function CashflowOverview() {
     setEditingPayment(null);
   };
 
-  useEffect(() => {
-    fetchCashflowData();
-    fetchRecurringPayments();
-  }, [dateRange]);
+  // Track if we've initialized to prevent infinite loops
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Update date range when effective dates are loaded
   useEffect(() => {
-    if (effectiveDateRange && effectiveDateRange.startDate !== dateRange.startDate) {
+    if (isInitialized) {
+      fetchCashflowData();
+      fetchRecurringPayments();
+    }
+  }, [dateRange, isInitialized, fetchCashflowData, fetchRecurringPayments]);
+
+  // Update date range when effective dates are loaded, but only if not already aligned
+  useEffect(() => {
+    if (effectiveDateRange && 
+        effectiveDateRange.startDate !== dateRange.startDate && 
+        isInitialized) {
       console.log('🔄 Updating date range to use effective dates:', effectiveDateRange);
-      const startDate = new Date(effectiveDateRange.startDate);
-      const endDate = new Date(effectiveDateRange.endDate);
       
       setDateRange(prev => ({
         ...prev,
@@ -567,7 +646,7 @@ export default function CashflowOverview() {
         endDate: effectiveDateRange.endDate
       }));
     }
-  }, [effectiveDateRange]);
+  }, [effectiveDateRange, dateRange.startDate, isInitialized]);
 
   // Prepare chart data for visualizations
   const prepareChartData = () => {
