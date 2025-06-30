@@ -7,9 +7,7 @@ import { clsx } from 'clsx'
 import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
-import { isFacilityAccount } from '@/utils/bankStatementUtils'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
-import { currencyCache } from '@/lib/services/currencyCache'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -158,79 +156,7 @@ export default function Dashboard() {
     loadChartJs();
   }, []);
 
-  // Calculate total cash using optimized currency conversion
-  const calculateTotalCash = async (banks: Bank[]): Promise<number> => {
-    let totalPositiveBalance = 0;
 
-    // First, collect all unique currencies from bank statements
-    const uniqueCurrencies = new Set<string>();
-    for (const bank of banks) {
-      for (const statement of bank.bankStatements) {
-        const statementCurrency = (statement as any).accountCurrency?.trim() || 'EGP';
-        uniqueCurrencies.add(statementCurrency);
-      }
-    }
-
-    // Preload all currency rates in one API call
-    const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
-    if (currencyList.length > 0) {
-      console.log('🔄 Dashboard - Preloading currency rates for:', currencyList);
-      await currencyCache.preloadRates(currencyList);
-    }
-
-    for (const bank of banks) {
-      let totalCashBalanceEGP = 0;
-      
-      console.log(`\n🏦 Dashboard - Processing bank: ${bank.name}`);
-      
-      // Process each bank statement
-      for (const statement of bank.bankStatements) {
-        const endingBalance = parseFloat(statement.endingBalance?.toString() || '0');
-        const statementCurrency = (statement as any).accountCurrency?.trim() || 'EGP';
-        
-        console.log(`  📋 Dashboard - Statement ${statement.id}: ${endingBalance} ${statementCurrency}`);
-        
-        // Convert amount to EGP if needed using cached rates
-        let balanceInEGP = endingBalance;
-        if (statementCurrency !== 'EGP' && endingBalance !== 0) {
-          try {
-            const conversion = await currencyCache.convertCurrency(
-              Math.abs(endingBalance),
-              statementCurrency,
-              'EGP'
-            );
-            
-            balanceInEGP = endingBalance < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
-            console.log(`💱 Dashboard - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
-          } catch (error) {
-            console.error('Dashboard - Currency conversion error:', error);
-            // Fallback to default rate
-            const defaultRate = statementCurrency === 'USD' ? 50 : 1;
-            balanceInEGP = endingBalance * defaultRate;
-            console.log(`❌ Dashboard - Conversion failed, using default rate: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
-          }
-        }
-        
-        // Determine if this is a facility account using the same logic as banks page
-        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
-        
-        console.log(`  💳 Dashboard - Account Type: ${statement.accountType}, Is Facility: ${isFacility}, Balance in EGP: ${balanceInEGP}`);
-        
-        if (!isFacility) {
-          // Regular account - both positive and negative balances contribute to cash position (same as banks page)
-          totalCashBalanceEGP += balanceInEGP; // This can be negative for current accounts
-          totalPositiveBalance += balanceInEGP; // Include negative balances in total cash calculation
-          
-          console.log(`  🏦 Dashboard - Regular Account: +${balanceInEGP} to bank cash, bank total: ${totalCashBalanceEGP}, global total: ${totalPositiveBalance}`);
-        }
-      }
-      
-      console.log(`🏦 Dashboard - ${bank.name} FINAL: Cash=${formatEGP(totalCashBalanceEGP)}`);
-    }
-
-    console.log(`🏧 Dashboard - System calculated total: ${formatEGP(totalPositiveBalance)}`);
-    return totalPositiveBalance;
-  };
 
   // Calculate total payables using the same logic as suppliers page
   const calculateTotalPayables = (suppliers: Supplier[]): number => {
@@ -248,46 +174,42 @@ export default function Dashboard() {
       setError(null);
 
       // Fetch data from the same APIs used by individual pages
-      const [banksRes, suppliersRes, customersRes, timelineRes, historicalRes] = await Promise.all([
-        fetch('/api/banks'),
+      const [suppliersRes, customersRes, timelineRes, historicalRes, statsRes] = await Promise.all([
         fetch('/api/suppliers'),
         fetch('/api/customers'),
         fetch('/api/dashboard/timeline'),
-        fetch('/api/dashboard/historical-cashflow')
+        fetch('/api/dashboard/historical-cashflow'),
+        fetch('/api/dashboard/stats')
       ]);
 
-      if (!banksRes.ok || !suppliersRes.ok || !customersRes.ok || !timelineRes.ok || !historicalRes.ok) {
+      if (!suppliersRes.ok || !customersRes.ok || !timelineRes.ok || !historicalRes.ok || !statsRes.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
 
-      const [banksData, suppliersData, customersData, timelineData, historicalData] = await Promise.all([
-        banksRes.json(),
+      const [suppliersData, customersData, timelineData, historicalData, statsData] = await Promise.all([
         suppliersRes.json(),
         customersRes.json(),
         timelineRes.json(),
-        historicalRes.json()
+        historicalRes.json(),
+        statsRes.json()
       ]);
 
-      // Calculate totals using the same logic as individual pages
-      const totalCash = banksData.success ? await calculateTotalCash(banksData.banks) : 0;
-      const totalPayables = Array.isArray(suppliersData) ? calculateTotalPayables(suppliersData) : 0;
-      const totalReceivables = Array.isArray(customersData) ? calculateTotalReceivables(customersData) : 0;
-
-      // Get outstanding bank payments from the original dashboard stats API
-      const bankPaymentsRes = await fetch('/api/dashboard/stats');
+      // Use values from the corrected stats API instead of recalculating
+      let totalCash = 0;
       let outstandingBankPayments = 0;
       let metadata = null;
       
-      if (bankPaymentsRes.ok) {
-        const bankPaymentsData = await bankPaymentsRes.json();
-        if (bankPaymentsData.success) {
-          const bankPaymentStat = bankPaymentsData.stats.find(
-            (stat: any) => stat.title === 'Outstanding Bank Payments (30 days)'
-          );
-          outstandingBankPayments = bankPaymentStat?.value || 0;
-          metadata = bankPaymentsData.metadata;
-        }
+      if (statsData.success) {
+        const cashStat = statsData.stats.find((stat: any) => stat.title === 'Total Cash On Hand');
+        const bankPaymentStat = statsData.stats.find((stat: any) => stat.title.includes('Outstanding Bank Pay'));
+        
+        totalCash = cashStat?.value || 0;
+        outstandingBankPayments = bankPaymentStat?.value || 0;
+        metadata = statsData.metadata;
       }
+
+      const totalPayables = Array.isArray(suppliersData) ? calculateTotalPayables(suppliersData) : 0;
+      const totalReceivables = Array.isArray(customersData) ? calculateTotalReceivables(customersData) : 0;
 
       // Create stats array with calculated values
       const calculatedStats: DashboardStat[] = [
@@ -320,7 +242,7 @@ export default function Dashboard() {
           dataSource: 'accountsReceivable'
         },
         {
-          title: 'Outstanding Bank Payments (30 days)',
+          title: 'Outstanding Bank Pay...',
           value: outstandingBankPayments,
           change: 0,
           changeType: 'neutral' as const,
@@ -339,9 +261,9 @@ export default function Dashboard() {
           month: 'long',
           day: 'numeric'
         }),
-        bankName: banksData.banks?.[0]?.name || 'Multiple Banks',
+        bankName: 'Multiple Banks',
         accountNumber: '',
-        note: 'Data calculated from banks, suppliers, and customers pages'
+        note: 'Data calculated from stats API'
       });
 
       if (timelineData.success) {

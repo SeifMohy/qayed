@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
+import { currencyCache } from '@/lib/services/currencyCache';
 
 export async function GET() {
   try {
@@ -86,47 +87,95 @@ export async function GET() {
     thirtyDaysFromReference.setDate(referenceDate.getDate() + 30);
 
     // Calculate Total Cash On Hand using the same logic as banks page
-    // Include all regular accounts (non-facility) balances, including negative ones
-    // Get all bank statements and process each account separately
-    const allBankStatements = await prisma.bankStatement.findMany({
-      where: {
-        statementPeriodEnd: {
-          lte: referenceDate
-        }
-      },
-      orderBy: [
-        { bankId: 'asc' },
-        { accountNumber: 'asc' },
-        { statementPeriodEnd: 'desc' }
-      ],
+    const banks = await prisma.bank.findMany({
       include: {
-        bank: {
-          select: {
-            name: true
+        bankStatements: {
+          where: {
+            statementPeriodEnd: {
+              lte: referenceDate
+            }
+          },
+          orderBy: {
+            statementPeriodEnd: 'desc'
           }
         }
       }
     });
 
-    // Group by account to get latest statement for each account
-    const accountMap = new Map();
-    for (const statement of allBankStatements) {
-      const accountKey = `${statement.bankId}-${statement.accountNumber}`;
-      if (!accountMap.has(accountKey)) {
-        accountMap.set(accountKey, statement);
+    // First, collect all unique currencies from bank statements for preloading
+    const uniqueCurrencies = new Set<string>();
+    for (const bank of banks) {
+      for (const statement of bank.bankStatements) {
+        const statementCurrency = statement.accountCurrency?.trim() || 'EGP';
+        uniqueCurrencies.add(statementCurrency);
       }
     }
 
+    // Preload all currency rates in one API call (same as banks page)
+    const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
+    if (currencyList.length > 0) {
+      console.log('🔄 Dashboard Stats - Preloading currency rates for:', currencyList);
+      await currencyCache.preloadRates(currencyList);
+    }
+
     let totalCashOnHand = 0;
-    for (const statement of accountMap.values()) {
-      if (statement.endingBalance) {
-        const endingBalance = Number(statement.endingBalance);
+    let totalBankObligations = 0;
+
+    // Process each bank using the same logic as banks page
+    for (const bank of banks) {
+      // Group bank statements by account number to get latest statement for each account
+      const accountGroups = bank.bankStatements.reduce((groups: { [key: string]: any[] }, statement: any) => {
+        const accountNumber = statement.accountNumber;
+        if (!groups[accountNumber]) {
+          groups[accountNumber] = [];
+        }
+        groups[accountNumber].push(statement);
+        return groups;
+      }, {});
+      
+      // Process latest statement for each unique account
+      for (const [accountNumber, statements] of Object.entries(accountGroups)) {
+        // Get the statement with the latest end date for this account
+        const latestStatement = (statements as any[]).reduce((latest: any, current: any) => {
+          return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+            ? current 
+            : latest;
+        });
         
-        // Use the same logic as banks page: include all regular accounts (positive and negative balances)
-        const isFacility = isFacilityAccount(statement.accountType, endingBalance);
+        const endingBalance = parseFloat(latestStatement.endingBalance?.toString() || '0');
+        const statementCurrency = latestStatement.accountCurrency?.trim() || 'EGP';
         
-        if (!isFacility) {
-          totalCashOnHand += endingBalance; // Include negative balances from current accounts
+        // Convert amount to EGP if needed using cached rates (same as banks page)
+        let balanceInEGP = endingBalance;
+        if (statementCurrency !== 'EGP' && endingBalance !== 0) {
+          try {
+            const conversion = await currencyCache.convertCurrency(
+              Math.abs(endingBalance),
+              statementCurrency,
+              'EGP'
+            );
+            
+            balanceInEGP = endingBalance < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
+            console.log(`💱 Dashboard Stats - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
+          } catch (error) {
+            console.error('Dashboard Stats - Currency conversion error:', error);
+            // Fallback to default rate
+            const defaultRate = statementCurrency === 'USD' ? 50 : 1;
+            balanceInEGP = endingBalance * defaultRate;
+            console.log(`❌ Dashboard Stats - Conversion failed, using default rate: ${endingBalance} × ${defaultRate} = ${balanceInEGP} EGP`);
+          }
+        }
+        
+        // Determine if this is a facility account using the same logic as banks page
+        const isFacility = isFacilityAccount(latestStatement.accountType, endingBalance);
+        
+        if (isFacility) {
+          // Facility account - contributes to bank obligations
+          const facilityAmountEGP = Math.abs(balanceInEGP);
+          totalBankObligations += facilityAmountEGP;
+        } else {
+          // Regular account - both positive and negative balances contribute to cash position
+          totalCashOnHand += balanceInEGP; // This can be negative for current accounts
         }
       }
     }
@@ -169,22 +218,8 @@ export async function GET() {
       }
     });
 
-    // 4. Outstanding Bank Payments (30 days) - bank obligations in next 30 days from reference date
-    const outstandingBankPayments = await prisma.cashflowProjection.aggregate({
-      where: {
-        type: {
-          in: ['BANK_OBLIGATION', 'LOAN_PAYMENT']
-        },
-        status: 'PROJECTED',
-        projectionDate: {
-          gte: referenceDate,
-          lte: thirtyDaysFromReference
-        }
-      },
-      _sum: {
-        projectedAmount: true
-      }
-    });
+    // 4. Outstanding Bank Payments - using actual facility account balances like banks page
+    // (totalBankObligations is already calculated above)
 
     // Calculate previous period values for change percentages (using bank statement date as reference)
     const prevThirtyDaysAgo = new Date(referenceDate);
@@ -230,25 +265,8 @@ export async function GET() {
       }
     });
 
-    // Previous period bank payments
-    const prevThirtyDaysFromThen = new Date(prevReferenceDate);
-    prevThirtyDaysFromThen.setDate(prevReferenceDate.getDate() + 30);
-    
-    const prevOutstandingBankPayments = await prisma.cashflowProjection.aggregate({
-      where: {
-        type: {
-          in: ['BANK_OBLIGATION', 'LOAN_PAYMENT']
-        },
-        status: 'PROJECTED',
-        projectionDate: {
-          gte: prevReferenceDate,
-          lte: prevThirtyDaysFromThen
-        }
-      },
-      _sum: {
-        projectedAmount: true
-      }
-    });
+    // Previous period bank payments - using 0 since we don't have historical facility data
+    const prevOutstandingBankPayments = { _sum: { projectedAmount: 0 } };
 
     // Calculate change percentages
     const calculateChange = (current: number, previous: number) => {
@@ -260,7 +278,7 @@ export async function GET() {
     const prevPayablesAmount = Number(prevOutstandingPayables._sum.total || 0);
     const receivablesAmount = Number(outstandingReceivables._sum.total || 0);
     const prevReceivablesAmount = Number(prevOutstandingReceivables._sum.total || 0);
-    const bankPaymentsAmount = Math.abs(Number(outstandingBankPayments._sum.projectedAmount || 0));
+    const bankPaymentsAmount = Number(totalBankObligations);
     const prevBankPaymentsAmount = Math.abs(Number(prevOutstandingBankPayments._sum.projectedAmount || 0));
 
     const getChangeType = (current: number, previous: number): 'increase' | 'decrease' | 'neutral' => {
@@ -299,7 +317,7 @@ export async function GET() {
         dataSource: 'accountsReceivable'
       },
       {
-        title: 'Outstanding Bank Payments (30 days)',
+        title: 'Outstanding Bank Pay...',
         value: bankPaymentsAmount,
         change: calculateChange(bankPaymentsAmount, prevBankPaymentsAmount),
         changeType: getChangeType(bankPaymentsAmount, prevBankPaymentsAmount),
