@@ -26,7 +26,7 @@ function Hero() {
             Forecast upcoming obligations and optimize financial operations.
           </p>
           <div className="mt-12 flex flex-col gap-x-6 gap-y-4 sm:flex-row">
-            <Button href="/login">
+            <Button href="/signup">
               Sign Up
             </Button>
             <Button href="/login" variant="outline">
