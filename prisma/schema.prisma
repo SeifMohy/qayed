@@ -8,12 +8,47 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Company {
+  id        Int        @id @default(autoincrement())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  name      String
+  industry  String?
+  country   String?
+  currency  String     @default("USD")
+  isActive  Boolean    @default(true)
+  banks     Bank[]
+  customers Customer[]
+  invoices  Invoice[]
+  suppliers Supplier[]
+  users     User[]
+}
+
+model User {
+  id             String    @id @default(uuid())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  email          String    @unique
+  firstName      String
+  lastName       String
+  role           UserRole  @default(USER)
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  companyId      Int
+  supabaseUserId String    @unique
+  company        Company   @relation(fields: [companyId], references: [id])
+
+  @@index([email])
+  @@index([companyId])
+  @@index([supabaseUserId])
+}
+
 model Invoice {
   id                    Int                  @id @default(autoincrement())
   createdAt             DateTime             @default(now())
   updatedAt             DateTime
   invoiceDate           DateTime
-  invoiceNumber         String               @unique
+  invoiceNumber         String
   issuerName            String
   receiverName          String
   totalSales            Decimal
@@ -33,10 +68,15 @@ model Invoice {
   exactMatchingRequired Boolean              @default(false)
   matchingKeywords      String[]
   expectedPaymentDates  Json?
+  companyId             Int
   CashflowProjection    CashflowProjection[]
+  company               Company              @relation(fields: [companyId], references: [id])
   Customer              Customer?            @relation(fields: [customerId], references: [id])
   Supplier              Supplier?            @relation(fields: [supplierId], references: [id])
   TransactionMatch      TransactionMatch[]
+
+  @@unique([invoiceNumber, companyId])
+  @@index([companyId])
 }
 
 model Customer {
@@ -47,7 +87,11 @@ model Customer {
   country          String?
   etaId            String?
   paymentTermsData Json?
+  companyId        Int
+  company          Company   @relation(fields: [companyId], references: [id])
   Invoice          Invoice[]
+
+  @@index([companyId])
 }
 
 model Supplier {
@@ -58,15 +102,24 @@ model Supplier {
   country          String?
   etaId            String?
   paymentTermsData Json?
+  companyId        Int
   Invoice          Invoice[]
+  company          Company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
 }
 
 model Bank {
   id             Int             @id @default(autoincrement())
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  name           String          @unique
+  name           String
+  companyId      Int
+  company        Company         @relation(fields: [companyId], references: [id])
   bankStatements BankStatement[]
+
+  @@unique([name, companyId])
+  @@index([companyId])
 }
 
 model BankStatement {
@@ -301,4 +354,10 @@ enum TransactionCategory {
   BANK_PAYMENTS
   UNKNOWN
   OTHER
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  VIEWER
 }

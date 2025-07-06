@@ -2,11 +2,12 @@
 
 import { Fragment, createContext, useState, useEffect, useContext } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Disclosure, Menu, Transition } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import { BanknotesIcon, UsersIcon, TruckIcon, ChartBarIcon, UserCircleIcon, CreditCardIcon, ClipboardDocumentCheckIcon, CpuChipIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
+import { useAuth } from '@/contexts/auth-context'
 
 // Define a shared key for localStorage
 const STORAGE_KEY = 'qayed_app_uploaded_sources';
@@ -40,18 +41,14 @@ const navigationItems = [
   { name: 'Annotation', href: '/dashboard/annotation/statements', icon: ClipboardDocumentCheckIcon },
 ]
 
-const userNavigation = [
-  { name: 'Your Profile', href: '/dashboard/profile' },
-  { name: 'Settings', href: '/dashboard/settings' },
-  { name: 'Sign out', href: '/' },
-]
-
 export default function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, isLoading } = useAuth();
   
   // State for tracking uploaded data sources
   const [uploadedSources, setUploadedSources] = useState<{ [key: string]: boolean }>({});
@@ -93,6 +90,37 @@ export default function DashboardLayout({
     ...item,
     current: pathname === item.href || pathname.startsWith(`${item.href}/`)
   }));
+
+  const handleLogout = async () => {
+    const { error } = await logout();
+    if (!error) {
+      router.push('/login');
+    }
+  };
+
+  const userNavigation = [
+    { name: 'Your Profile', href: '/dashboard/profile' },
+    { name: 'Settings', href: '/dashboard/settings' },
+    { name: 'Sign out', action: handleLogout },
+  ];
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#595CFF]"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if not authenticated (shouldn't happen due to middleware, but good fallback)
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <UploadedSourcesContext.Provider value={{ uploadedSources, setUploadedSources, isDataSourceUploaded }}>
@@ -145,19 +173,38 @@ export default function DashboardLayout({
                         leaveFrom="transform opacity-100 scale-100"
                         leaveTo="transform opacity-0 scale-95"
                       >
-                        <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                        <Menu.Items className="absolute right-0 z-10 mt-2 w-64 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                          <div className="px-4 py-3 border-b border-gray-200">
+                            <p className="text-sm font-medium text-gray-900">
+                              {user.firstName} {user.lastName}
+                            </p>
+                            <p className="text-sm text-gray-500">{user.email}</p>
+                            <p className="text-xs text-gray-400">{user.company.name}</p>
+                          </div>
                           {userNavigation.map((item) => (
                             <Menu.Item key={item.name}>
                               {({ active }) => (
-                                <Link
-                                  href={item.href}
-                                  className={clsx(
-                                    active ? 'bg-gray-100' : '',
-                                    'block px-4 py-2 text-sm text-gray-700'
-                                  )}
-                                >
-                                  {item.name}
-                                </Link>
+                                item.action ? (
+                                  <button
+                                    onClick={item.action}
+                                    className={clsx(
+                                      active ? 'bg-gray-100' : '',
+                                      'block w-full text-left px-4 py-2 text-sm text-gray-700'
+                                    )}
+                                  >
+                                    {item.name}
+                                  </button>
+                                ) : (
+                                  <Link
+                                    href={item.href}
+                                    className={clsx(
+                                      active ? 'bg-gray-100' : '',
+                                      'block px-4 py-2 text-sm text-gray-700'
+                                    )}
+                                  >
+                                    {item.name}
+                                  </Link>
+                                )
                               )}
                             </Menu.Item>
                           ))}
@@ -207,20 +254,33 @@ export default function DashboardLayout({
                       <UserCircleIcon className="h-8 w-8 text-gray-500" aria-hidden="true" />
                     </div>
                     <div className="ml-3">
-                      <div className="text-base font-medium text-gray-800">John Smith</div>
-                      <div className="text-sm font-medium text-gray-500">johnsmith@example.com</div>
+                      <div className="text-base font-medium text-gray-800">
+                        {user.firstName} {user.lastName}
+                      </div>
+                      <div className="text-sm font-medium text-gray-500">{user.email}</div>
+                      <div className="text-xs font-medium text-gray-400">{user.company.name}</div>
                     </div>
                   </div>
                   <div className="mt-3 space-y-1">
                     {userNavigation.map((item) => (
-                      <Disclosure.Button
-                        key={item.name}
-                        as="a"
-                        href={item.href}
-                        className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                      >
-                        {item.name}
-                      </Disclosure.Button>
+                      item.action ? (
+                        <button
+                          key={item.name}
+                          onClick={item.action}
+                          className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        >
+                          {item.name}
+                        </button>
+                      ) : (
+                        <Disclosure.Button
+                          key={item.name}
+                          as="a"
+                          href={item.href}
+                          className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        >
+                          {item.name}
+                        </Disclosure.Button>
+                      )
                     ))}
                   </div>
                 </div>
