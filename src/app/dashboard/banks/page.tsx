@@ -816,7 +816,7 @@ export default function BanksPage() {
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                Upload Bank Position
+                Upload Bank Data
               </button>
             </div>
           )}
@@ -927,7 +927,7 @@ export default function BanksPage() {
           <div className="p-12 text-center bg-white">
             <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-semibold text-gray-900">No facility data available</h3>
-            <p className="mt-1 text-sm text-gray-500">Upload Bank Position data to view your credit facilities.</p>
+            <p className="mt-1 text-sm text-gray-500">Upload Bank Data to view your credit facilities.</p>
             <div className="mt-6">
               <button
                 type="button"
@@ -935,7 +935,7 @@ export default function BanksPage() {
                 className="inline-flex items-center rounded-md bg-[#595CFF] px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#484adb]"
               >
                 <DocumentArrowUpIcon className="-ml-0.5 mr-1.5 h-5 w-5" aria-hidden="true" />
-                Upload Bank Position
+                Upload Bank Data
               </button>
             </div>
           </div>
