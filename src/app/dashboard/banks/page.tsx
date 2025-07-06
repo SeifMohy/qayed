@@ -13,6 +13,7 @@ import { processBankStatements } from '@/components/upload/BankStatementUploader
 import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatementUtils'
 import { formatCurrencyByCode, formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { currencyCache } from '@/lib/services/currencyCache'
+import { useAuth } from '@/contexts/auth-context'
 
 type Bank = {
   id: number;
@@ -64,6 +65,7 @@ interface BanksMetadata {
 
 export default function BanksPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
+  const { session } = useAuth(); // Get auth session
 
   const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
   const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>([]);
@@ -491,12 +493,18 @@ export default function BanksPage() {
     if (files.length === 0) {
       return;
     }
+
+    // Check if user is authenticated
+    if (!session?.user?.id) {
+      alert('Please sign in to upload bank statements.');
+      return;
+    }
     
     try {
       setIsUploading('processing');
       
-      // Process bank statements
-      await processBankStatements(files);
+      // Process bank statements with user ID
+      await processBankStatements(files, session.user.id);
       
       // Mark as uploaded and clear files
       const newUploadedSources = { ...uploadedSources };

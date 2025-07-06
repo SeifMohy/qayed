@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { CompanyAccessService } from './companyAccessService';
 
 export interface StatementPeriod {
   start_date: string;
@@ -70,13 +71,17 @@ export async function checkBankStatementConcurrency(
   accountNumber: string,
   bankName: string,
   statementPeriodStart: Date,
-  statementPeriodEnd: Date
+  statementPeriodEnd: Date,
+  companyId: number
 ): Promise<ConcurrencyCheckResult> {
   
-  // Step 1: Check for existing statements with the same account number
+  // Step 1: Check for existing statements with the same account number (scoped to company)
   const existingStatements = await prisma.bankStatement.findMany({
     where: {
-      accountNumber: accountNumber
+      accountNumber: accountNumber,
+      bank: {
+        companyId: companyId
+      }
     },
     include: {
       bank: true
@@ -87,14 +92,15 @@ export async function checkBankStatementConcurrency(
   });
 
   if (existingStatements.length === 0) {
-    // No existing statements with this account number
-    // Step 2: Check if bank name exists
+    // No existing statements with this account number in this company
+    // Step 2: Check if bank name exists in this company
     const existingBank = await prisma.bank.findFirst({
       where: {
         name: {
           equals: bankName,
           mode: 'insensitive'
-        }
+        },
+        companyId: companyId
       }
     });
 
@@ -171,7 +177,8 @@ export async function checkBankStatementConcurrency(
       name: {
         equals: bankName,
         mode: 'insensitive'
-      }
+      },
+      companyId: companyId
     }
   });
 
@@ -196,21 +203,27 @@ export async function checkBankStatementConcurrency(
  */
 export async function processBankStatementWithConcurrency(
   statement: AccountStatement,
+  supabaseUserId: string,
   fileName?: string,
   fileUrl?: string,
   rawTextContent?: string
 ): Promise<ProcessingResult> {
   
+  // Get user's company ID using CompanyAccessService
+  const companyAccessService = new CompanyAccessService(supabaseUserId);
+  const companyId = await companyAccessService.getCompanyId();
+  
   // Parse dates
   const statementPeriodStart = new Date(statement.statement_period.start_date);
   const statementPeriodEnd = new Date(statement.statement_period.end_date);
 
-  // Check concurrency
+  // Check concurrency with company scope
   const concurrencyCheck = await checkBankStatementConcurrency(
     statement.account_number,
     statement.bank_name,
     statementPeriodStart,
-    statementPeriodEnd
+    statementPeriodEnd,
+    companyId
   );
 
   console.log(`Concurrency check for ${statement.account_number}: ${concurrencyCheck.action} - ${concurrencyCheck.reason}`);
@@ -247,6 +260,7 @@ export async function processBankStatementWithConcurrency(
     default:
       return await createNewBankAndStatement(
         statement,
+        companyId,
         fileName,
         fileUrl,
         rawTextContent,
@@ -409,6 +423,7 @@ async function createNewStatementInExistingBank(
  */
 async function createNewBankAndStatement(
   statement: AccountStatement,
+  companyId: number,
   fileName?: string,
   fileUrl?: string,
   rawTextContent?: string,
@@ -422,7 +437,7 @@ async function createNewBankAndStatement(
 
   // Create bank first
   const bank = await prisma.bank.create({
-    data: { name: statement.bank_name }
+    data: { name: statement.bank_name, companyId: companyId }
   });
 
   console.log(`Created new bank: ${bank.name} with ID: ${bank.id}`);
@@ -482,24 +497,33 @@ async function createNewBankAndStatement(
  */
 export async function updateStatementBankAffiliation(
   statementId: number,
-  newBankName: string
+  newBankName: string,
+  supabaseUserId: string
 ): Promise<void> {
   
-  // Find or create the new bank
+  // Get user's company ID using CompanyAccessService
+  const companyAccessService = new CompanyAccessService(supabaseUserId);
+  const companyId = await companyAccessService.getCompanyId();
+  
+  // Find or create the new bank with company scope
   let bank = await prisma.bank.findFirst({
     where: {
       name: {
         equals: newBankName,
         mode: 'insensitive'
-      }
+      },
+      companyId: companyId
     }
   });
 
   if (!bank) {
     bank = await prisma.bank.create({
-      data: { name: newBankName }
+      data: { 
+        name: newBankName,
+        companyId: companyId
+      }
     });
-    console.log(`Created new bank for affiliation update: ${bank.name} with ID: ${bank.id}`);
+    console.log(`Created new bank for affiliation update: ${bank.name} with ID: ${bank.id} for company: ${companyId}`);
   }
 
   // Update the statement

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadBankStatementFile } from '@/lib/supabase';
+import { useAuth } from '@/contexts/auth-context';
 
 type ParsedDocument = {
   fileName: string;
@@ -47,6 +48,7 @@ export default function BankStatementUploader({
   const [processedDocs, setProcessedDocs] = useState<ParsedDocument[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { session } = useAuth();
 
   // Use external files if provided, otherwise use internal files
   const files = externalFiles || internalFiles;
@@ -105,9 +107,20 @@ export default function BankStatementUploader({
   
   const handleProcessing = async () => {
     if (files.length === 0) {
-      const errorMsg = 'Please select at least one PDF file to upload.';
-      setUploadError(errorMsg);
-      onError?.(errorMsg);
+      setUploadError('Please select at least one PDF file to upload.');
+      return;
+    }
+
+    // Check if user is authenticated
+    if (!session?.user?.id) {
+      setUploadError('Please sign in to upload bank statements.');
+      return;
+    }
+
+    // Validate if they're PDFs
+    const invalidFiles = files.filter(file => !file.type.includes('pdf'));
+    if (invalidFiles.length > 0) {
+      setUploadError(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
       return;
     }
     
@@ -166,7 +179,7 @@ export default function BankStatementUploader({
       
       setProcessedDocs(resultsWithUrls);
       
-      // Step 3: Structure and save to database (now with file URLs)
+      // Step 3: Structure and save to database (now with file URLs and user ID)
       console.log('Structuring and saving to database...');
       setIsProcessing(true);
       
@@ -188,7 +201,8 @@ export default function BankStatementUploader({
             body: JSON.stringify({
               statementText: doc.extractedText,
               fileName: doc.fileName,
-              fileUrl: doc.fileUrl // Include the Supabase file URL
+              fileUrl: doc.fileUrl, // Include the Supabase file URL
+              supabaseUserId: session.user.id // Include the user's ID for company scoping
             }),
           });
           
@@ -400,9 +414,13 @@ export default function BankStatementUploader({
 }
 
 // Export processing function for external use
-export const processBankStatements = async (files: File[]) => {
+export const processBankStatements = async (files: File[], supabaseUserId?: string) => {
   if (files.length === 0) {
     throw new Error('Please select at least one PDF file to upload.');
+  }
+
+  if (!supabaseUserId) {
+    throw new Error('User authentication required for processing bank statements.');
   }
   
   // Validate if they're PDFs
@@ -467,7 +485,8 @@ export const processBankStatements = async (files: File[]) => {
         body: JSON.stringify({
           statementText: doc.extractedText,
           fileName: doc.fileName,
-          fileUrl: doc.fileUrl
+          fileUrl: doc.fileUrl,
+          supabaseUserId: supabaseUserId // Include the user's ID for company scoping
         }),
       });
       

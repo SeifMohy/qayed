@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
 import { cleanupOrphanedBank } from '@/lib/services/bankCleanupService';
+import { CompanyAccessService } from '@/lib/services/companyAccessService';
 
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
@@ -152,8 +153,20 @@ export async function PUT(
       validatedBy,
       tenor,
       availableLimit,
-      interestRate
+      interestRate,
+      supabaseUserId
     } = body;
+
+    // Get user's company ID using CompanyAccessService
+    if (!supabaseUserId) {
+      return NextResponse.json({
+        success: false,
+        error: 'User authentication required'
+      }, { status: 401 });
+    }
+
+    const companyAccessService = new CompanyAccessService(supabaseUserId);
+    const companyId = await companyAccessService.getCompanyId();
 
     // Check if statement exists and is not locked
     const existingStatement = await prisma.bankStatement.findUnique({
@@ -199,15 +212,21 @@ export async function PUT(
         // Store the old bank ID for potential cleanup
         const oldBankId = existingStatement.bankId;
         
-        // Find or create the bank with the new name
-        let targetBank = await tx.bank.findUnique({
-          where: { name: trimmedBankName }
+        // Find or create the bank with the new name (with company scope)
+        let targetBank = await tx.bank.findFirst({
+          where: { 
+            name: trimmedBankName,
+            companyId: companyId
+          }
         });
 
         if (!targetBank) {
-          // Create new bank if it doesn't exist
+          // Create new bank if it doesn't exist - now with company ID
           targetBank = await tx.bank.create({
-            data: { name: trimmedBankName }
+            data: { 
+              name: trimmedBankName,
+              companyId: companyId
+            }
           });
         }
 

@@ -753,21 +753,24 @@ async function processChunk(
 
 // --- API Route Handler ---
 export async function POST(request: Request) {
-    console.log("=== BANK STATEMENT PROCESSING STARTED (CHUNKED) ===");
-    if (!API_KEY) {
-        return NextResponse.json({ error: 'Server configuration error: API key not found.' }, { status: 500 });
-    }
-
     try {
-        const data = await request.json();
-        const { statementText, fileName, fileUrl } = data;
+        console.log('🔄 Starting bank statement structuring process...');
         
-        console.log(`Request received with filename: ${fileName || 'unnamed'}`);
-        console.log(`File URL: ${fileUrl || 'not provided'}`);
-        console.log(`Statement text length: ${statementText ? statementText.length : 0} characters`);
+        const body = await request.json();
+        const { statementText, fileName, fileUrl, supabaseUserId } = body;
 
         if (!statementText) {
-            return NextResponse.json({ error: 'No statement text provided for processing.' }, { status: 400 });
+            return NextResponse.json({
+                success: false,
+                error: 'Statement text is required'
+            }, { status: 400 });
+        }
+
+        if (!supabaseUserId) {
+            return NextResponse.json({
+                success: false,
+                error: 'User authentication required'
+            }, { status: 401 });
         }
 
         // Initialize the GenAI client
@@ -858,9 +861,10 @@ export async function POST(request: Request) {
                         transactions: statement.transactions
                     };
 
-                    // Process with concurrency handling
+                    // Process with concurrency handling - now with supabaseUserId
                     const result = await processBankStatementWithConcurrency(
                         concurrencyStatement,
+                        supabaseUserId, // Pass the user's supabase ID
                         fileName,
                         fileUrl,
                         statementText
@@ -1034,11 +1038,10 @@ export async function POST(request: Request) {
             }, { status: 500 });
         }
     } catch (error: any) {
-        console.error('Error in structure-bankstatement route:', error);
+        console.error('Error in structure-bankstatement:', error);
         return NextResponse.json({
             success: false,
-            error: error.message || 'An unexpected error occurred during processing.',
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            error: error.message || 'An unexpected error occurred'
         }, { status: 500 });
     }
 } 

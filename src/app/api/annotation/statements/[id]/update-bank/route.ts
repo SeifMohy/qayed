@@ -7,7 +7,7 @@ export async function PUT(
 ) {
   try {
     const statementId = parseInt(params.id);
-    const { bankName } = await request.json();
+    const { bankName, supabaseUserId } = await request.json();
 
     if (!bankName || typeof bankName !== 'string' || bankName.trim() === '') {
       return NextResponse.json(
@@ -16,7 +16,14 @@ export async function PUT(
       );
     }
 
-    await updateStatementBankAffiliation(statementId, bankName.trim());
+    if (!supabaseUserId) {
+      return NextResponse.json(
+        { success: false, error: 'User authentication required' },
+        { status: 401 }
+      );
+    }
+
+    await updateStatementBankAffiliation(statementId, bankName.trim(), supabaseUserId);
 
     return NextResponse.json({
       success: true,
