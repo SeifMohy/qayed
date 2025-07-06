@@ -11,6 +11,7 @@ import MultiFileUpload from '@/components/upload/multi-file-upload'
 import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
+import { useAuth } from '@/contexts/auth-context'
 
 // Interface for customer data
 interface Customer {
@@ -40,6 +41,8 @@ export default function CustomersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const { session } = useAuth();
 
   // Fetch customers data
   const fetchCustomers = async () => {
@@ -132,10 +135,19 @@ export default function CustomersPage() {
 
       if (allInvoices.length > 0) {
         console.log(`📤 Uploading ${allInvoices.length} invoices in bulk...`);
+        
+        // Check if user is authenticated
+        if (!session?.user?.id) {
+          throw new Error('User not authenticated. Please log in again.');
+        }
+
         const response = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(allInvoices),
+          body: JSON.stringify({
+            supabaseUserId: session.user.id,
+            invoices: allInvoices
+          }),
         });
 
         if (!response.ok) {

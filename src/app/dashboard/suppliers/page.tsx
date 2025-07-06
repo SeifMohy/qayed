@@ -11,6 +11,7 @@ import UploadModal from '@/components/upload/upload-modal'
 import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
+import { useAuth } from '@/contexts/auth-context'
 
 // Interface for supplier data
 interface Supplier {
@@ -39,6 +40,8 @@ export default function SuppliersPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const { session } = useAuth();
 
   // Fetch suppliers data
   const fetchSuppliers = async () => {
@@ -131,10 +134,19 @@ export default function SuppliersPage() {
 
       if (allInvoices.length > 0) {
         console.log(`📤 Uploading ${allInvoices.length} invoices in bulk...`);
+        
+        // Check if user is authenticated
+        if (!session?.user?.id) {
+          throw new Error('User not authenticated. Please log in again.');
+        }
+
         const response = await fetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(allInvoices),
+          body: JSON.stringify({
+            supabaseUserId: session.user.id,
+            invoices: allInvoices
+          }),
         });
 
         if (!response.ok) {

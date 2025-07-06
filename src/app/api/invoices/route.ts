@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { CURRENT_CUSTOMER_NAMES, CURRENT_CUSTOMER_ETAID } from '@/lib/constants';
 import { normalizeNames } from '@/lib/services/nameNormalizationService';
 import type { NameToNormalize } from '@/lib/services/nameNormalizationService';
+import { CompanyAccessService } from '@/lib/services/companyAccessService';
 import { v4 as uuidv4 } from 'uuid';
 import { xml2js } from 'xml-js';
 
@@ -19,9 +20,25 @@ export async function POST(request: NextRequest) {
 
   try {
     const requestBody = await request.json();
-    invoicesToProcess = Array.isArray(requestBody) ? requestBody : [requestBody];
+    
+    // Extract supabaseUserId from the request body
+    const { supabaseUserId, invoices: invoicesData } = requestBody;
+    
+    if (!supabaseUserId) {
+      return NextResponse.json({
+        message: 'Authentication required. Please provide supabaseUserId.',
+        error: 'Missing supabaseUserId',
+      }, { status: 401 });
+    }
 
-    console.log(`🔵 Starting bulk invoice processing for ${invoicesToProcess.length} invoices...`);
+    // Initialize company access service
+    const companyAccessService = new CompanyAccessService(supabaseUserId);
+    const companyId = await companyAccessService.getCompanyId();
+
+    // Handle both direct invoice array and structured request
+    invoicesToProcess = invoicesData || (Array.isArray(requestBody) ? requestBody : [requestBody]);
+
+    console.log(`🔵 Starting bulk invoice processing for ${invoicesToProcess.length} invoices with company ID: ${companyId}...`);
 
     // Step 1: Extract all unique names that need normalization
     const namesToNormalize: NameToNormalize[] = [];
@@ -375,6 +392,7 @@ export async function POST(request: NextRequest) {
           where: {
             invoiceNumber: invoiceData.invoiceNumber,
             total: invoiceData.total, // Using total amount for duplication check
+            companyId: companyId, // Scope to company
           },
         });
 
@@ -414,13 +432,19 @@ export async function POST(request: NextRequest) {
           // Find customer by ETA ID first if available and not "0", then by name
           if (invoiceData.receiverEtaId) {
             customer = await prisma.customer.findFirst({ 
-              where: { etaId: invoiceData.receiverEtaId } 
+              where: { 
+                etaId: invoiceData.receiverEtaId,
+                companyId: companyId 
+              } 
             });
           }
           
           if (!customer) {
             customer = await prisma.customer.findFirst({ 
-              where: { name: normalizedReceiverName } 
+              where: { 
+                name: normalizedReceiverName,
+                companyId: companyId 
+              } 
             });
           }
           
@@ -431,6 +455,7 @@ export async function POST(request: NextRequest) {
                 name: normalizedReceiverName,
                 country: receiverCountry,
                 etaId: invoiceData.receiverEtaId || null,
+                companyId: companyId,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -445,13 +470,19 @@ export async function POST(request: NextRequest) {
           // Find supplier by ETA ID first if available and not "0", then by name
           if (invoiceData.issuerEtaId) {
             supplier = await prisma.supplier.findFirst({ 
-              where: { etaId: invoiceData.issuerEtaId } 
+              where: { 
+                etaId: invoiceData.issuerEtaId,
+                companyId: companyId 
+              } 
             });
           }
           
           if (!supplier) {
             supplier = await prisma.supplier.findFirst({ 
-              where: { name: normalizedIssuerName } 
+              where: { 
+                name: normalizedIssuerName,
+                companyId: companyId 
+              } 
             });
           }
           
@@ -462,6 +493,7 @@ export async function POST(request: NextRequest) {
                 name: normalizedIssuerName,
                 country: issuerCountry,
                 etaId: invoiceData.issuerEtaId || null,
+                companyId: companyId,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -477,13 +509,19 @@ export async function POST(request: NextRequest) {
           // Find supplier by ETA ID first if available and not "0", then by name
           if (invoiceData.issuerEtaId) {
             supplier = await prisma.supplier.findFirst({ 
-              where: { etaId: invoiceData.issuerEtaId } 
+              where: { 
+                etaId: invoiceData.issuerEtaId,
+                companyId: companyId 
+              } 
             });
           }
           
           if (!supplier) {
             supplier = await prisma.supplier.findFirst({ 
-              where: { name: normalizedIssuerName } 
+              where: { 
+                name: normalizedIssuerName,
+                companyId: companyId 
+              } 
             });
           }
           
@@ -494,6 +532,7 @@ export async function POST(request: NextRequest) {
                 name: normalizedIssuerName,
                 country: issuerCountry,
                 etaId: invoiceData.issuerEtaId || null,
+                companyId: companyId,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -505,13 +544,19 @@ export async function POST(request: NextRequest) {
           let customer = null;
           if (invoiceData.receiverEtaId) {
             customer = await prisma.customer.findFirst({ 
-              where: { etaId: invoiceData.receiverEtaId } 
+              where: { 
+                etaId: invoiceData.receiverEtaId,
+                companyId: companyId 
+              } 
             });
           }
           
           if (!customer) {
             customer = await prisma.customer.findFirst({ 
-              where: { name: normalizedReceiverName } 
+              where: { 
+                name: normalizedReceiverName,
+                companyId: companyId 
+              } 
             });
           }
           
@@ -522,6 +567,7 @@ export async function POST(request: NextRequest) {
                 name: normalizedReceiverName,
                 country: receiverCountry,
                 etaId: invoiceData.receiverEtaId || null,
+                companyId: companyId,
                 createdAt: new Date(), 
                 updatedAt: new Date(),
               },
@@ -532,7 +578,7 @@ export async function POST(request: NextRequest) {
         }
 
         const newInvoice = await prisma.invoice.create({
-          data: { ...invoiceData, customerId, supplierId },
+          data: { ...invoiceData, customerId, supplierId, companyId },
         });
         createdInvoices.push(newInvoice);
         processedCount++;
