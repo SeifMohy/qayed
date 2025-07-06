@@ -44,7 +44,7 @@ export const ALL_DATA_SOURCES: DataSource[] = [
 export const PAGE_DATA_SOURCES = {
   dashboard: ALL_DATA_SOURCES,
   banks: ALL_DATA_SOURCES.filter(source => 
-    ['bankStatements', 'bankPosition'].includes(source.id)
+    ['bankStatements'].includes(source.id)
   ),
   suppliers: ALL_DATA_SOURCES.filter(source => 
     ['accountsPayable'].includes(source.id)
