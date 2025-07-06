@@ -21,6 +21,12 @@ export const ALL_DATA_SOURCES: DataSource[] = [
     description: 'Scheduled obligations, Limits / Interest, Credit Facilities'
   },
   { 
+    id: 'invoices', 
+    name: 'Invoices', 
+    format: 'ERP / Electronic Invoices', 
+    description: 'Customer and supplier invoices for accounts receivable and payable'
+  },
+  { 
     id: 'accountsReceivable', 
     name: 'Accounts Receivable', 
     format: 'ERP / Electronic Invoices', 

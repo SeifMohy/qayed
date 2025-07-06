@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { ArrowPathIcon } from '@heroicons/react/20/solid'
-import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, InformationCircleIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import dynamic from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
+import UploadModal from '@/components/upload/upload-modal'
+import MultiFileUpload from '@/components/upload/multi-file-upload'
+import { ALL_DATA_SOURCES } from '@/lib/data-sources'
+import type { DataSource } from '@/lib/data-sources'
+import { useAuth } from '@/contexts/auth-context'
 
 // Dynamically import Chart.js components
 const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -123,6 +128,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [chartLoaded, setChartLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);  const [refreshingProjections, setRefreshingProjections] = useState(false);
+  
+  // Upload modal state
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [sourceFiles, setSourceFiles] = useState<Record<string, File[]>>({});
+  const [uploadedSources, setUploadedSources] = useState<Record<string, boolean>>({});
+  
+  // Auth context
+  const { session } = useAuth();
 
   // Load chart.js when component mounts
   useEffect(() => {
@@ -304,6 +318,172 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  // Upload modal functions
+  const handleFilesChange = (sourceId: string, files: File[]) => {
+    setSourceFiles(prev => ({
+      ...prev,
+      [sourceId]: files
+    }));
+  };
+
+  const handleBankStatementProcessing = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    if (!session?.user?.id) {
+      alert('Please sign in to upload bank statements.');
+      return;
+    }
+    
+    try {
+      setIsUploading('processing');
+      
+      // You can implement the actual bank statement processing here
+      // For now, simulate processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const newUploadedSources = { ...uploadedSources };
+      newUploadedSources['bankStatements'] = true;
+      setUploadedSources(newUploadedSources);
+      
+      const newSourceFiles = { ...sourceFiles };
+      delete newSourceFiles['bankStatements'];
+      setSourceFiles(newSourceFiles);
+      
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        fetchDashboardData(); // Refresh dashboard data
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Error processing bank statements:', error);
+      alert(`Error processing bank statements: ${error.message}`);
+    } finally {
+      setIsUploading(null);
+    }
+  };
+
+  const handleInvoiceProcessing = async (files: File[], sourceId: string) => {
+    if (files.length === 0) return;
+
+    if (!session?.user?.id) {
+      alert('Please sign in to upload invoices.');
+      return;
+    }
+    
+    try {
+      setIsUploading('processing');
+      
+      // You can implement the actual invoice processing here
+      // For now, simulate processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const newUploadedSources = { ...uploadedSources };
+      newUploadedSources[sourceId] = true;
+      setUploadedSources(newUploadedSources);
+      
+      const newSourceFiles = { ...sourceFiles };
+      delete newSourceFiles[sourceId];
+      setSourceFiles(newSourceFiles);
+      
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        fetchDashboardData(); // Refresh dashboard data
+      }, 1500);
+      
+    } catch (error: any) {
+      console.error('Error processing invoices:', error);
+      alert(`Error processing invoices: ${error.message}`);
+    } finally {
+      setIsUploading(null);
+    }
+  };
+
+  const handleSubmitFiles = () => {
+    const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0);
+    
+    if (sourceIds.length === 0) return;
+    
+    // Handle bank statements separately
+    if (sourceIds.includes('bankStatements')) {
+      handleBankStatementProcessing(sourceFiles['bankStatements']);
+      return;
+    }
+    
+    // Handle invoices
+    if (sourceIds.includes('invoices')) {
+      handleInvoiceProcessing(sourceFiles['invoices'], 'invoices');
+    }
+  };
+
+  const isDataSourceUploaded = (sourceId: string) => {
+    return uploadedSources[sourceId] || false;
+  };
+
+  const renderSourceContent = (source: DataSource) => {
+    const hasUploadedFiles = isDataSourceUploaded(source.id);
+    const hasSelectedFiles = sourceFiles[source.id]?.length > 0;
+    
+    const acceptTypes = source.id === 'bankStatements' ? '.pdf' : '.xlsx,.xls,.csv,.pdf';
+    const maxSize = source.id === 'bankStatements' ? 50 : 10;
+    const maxFiles = source.id === 'bankStatements' ? 10 : (source.id === 'invoices' ? 200 : 5);
+    
+    return (
+      <div className="mt-3">
+        {hasUploadedFiles && (
+          <div className="mb-2 flex items-center">
+            <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-0.5 text-sm font-medium text-green-800 mr-3">
+              Uploaded
+            </span>
+            <span className="text-sm text-gray-500">You can upload additional files if needed</span>
+          </div>
+        )}
+        
+        <MultiFileUpload
+          onFilesChange={(files) => handleFilesChange(source.id, files)}
+          maxFiles={maxFiles}
+          maxSize={maxSize}
+          accept={acceptTypes}
+          label=""
+          buttonText={hasUploadedFiles ? "Upload More Files" : "Select Files"}
+          disabled={isUploading === 'processing'}
+          compact={hasUploadedFiles}
+        />
+        
+        {hasSelectedFiles && (
+          <div className="mt-2">
+            <p className="text-sm text-gray-500">
+              {sourceFiles[source.id].length} {sourceFiles[source.id].length === 1 ? 'file' : 'files'} selected
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Filter data sources to show only bank statements and invoices
+  const getDashboardDataSources = (): DataSource[] => {
+    return ALL_DATA_SOURCES.filter(source => 
+      ['bankStatements', 'invoices'].includes(source.id)
+    );
+  };
+
+  const getUploadButtonText = () => {
+    const hasBankStatements = Object.keys(sourceFiles).includes('bankStatements') && 
+                             sourceFiles['bankStatements']?.length > 0;
+    const hasInvoices = Object.keys(sourceFiles).includes('invoices') && 
+                       sourceFiles['invoices']?.length > 0;
+    
+    if (hasBankStatements && hasInvoices) {
+      return isUploading === 'processing' ? 'Processing Files...' : 'Process Files';
+    } else if (hasBankStatements) {
+      return isUploading === 'processing' ? 'Processing Bank Statements...' : 'Process Bank Statements';
+    } else if (hasInvoices) {
+      return isUploading === 'processing' ? 'Processing Invoices...' : 'Process Invoices';
+    }
+    
+    return isUploading === 'processing' ? 'Processing...' : 'Upload Files';
+  };
 
   const refreshProjections = async () => {
     try {
@@ -579,7 +759,14 @@ export default function Dashboard() {
                 </p>
               </div>
               
-              <div className="mt-4 sm:mt-0">
+              <div className="mt-4 sm:mt-0 flex space-x-3">
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#595CFF] hover:bg-[#484adb] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#595CFF]"
+                >
+                  <DocumentArrowUpIcon className="h-4 w-4 mr-2" />
+                  Upload Files
+                </button>
                 <button
                   onClick={refreshProjections}
                   disabled={refreshingProjections}
@@ -774,6 +961,20 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
+      
+      {/* Upload Modal */}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        title="Upload Bank Statements & Invoices"
+        description="Upload your bank statements and customer/supplier invoices to get better insights on your dashboard."
+        dataSources={getDashboardDataSources()}
+        isUploading={isUploading}
+        onSubmit={handleSubmitFiles}
+        isUploadDisabled={Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0).length === 0 || isUploading === 'processing'}
+        renderSourceContent={renderSourceContent}
+        customButtonText={getUploadButtonText()}
+      />
     </div>
   )
 } 
