@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, UserGroupIcon, PencilIcon, CalendarIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, ClockIcon, PencilIcon, CalendarIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
@@ -297,7 +297,7 @@ export default function CustomersPage() {
   const renderOverviewMetrics = () => {
     // Always show metrics with actual data or zero values
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
         <KeyFigureCard
           title="Total Receivables"
           value={formatCurrency(totalReceivables)}
@@ -320,14 +320,6 @@ export default function CustomersPage() {
           icon={ClockIcon}
           iconColor="bg-cyan-600"
           subtitle="Requires bank statement data"
-        />
-        <KeyFigureCard
-          title="Customer Count"
-          value={customers.length.toString()}
-          icon={UserGroupIcon}
-          iconColor="bg-emerald-600"
-          changeType={customers.length > 0 ? "increase" : "neutral"}
-          change={customers.length > 0 ? `${customers.length} active` : "No customers"}
         />
       </div>
     );

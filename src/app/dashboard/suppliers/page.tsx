@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, ClockIcon, BuildingOfficeIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
@@ -237,7 +237,7 @@ export default function SuppliersPage() {
   // Overview metrics card rendering
   const renderOverviewMetrics = () => {
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
         <KeyFigureCard
           title="Total Payables"
           value={formatCurrency(totalPayables)}
@@ -259,14 +259,6 @@ export default function SuppliersPage() {
           icon={ClockIcon}
           iconColor="bg-cyan-600"
           subtitle="Requires bank statement data"
-        />
-        <KeyFigureCard
-          title="Supplier Count"
-          value={suppliers.length.toString()}
-          icon={BuildingOfficeIcon}
-          iconColor="bg-emerald-600"
-          changeType={suppliers.length > 0 ? "increase" : "neutral"}
-          change={suppliers.length > 0 ? `${suppliers.length} active` : "No suppliers"}
         />
       </div>
     );
