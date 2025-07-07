@@ -1,10 +1,13 @@
 'use client'
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowPathIcon } from '@heroicons/react/20/solid'
 import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, InformationCircleIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
 import type { ChangeType } from '@/components/visualization/key-figure-card'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
@@ -15,7 +18,7 @@ import type { DataSource } from '@/lib/data-sources'
 import { useAuth } from '@/contexts/auth-context'
 
 // Dynamically import Chart.js components
-const Line = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
+const Line = dynamicImport(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
 
 // Icon mapping
 const iconMap = {
