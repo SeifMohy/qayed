@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, BuildingLibraryIcon, BanknotesIcon, CreditCardIcon, InformationCircleIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
@@ -118,7 +118,7 @@ export default function BanksPage() {
     };
 
     fetchBankData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
   // Helper function to format interest rate
   const formatInterestRate = (rate: string | null): string => {
@@ -233,7 +233,7 @@ export default function BanksPage() {
   };
   
   // Process banks data from the new API
-  const processBanksData = async (banks: any[]) => {
+  const processBanksData = useCallback(async (banks: any[]) => {
     if (!banks || banks.length === 0) {
       return;
     }
@@ -448,7 +448,7 @@ export default function BanksPage() {
     
     // Group credit facilities by bank name using the helper function
     setGroupedCreditFacilities(groupCreditFacilities(processedFacilities));
-  };
+  }, [groupCreditFacilities]);
   
   // Format currency (updated to always use EGP)
   const formatCurrency = (amount: number, currency: string = 'EGP'): string => {

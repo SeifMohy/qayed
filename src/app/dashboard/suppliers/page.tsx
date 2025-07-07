@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ArrowPathIcon, DocumentArrowUpIcon, CurrencyDollarIcon, CalendarIcon, ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import Link from 'next/link'
@@ -44,7 +44,7 @@ export default function SuppliersPage() {
   const { session } = useAuth();
 
   // Fetch suppliers data
-  const fetchSuppliers = async () => {
+  const fetchSuppliers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -74,7 +74,7 @@ export default function SuppliersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
   
   useEffect(() => {
     console.log('🔍 Checking data source state:', {
@@ -84,7 +84,7 @@ export default function SuppliersPage() {
     
     // Always try to fetch data initially
     fetchSuppliers();
-  }, [uploadedSources]);
+  }, [uploadedSources, fetchSuppliers]);
 
   const handleFilesChange = (sourceId: string, files: File[]) => {
     setSourceFiles(prev => ({

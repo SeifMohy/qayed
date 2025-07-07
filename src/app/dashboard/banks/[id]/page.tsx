@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { BanknotesIcon, BuildingLibraryIcon, DocumentTextIcon, ArrowTrendingUpIcon, CreditCardIcon, ChartBarIcon, PencilIcon } from '@heroicons/react/24/outline'
@@ -152,16 +152,8 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         fetchBankData()
     }, [params.id])
 
-    // Calculate EGP metrics when bank data changes
-    useEffect(() => {
-        if (bank) {
-            calculateFinancialMetricsEGP()
-            calculateCashFlowDataEGP()
-        }
-    }, [bank])
-
     // Helper function to convert amount to EGP
-    const convertToEGP = async (amount: number, fromCurrency: string): Promise<number> => {
+    const convertToEGP = useCallback(async (amount: number, fromCurrency: string): Promise<number> => {
         if (fromCurrency === 'EGP' || !fromCurrency) {
             return amount
         }
@@ -173,7 +165,115 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             console.warn(`Failed to convert ${amount} ${fromCurrency} to EGP:`, error)
             return amount // Return original amount if conversion fails
         }
-    }
+    }, [])
+
+    // Calculate financial metrics in EGP
+    const calculateFinancialMetricsEGP = useCallback(async () => {
+        if (!bank) return
+        
+        let totalCashBalanceEGP = 0
+        let currentOutstandingEGP = 0
+        
+        // Group statements by account number to get latest statement for each account
+        const accountGroups = bank.bankStatements.reduce((groups: { [key: string]: BankStatement[] }, statement) => {
+            const accountNumber = statement.accountNumber
+            if (!groups[accountNumber]) {
+                groups[accountNumber] = []
+            }
+            groups[accountNumber].push(statement)
+            return groups
+        }, {})
+        
+        // Process latest statement for each unique account
+        for (const statements of Object.values(accountGroups)) {
+            const latestStatement = statements.reduce((latest, current) => {
+                return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
+                    ? current 
+                    : latest
+            })
+            
+            const balance = parseFloat(latestStatement.endingBalance)
+            
+            if (isRegularAccount(latestStatement.accountType, balance)) {
+                // Convert regular accounts to EGP
+                const balanceEGP = await convertToEGP(
+                    balance, 
+                    latestStatement.accountCurrency || 'USD'
+                )
+                totalCashBalanceEGP += balanceEGP
+            } else if (isFacilityAccount(latestStatement.accountType, balance)) {
+                // Convert facilities to EGP
+                const outstandingEGP = await convertToEGP(
+                    Math.abs(balance), 
+                    latestStatement.accountCurrency || 'USD'
+                )
+                currentOutstandingEGP += outstandingEGP
+            }
+        }
+        
+        setFinancialMetricsEGP({
+            totalCashBalance: totalCashBalanceEGP,
+            currentOutstanding: currentOutstandingEGP
+        })
+    }, [bank, convertToEGP])
+
+    // Calculate cash flow data in EGP
+    const calculateCashFlowDataEGP = useCallback(async () => {
+        if (!bank) return
+        
+        // Collect all transactions from all statements
+        const allTransactions = bank.bankStatements.flatMap(statement =>
+            statement.transactions.map(transaction => ({
+                ...transaction,
+                accountCurrency: statement.accountCurrency || 'USD'
+            }))
+        )
+
+        // Group transactions by month
+        const monthlyData: { [key: string]: { inflows: number, outflows: number } } = {}
+        
+        for (const transaction of allTransactions) {
+            const date = new Date(transaction.transactionDate)
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = { inflows: 0, outflows: 0 }
+            }
+            
+            const creditAmount = parseFloat(transaction.creditAmount || '0')
+            const debitAmount = parseFloat(transaction.debitAmount || '0')
+            
+            if (creditAmount > 0) {
+                const creditEGP = await convertToEGP(creditAmount, transaction.accountCurrency)
+                monthlyData[monthKey].inflows += creditEGP
+            }
+            if (debitAmount > 0) {
+                const debitEGP = await convertToEGP(debitAmount, transaction.accountCurrency)
+                monthlyData[monthKey].outflows += debitEGP
+            }
+        }
+
+        // Sort months and prepare chart data
+        const sortedMonths = Object.keys(monthlyData).sort()
+        const labels = sortedMonths.map(month => {
+            const [year, monthNum] = month.split('-')
+            const date = new Date(parseInt(year), parseInt(monthNum) - 1)
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        })
+        
+        const inflows = sortedMonths.map(month => monthlyData[month].inflows)
+        const outflows = sortedMonths.map(month => monthlyData[month].outflows)
+        
+        setCashFlowDataEGP({ labels, inflows, outflows })
+    }, [bank, convertToEGP])
+
+    // Calculate EGP metrics when bank data changes
+    useEffect(() => {
+        if (bank) {
+            calculateFinancialMetricsEGP()
+            calculateCashFlowDataEGP()
+        }
+    }, [bank, calculateFinancialMetricsEGP, calculateCashFlowDataEGP])
 
     // Helper function to format currency - always displays in EGP for consistency
     const formatCurrency = (amount: number | string): string => {
@@ -380,106 +480,6 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         const outflows = sortedMonths.map(month => monthlyData[month].outflows)
         
         return { labels, inflows, outflows }
-    }
-
-    // Calculate financial metrics in EGP
-    const calculateFinancialMetricsEGP = async () => {
-        if (!bank) return
-        
-        let totalCashBalanceEGP = 0
-        let currentOutstandingEGP = 0
-        
-        // Group statements by account number to get latest statement for each account
-        const accountGroups = bank.bankStatements.reduce((groups: { [key: string]: BankStatement[] }, statement) => {
-            const accountNumber = statement.accountNumber
-            if (!groups[accountNumber]) {
-                groups[accountNumber] = []
-            }
-            groups[accountNumber].push(statement)
-            return groups
-        }, {})
-        
-        // Process latest statement for each unique account
-        for (const statements of Object.values(accountGroups)) {
-            const latestStatement = statements.reduce((latest, current) => {
-                return new Date(current.statementPeriodEnd) > new Date(latest.statementPeriodEnd) 
-                    ? current 
-                    : latest
-            })
-            
-            const balance = parseFloat(latestStatement.endingBalance)
-            
-            if (isRegularAccount(latestStatement.accountType, balance)) {
-                // Convert regular accounts to EGP
-                const balanceEGP = await convertToEGP(
-                    balance, 
-                    latestStatement.accountCurrency || 'USD'
-                )
-                totalCashBalanceEGP += balanceEGP
-            } else if (isFacilityAccount(latestStatement.accountType, balance)) {
-                // Convert facilities to EGP
-                const outstandingEGP = await convertToEGP(
-                    Math.abs(balance), 
-                    latestStatement.accountCurrency || 'USD'
-                )
-                currentOutstandingEGP += outstandingEGP
-            }
-        }
-        
-        setFinancialMetricsEGP({
-            totalCashBalance: totalCashBalanceEGP,
-            currentOutstanding: currentOutstandingEGP
-        })
-    }
-
-    // Calculate cash flow data in EGP
-    const calculateCashFlowDataEGP = async () => {
-        if (!bank) return
-        
-        // Collect all transactions from all statements
-        const allTransactions = bank.bankStatements.flatMap(statement =>
-            statement.transactions.map(transaction => ({
-                ...transaction,
-                accountCurrency: statement.accountCurrency || 'USD'
-            }))
-        )
-
-        // Group transactions by month
-        const monthlyData: { [key: string]: { inflows: number, outflows: number } } = {}
-        
-        for (const transaction of allTransactions) {
-            const date = new Date(transaction.transactionDate)
-            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-            
-            if (!monthlyData[monthKey]) {
-                monthlyData[monthKey] = { inflows: 0, outflows: 0 }
-            }
-            
-            const creditAmount = parseFloat(transaction.creditAmount || '0')
-            const debitAmount = parseFloat(transaction.debitAmount || '0')
-            
-            if (creditAmount > 0) {
-                const creditEGP = await convertToEGP(creditAmount, transaction.accountCurrency)
-                monthlyData[monthKey].inflows += creditEGP
-            }
-            if (debitAmount > 0) {
-                const debitEGP = await convertToEGP(debitAmount, transaction.accountCurrency)
-                monthlyData[monthKey].outflows += debitEGP
-            }
-        }
-
-        // Sort months and prepare chart data
-        const sortedMonths = Object.keys(monthlyData).sort()
-        const labels = sortedMonths.map(month => {
-            const [year, monthNum] = month.split('-')
-            const date = new Date(parseInt(year), parseInt(monthNum) - 1)
-            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        })
-        
-        const inflows = sortedMonths.map(month => monthlyData[month].inflows)
-        const outflows = sortedMonths.map(month => monthlyData[month].outflows)
-        
-        setCashFlowDataEGP({ labels, inflows, outflows })
     }
 
     // Handle facility edit
