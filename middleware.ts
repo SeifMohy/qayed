@@ -31,7 +31,7 @@ export async function middleware(req: NextRequest) {
   } = await supabase.auth.getSession()
 
   // If user is not signed in and the current path is protected
-  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
+  if (!session && (req.nextUrl.pathname.startsWith('/dashboard') || req.nextUrl.pathname.startsWith('/annotation'))) {
     // Redirect the user to login page
     return NextResponse.redirect(new URL('/login', req.url))
   }

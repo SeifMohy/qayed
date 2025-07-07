@@ -36,7 +36,11 @@ interface ApiResponse {
   error?: string;
 }
 
-export default function AnnotationStatementsTable() {
+interface AnnotationStatementsTableProps {
+  basePath?: string;
+}
+
+export default function AnnotationStatementsTable({ basePath = '/dashboard/annotation/statements' }: AnnotationStatementsTableProps) {
   const [statements, setStatements] = useState<BankStatement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +247,7 @@ export default function AnnotationStatementsTable() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <Link
-                    href={`/dashboard/annotation/statements/${statement.id}`}
+                    href={`${basePath}/${statement.id}`}
                     className="text-indigo-600 hover:text-indigo-900"
                   >
                     Annotate

@@ -28,7 +28,7 @@ export default function AnnotationStatementsPage() {
               </div>
             </div>
           }>
-            <AnnotationStatementsTable />
+            <AnnotationStatementsTable basePath="/annotation/statements" />
           </Suspense>
         </div>
       </div>

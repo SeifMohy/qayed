@@ -284,7 +284,7 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
               <ol className="flex items-center space-x-4">
                 <li>
                   <div>
-                    <Link href="/dashboard/annotation/statements" className="text-gray-400 hover:text-gray-500">
+                    <Link href="/annotation/statements" className="text-gray-400 hover:text-gray-500">
                       <span className="sr-only">Bank Statements</span>
                       Statements
                     </Link>

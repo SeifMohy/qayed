@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Disclosure, Menu, Transition } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
-import { BanknotesIcon, UsersIcon, TruckIcon, ChartBarIcon, UserCircleIcon, CreditCardIcon, CpuChipIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { ClipboardDocumentCheckIcon, UserCircleIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -32,15 +32,13 @@ function useUploadedSources() {
 }
 
 const navigationItems = [
-  { name: 'Banks', href: '/dashboard/banks', icon: BanknotesIcon },
-  { name: 'Customers', href: '/dashboard/customers', icon: UsersIcon },
-  { name: 'Suppliers', href: '/dashboard/suppliers', icon: TruckIcon },
-  { name: 'Cashflow', href: '/dashboard/cashflow', icon: ChartBarIcon },
-  // { name: 'Expenses', href: '/dashboard/expenses', icon: CreditCardIcon },
-  { name: 'Matching Approvals', href: '/dashboard/matching-approvals', icon: CheckCircleIcon },
+  { name: 'Bank Statements', href: '/annotation/statements', icon: DocumentTextIcon },
+  // Add more annotation tabs here in the future
+  // { name: 'Transactions', href: '/annotation/transactions', icon: CreditCardIcon },
+  // { name: 'Validation', href: '/annotation/validation', icon: CheckCircleIcon },
 ]
 
-export default function DashboardLayout({
+export default function AnnotationLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -98,6 +96,7 @@ export default function DashboardLayout({
   };
 
   const userNavigation = [
+    { name: 'Back to Dashboard', href: '/dashboard' },
     { name: 'Your Profile', href: '/dashboard/profile' },
     { name: 'Settings', href: '/dashboard/settings' },
     { name: 'Sign out', action: handleLogout },
@@ -131,8 +130,11 @@ export default function DashboardLayout({
                 <div className="flex h-16 justify-between">
                   <div className="flex">
                     <div className="flex flex-shrink-0 items-center">
-                      <Link href="/dashboard">
-                        <span className="text-xl font-semibold text-gray-900">Qayed</span>
+                      <Link href="/annotation">
+                        <span className="text-xl font-semibold text-gray-900">
+                          <ClipboardDocumentCheckIcon className="inline h-6 w-6 mr-2" />
+                          Qayed Annotation
+                        </span>
                       </Link>
                     </div>
                     <div className="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-8">
