@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // GET handler to retrieve all bank statements grouped by banks
 export async function GET(request: Request) {
   try {

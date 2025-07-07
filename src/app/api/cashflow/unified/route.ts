@@ -4,6 +4,9 @@ import { CashflowProjectionService } from '@/lib/services/cashflowProjectionServ
 import { currencyCache } from '@/lib/services/currencyCache';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/cashflow/unified - Get unified cashflow data with multi-currency support
  * Converts all amounts to EGP using the same logic as the banks page

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/shared/ui/button'
 import { GradientBackground } from '@/components/shared/ui/gradient'
@@ -10,7 +10,7 @@ import { CheckIcon } from '@heroicons/react/16/solid'
 import { clsx } from 'clsx'
 import { useAuth } from '@/contexts/auth-context'
 
-export default function Login() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, isLoading: authLoading, isAuthenticated } = useAuth()
@@ -148,5 +148,13 @@ export default function Login() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
   if (obj === null || obj === undefined) {

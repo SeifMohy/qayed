@@ -1,5 +1,6 @@
 import { prisma } from '../prisma';
 import { getUserProfile } from '../auth';
+import type { Prisma } from '@prisma/client';
 
 export class CompanyAccessService {
   private supabaseUserId: string;
@@ -275,7 +276,7 @@ export class CompanyAccessService {
   }
 
   // Create methods with company validation
-  async createBank(data: Omit<any, 'companyId'>) {
+  async createBank(data: Omit<Prisma.BankUncheckedCreateInput, 'companyId'>) {
     const companyId = await this.getCompanyId();
     return prisma.bank.create({
       data: {
@@ -285,7 +286,7 @@ export class CompanyAccessService {
     });
   }
 
-  async createCustomer(data: Omit<any, 'companyId'>) {
+  async createCustomer(data: Omit<Prisma.CustomerUncheckedCreateInput, 'companyId'>) {
     const companyId = await this.getCompanyId();
     return prisma.customer.create({
       data: {
@@ -295,7 +296,7 @@ export class CompanyAccessService {
     });
   }
 
-  async createSupplier(data: Omit<any, 'companyId'>) {
+  async createSupplier(data: Omit<Prisma.SupplierUncheckedCreateInput, 'companyId'>) {
     const companyId = await this.getCompanyId();
     return prisma.supplier.create({
       data: {
@@ -305,7 +306,7 @@ export class CompanyAccessService {
     });
   }
 
-  async createInvoice(data: Omit<any, 'companyId'>) {
+  async createInvoice(data: Omit<Prisma.InvoiceUncheckedCreateInput, 'companyId'>) {
     const companyId = await this.getCompanyId();
     return prisma.invoice.create({
       data: {
