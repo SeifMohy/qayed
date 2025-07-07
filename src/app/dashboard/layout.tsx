@@ -37,7 +37,7 @@ const navigationItems = [
   { name: 'Suppliers', href: '/dashboard/suppliers', icon: TruckIcon },
   { name: 'Cashflow', href: '/dashboard/cashflow', icon: ChartBarIcon },
   // { name: 'Expenses', href: '/dashboard/expenses', icon: CreditCardIcon },
-  { name: 'Matching Approvals', href: '/dashboard/matching-approvals', icon: CheckCircleIcon },
+        { name: 'Reconciliation', href: '/dashboard/matching-approvals', icon: CheckCircleIcon },
 ]
 
 export default function DashboardLayout({

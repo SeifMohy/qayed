@@ -284,7 +284,7 @@ export default function MatchingApprovalsPage() {
       </div>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Matching Approvals</h1>
+                        <h1 className="text-3xl font-bold text-gray-900">Reconciliation</h1>
         <p className="mt-2 text-gray-600">
           Review and approve AI-suggested matches between transactions and invoices.
         </p>
