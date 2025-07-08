@@ -80,6 +80,11 @@ export async function signUpUser(signUpData: SignUpData): Promise<{ user: User |
     // Create company and user in our database
     console.log('📀 Starting database operations...');
     try {
+      // Check if Prisma client is available
+      if (!prisma) {
+        throw new Error('Database connection not available');
+      }
+
       // First, check if company already exists
       console.log('🔍 Checking if company exists:', signUpData.companyName);
       let company = await prisma.company.findFirst({
@@ -185,7 +190,7 @@ export async function signInUser(email: string, password: string): Promise<{ use
     }
 
     // Update last login time
-    if (data.user) {
+    if (data.user && prisma) {
       await prisma.user.update({
         where: { supabaseUserId: data.user.id },
         data: { lastLoginAt: new Date() }
@@ -228,6 +233,18 @@ export async function getCurrentSession() {
 // Get user profile with company information
 export async function getUserProfile(supabaseUserId: string): Promise<UserProfile | null> {
   try {
+    // Skip database operations during build time
+    if (process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+      console.warn('Database not available during build time');
+      return null;
+    }
+
+    // Check if Prisma client is available
+    if (!prisma) {
+      console.warn('Prisma client not available');
+      return null;
+    }
+
     const user = await prisma.user.findUnique({
       where: { supabaseUserId },
       include: {
@@ -256,6 +273,15 @@ export async function getUserProfile(supabaseUserId: string): Promise<UserProfil
     };
   } catch (error: any) {
     console.error('Error getting user profile:', error);
+    
+    // Handle Prisma initialization errors gracefully
+    if (error.name === 'PrismaClientInitializationError' || 
+        error.code === 'P1001' || 
+        error.message?.includes('database')) {
+      console.warn('Database connection error in getUserProfile, likely during build time');
+      return null;
+    }
+    
     return null;
   }
 }
@@ -280,6 +306,12 @@ export async function resetPassword(email: string): Promise<{ error: AuthError |
 // Check if user has access to company data
 export async function checkCompanyAccess(supabaseUserId: string, companyId: number): Promise<boolean> {
   try {
+    // Check if Prisma client is available
+    if (!prisma) {
+      console.warn('Prisma client not available for company access check');
+      return false;
+    }
+
     const user = await prisma.user.findUnique({
       where: { supabaseUserId },
       select: { companyId: true, isActive: true }
