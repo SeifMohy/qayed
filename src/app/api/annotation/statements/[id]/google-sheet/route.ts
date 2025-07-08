@@ -4,6 +4,9 @@ import { createTransactionSheet, getGoogleSheetsConfig, syncSheetToDatabase } fr
 import type { TransactionRow } from '@/lib/googleSheets';
 import { Decimal } from '@prisma/client/runtime/library';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // Helper function to perform balance validation
 function performBalanceValidation(statement: any): {
   status: 'passed' | 'failed';

@@ -5,6 +5,9 @@ import { isFacilityAccount } from '@/utils/bankStatementUtils';
 import { cleanupOrphanedBank } from '@/lib/services/bankCleanupService';
 import { CompanyAccessService } from '@/lib/services/companyAccessService';
 
+// Force dynamic rendering for this API route
+export const dynamic = 'force-dynamic';
+
 // Helper function to convert Decimal values to numbers for client consumption
 function convertDecimalsToNumbers(obj: any): any {
   if (obj === null || obj === undefined) {
