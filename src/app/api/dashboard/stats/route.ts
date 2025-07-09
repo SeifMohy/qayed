@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
 import { currencyCache } from '@/lib/services/currencyCache';
 
-export async function GET() {
+export const GET = withAuth(async (request, authContext) => {
   try {
-    // Get the latest bank statement (remove strict validation filters)
+    const { companyAccessService } = authContext;
+    
+    // Get the latest bank statement for the company
     const latestBankStatement = await prisma.bankStatement.findFirst({
+      where: {
+        bank: {
+          companyId: authContext.companyId
+        }
+      },
       orderBy: {
         statementPeriodEnd: 'desc'
       },
@@ -64,6 +72,7 @@ export async function GET() {
           },
         ],
         metadata: {
+          companyId: authContext.companyId,
           referenceDate: new Date().toISOString(),
           referenceDateFormatted: new Date().toLocaleDateString('en-US', {
             year: 'numeric',
@@ -86,21 +95,8 @@ export async function GET() {
     const thirtyDaysFromReference = new Date(referenceDate);
     thirtyDaysFromReference.setDate(referenceDate.getDate() + 30);
 
-    // Calculate Total Cash On Hand using the same logic as banks page
-    const banks = await prisma.bank.findMany({
-      include: {
-        bankStatements: {
-          where: {
-            statementPeriodEnd: {
-              lte: referenceDate
-            }
-          },
-          orderBy: {
-            statementPeriodEnd: 'desc'
-          }
-        }
-      }
-    });
+    // Calculate Total Cash On Hand using company-scoped banks
+    const banks = await companyAccessService.getBanks();
 
     // First, collect all unique currencies from bank statements for preloading
     const uniqueCurrencies = new Set<string>();
@@ -114,7 +110,7 @@ export async function GET() {
     // Preload all currency rates in one API call (same as banks page)
     const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
     if (currencyList.length > 0) {
-      console.log('🔄 Dashboard Stats - Preloading currency rates for:', currencyList);
+      console.log(`🔄 Dashboard Stats (company ${authContext.companyId}) - Preloading currency rates for:`, currencyList);
       await currencyCache.preloadRates(currencyList);
     }
 
@@ -156,7 +152,7 @@ export async function GET() {
             );
             
             balanceInEGP = endingBalance < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
-            console.log(`💱 Dashboard Stats - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
+            console.log(`💱 Dashboard Stats (company ${authContext.companyId}) - Converted ${endingBalance} ${statementCurrency} to ${balanceInEGP} EGP for ${bank.name} (cached)`);
           } catch (error) {
             console.error('Dashboard Stats - Currency conversion error:', error);
             // Fallback to default rate
@@ -184,6 +180,7 @@ export async function GET() {
     const outstandingPayables = await prisma.invoice.aggregate({
       where: {
         supplierId: { not: null },
+        companyId: authContext.companyId,
         invoiceDate: {
           gte: thirtyDaysAgo,
           lte: referenceDate
@@ -199,10 +196,11 @@ export async function GET() {
       }
     });
 
-    // 3. Outstanding Receivables (30 days) - customer invoices not received within 30 days from reference date
+    // 3. Outstanding Receivables (30 days) - customer invoices not paid within 30 days from reference date
     const outstandingReceivables = await prisma.invoice.aggregate({
       where: {
         customerId: { not: null },
+        companyId: authContext.companyId,
         invoiceDate: {
           gte: thirtyDaysAgo,
           lte: referenceDate
@@ -218,22 +216,19 @@ export async function GET() {
       }
     });
 
-    // 4. Outstanding Bank Payments - using actual facility account balances like banks page
-    // (totalBankObligations is already calculated above)
+    // 4. Previous period stats for comparison (30 days earlier)
+    const sixtyDaysAgo = new Date(referenceDate);
+    sixtyDaysAgo.setDate(referenceDate.getDate() - 60);
+    const previousPeriodEnd = new Date(referenceDate);
+    previousPeriodEnd.setDate(referenceDate.getDate() - 30);
 
-    // Calculate previous period values for change percentages (using bank statement date as reference)
-    const prevThirtyDaysAgo = new Date(referenceDate);
-    prevThirtyDaysAgo.setDate(referenceDate.getDate() - 60);
-    const prevReferenceDate = new Date(referenceDate);
-    prevReferenceDate.setDate(referenceDate.getDate() - 30);
-
-    // Previous period payables
-    const prevOutstandingPayables = await prisma.invoice.aggregate({
+    const previousPayables = await prisma.invoice.aggregate({
       where: {
         supplierId: { not: null },
+        companyId: authContext.companyId,
         invoiceDate: {
-          gte: prevThirtyDaysAgo,
-          lte: prevReferenceDate
+          gte: sixtyDaysAgo,
+          lte: previousPeriodEnd
         },
         TransactionMatch: {
           none: {
@@ -246,13 +241,13 @@ export async function GET() {
       }
     });
 
-    // Previous period receivables
-    const prevOutstandingReceivables = await prisma.invoice.aggregate({
+    const previousReceivables = await prisma.invoice.aggregate({
       where: {
         customerId: { not: null },
+        companyId: authContext.companyId,
         invoiceDate: {
-          gte: prevThirtyDaysAgo,
-          lte: prevReferenceDate
+          gte: sixtyDaysAgo,
+          lte: previousPeriodEnd
         },
         TransactionMatch: {
           none: {
@@ -265,21 +260,11 @@ export async function GET() {
       }
     });
 
-    // Previous period bank payments - using 0 since we don't have historical facility data
-    const prevOutstandingBankPayments = { _sum: { projectedAmount: 0 } };
-
-    // Calculate change percentages
+    // Helper functions for calculations
     const calculateChange = (current: number, previous: number) => {
       if (previous === 0) return 0;
       return ((current - previous) / previous) * 100;
     };
-
-    const payablesAmount = Number(outstandingPayables._sum.total || 0);
-    const prevPayablesAmount = Number(prevOutstandingPayables._sum.total || 0);
-    const receivablesAmount = Number(outstandingReceivables._sum.total || 0);
-    const prevReceivablesAmount = Number(prevOutstandingReceivables._sum.total || 0);
-    const bankPaymentsAmount = Number(totalBankObligations);
-    const prevBankPaymentsAmount = Math.abs(Number(prevOutstandingBankPayments._sum.projectedAmount || 0));
 
     const getChangeType = (current: number, previous: number): 'increase' | 'decrease' | 'neutral' => {
       if (current > previous) return 'increase';
@@ -287,11 +272,21 @@ export async function GET() {
       return 'neutral';
     };
 
+    // Calculate values
+    const payablesValue = Number(outstandingPayables._sum.total || 0);
+    const receivablesValue = Number(outstandingReceivables._sum.total || 0);
+    const bankObligationsValue = totalBankObligations;
+    const cashOnHandValue = totalCashOnHand;
+
+    const previousPayablesValue = Number(previousPayables._sum.total || 0);
+    const previousReceivablesValue = Number(previousReceivables._sum.total || 0);
+
+    // Build stats array
     const stats = [
       {
         title: 'Total Cash On Hand',
-        value: Number(totalCashOnHand),
-        change: 0, // We don't have historical cash data for comparison
+        value: Math.round(cashOnHandValue),
+        change: 0, // No historical comparison for cash on hand
         changeType: 'neutral' as const,
         icon: 'CurrencyDollarIcon',
         iconColor: 'bg-green-500',
@@ -299,67 +294,65 @@ export async function GET() {
       },
       {
         title: 'Outstanding Payables (30 days)',
-        value: payablesAmount,
-        change: calculateChange(payablesAmount, prevPayablesAmount),
-        changeType: getChangeType(prevPayablesAmount, payablesAmount), // Reversed for payables (lower is better)
+        value: Math.round(payablesValue),
+        change: Math.round(calculateChange(payablesValue, previousPayablesValue)),
+        changeType: getChangeType(payablesValue, previousPayablesValue),
         icon: 'BanknotesIcon',
         iconColor: 'bg-red-500',
-        interpretation: 'positive' as const, // Lower payables is better
+        interpretation: 'positive' as const,
         dataSource: 'accountsPayable'
       },
       {
         title: 'Outstanding Receivables (30 days)',
-        value: receivablesAmount,
-        change: calculateChange(receivablesAmount, prevReceivablesAmount),
-        changeType: getChangeType(receivablesAmount, prevReceivablesAmount),
+        value: Math.round(receivablesValue),
+        change: Math.round(calculateChange(receivablesValue, previousReceivablesValue)),
+        changeType: getChangeType(receivablesValue, previousReceivablesValue),
         icon: 'CreditCardIcon',
         iconColor: 'bg-blue-500',
         dataSource: 'accountsReceivable'
       },
       {
-        title: 'Outstanding Bank Pay...',
-        value: bankPaymentsAmount,
-        change: calculateChange(bankPaymentsAmount, prevBankPaymentsAmount),
-        changeType: getChangeType(bankPaymentsAmount, prevBankPaymentsAmount),
+        title: 'Outstanding Bank Payments (30 days)',
+        value: Math.round(bankObligationsValue),
+        change: 0, // No historical comparison for bank obligations
+        changeType: 'neutral' as const,
         icon: 'ArrowTrendingUpIcon',
         iconColor: 'bg-purple-500',
-        interpretation: 'negative' as const, // Higher bank payments is worse
+        interpretation: 'negative' as const,
         dataSource: 'bankPosition'
       },
     ];
+
+    console.log(`📊 Dashboard Stats (company ${authContext.companyId}) calculated:`);
+    console.log(`   - Cash On Hand: ${cashOnHandValue.toLocaleString()}`);
+    console.log(`   - Outstanding Payables: ${payablesValue.toLocaleString()}`);
+    console.log(`   - Outstanding Receivables: ${receivablesValue.toLocaleString()}`);
+    console.log(`   - Bank Obligations: ${bankObligationsValue.toLocaleString()}`);
 
     return NextResponse.json({
       success: true,
       stats,
       metadata: {
+        companyId: authContext.companyId,
         referenceDate: referenceDate.toISOString(),
         referenceDateFormatted: referenceDate.toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
           day: 'numeric'
         }),
-        bankName: latestBankStatement.bankName || 'Unknown Bank',
-        accountNumber: latestBankStatement.accountNumber || '',
-        cashBalanceDate: referenceDate.toISOString(),
+        bankName: latestBankStatement.bankName,
+        accountNumber: latestBankStatement.accountNumber,
+        cashBalanceDate: latestBankStatement.statementPeriodEnd?.toISOString() || new Date().toISOString(),
         period: '30 days',
-        note: 'All calculations are based on the latest bank statement date',
-        dataStatus: {
-          hasValidatedData: latestBankStatement.validated || false,
-          hasLockedData: latestBankStatement.locked || false,
-          dataSource: 'validated'
-        }
+        note: 'All amounts are in EGP'
       }
     });
 
   } catch (error) {
-    console.error('Dashboard stats API error:', error);
+    console.error('Dashboard stats error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch dashboard statistics',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }, 
+      { success: false, error: 'Failed to calculate dashboard stats' },
       { status: 500 }
     );
   }
-} 
+}); 

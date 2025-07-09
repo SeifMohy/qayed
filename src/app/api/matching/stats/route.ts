@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
-    // Get total invoices
-    const totalInvoices = await prisma.invoice.count();
+    // Get total invoices for the company
+    const totalInvoices = await prisma.invoice.count({
+      where: {
+        companyId: authContext.companyId
+      }
+    });
 
-    // Get total transactions
-    const totalTransactions = await prisma.transaction.count();
+    // Get total transactions for the company
+    const totalTransactions = await prisma.transaction.count({
+      where: {
+        bankStatement: {
+          bank: {
+            companyId: authContext.companyId
+          }
+        }
+      }
+    });
 
     // Get invoices that don't have any matches OR only have rejected/disputed matches
     const unmatchedInvoices = await prisma.invoice.count({
       where: {
+        companyId: authContext.companyId,
         OR: [
           {
             TransactionMatch: {
@@ -34,6 +48,11 @@ export async function GET(request: NextRequest) {
     // Get transactions that don't have any matches OR only have rejected/disputed matches
     const unmatchedTransactions = await prisma.transaction.count({
       where: {
+        bankStatement: {
+          bank: {
+            companyId: authContext.companyId
+          }
+        },
         OR: [
           {
             TransactionMatch: {
@@ -53,36 +72,189 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Get match counts by status
+    // Get match counts by status - filtered by company
     const pendingMatches = await prisma.transactionMatch.count({
-      where: { status: 'PENDING' }
+      where: {
+        status: 'PENDING',
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      }
     });
 
     const approvedMatches = await prisma.transactionMatch.count({
-      where: { status: 'APPROVED' }
+      where: {
+        status: 'APPROVED',
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      }
     });
 
     const rejectedMatches = await prisma.transactionMatch.count({
-      where: { status: 'REJECTED' }
+      where: {
+        status: 'REJECTED',
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      }
     });
 
     const disputedMatches = await prisma.transactionMatch.count({
-      where: { status: 'DISPUTED' }
+      where: {
+        status: 'DISPUTED',
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      }
     });
 
-    const totalMatches = await prisma.transactionMatch.count();
+    const totalMatches = await prisma.transactionMatch.count({
+      where: {
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      }
+    });
 
     // Get average match score for pending matches
     const avgMatchScore = await prisma.transactionMatch.aggregate({
-      where: { status: 'PENDING' },
+      where: {
+        status: 'PENDING',
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      },
       _avg: { matchScore: true }
     });
 
     // Get high confidence matches (passed strict criteria)
     const highConfidenceMatches = await prisma.transactionMatch.count({
-      where: { 
+      where: {
         status: 'PENDING',
-        passedStrictCriteria: true 
+        passedStrictCriteria: true,
+        AND: [
+          {
+            OR: [
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
       }
     });
 
@@ -102,9 +274,18 @@ export async function GET(request: NextRequest) {
       }
     };
 
+    console.log(`📊 Matching Stats (company ${authContext.companyId}):`);
+    console.log(`   - Total invoices: ${totalInvoices}`);
+    console.log(`   - Total transactions: ${totalTransactions}`);
+    console.log(`   - Pending matches: ${pendingMatches}`);
+    console.log(`   - Approved matches: ${approvedMatches}`);
+
     return NextResponse.json({
       success: true,
-      stats
+      stats,
+      metadata: {
+        companyId: authContext.companyId
+      }
     });
 
   } catch (error: any) {
@@ -114,4 +295,4 @@ export async function GET(request: NextRequest) {
       error: 'Failed to fetch matching statistics'
     }, { status: 500 });
   }
-} 
+}); 

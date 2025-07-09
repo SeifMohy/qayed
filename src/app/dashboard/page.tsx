@@ -190,16 +190,37 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
 
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare authentication headers
+      const authHeaders = {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      };
+
       // Fetch data from the same APIs used by individual pages
       const [suppliersRes, customersRes, timelineRes, historicalRes, statsRes] = await Promise.all([
-        fetch('/api/suppliers'),
-        fetch('/api/customers'),
-        fetch('/api/dashboard/timeline'),
-        fetch('/api/dashboard/historical-cashflow'),
-        fetch('/api/dashboard/stats')
+        fetch('/api/suppliers', { headers: authHeaders }),
+        fetch('/api/customers', { headers: authHeaders }),
+        fetch('/api/dashboard/timeline', { headers: authHeaders }),
+        fetch('/api/dashboard/historical-cashflow', { headers: authHeaders }),
+        fetch('/api/dashboard/stats', { headers: authHeaders })
       ]);
 
       if (!suppliersRes.ok || !customersRes.ok || !timelineRes.ok || !historicalRes.ok || !statsRes.ok) {
+        console.error('❌ API calls failed:', {
+          suppliers: suppliersRes.status,
+          customers: customersRes.status,
+          timeline: timelineRes.status,
+          historical: historicalRes.status,
+          stats: statsRes.status
+        });
         throw new Error('Failed to fetch dashboard data');
       }
 
@@ -297,7 +318,9 @@ export default function Dashboard() {
       nextDay.setDate(nextDay.getDate() + 1);
 
       // Use the unified cashflow API to get projections that align with the cashflow page
-      const projectedRes = await fetch(`/api/cashflow/unified?startDate=${nextDay.toISOString().split('T')[0]}&range=30d`);
+      const projectedRes = await fetch(`/api/cashflow/unified?startDate=${nextDay.toISOString().split('T')[0]}&range=30d`, {
+        headers: authHeaders
+      });
       if (projectedRes.ok) {
         const projectedData = await projectedRes.json();
         if (projectedData.success) {
@@ -320,7 +343,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, session]);
 
   // Upload modal functions
   const handleFilesChange = (sourceId: string, files: File[]) => {
@@ -494,10 +517,20 @@ export default function Dashboard() {
       
       console.log('🚀 Dashboard: Starting centralized projection refresh...');
       
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setError('Authentication required');
+        return;
+      }
+      
       // Use the same centralized refresh endpoint as the cashflow page
       const response = await fetch('/api/cashflow/projections/refresh', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify({
           startDate: new Date().toISOString().split('T')[0],
           endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year

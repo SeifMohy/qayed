@@ -50,10 +50,27 @@ export default function CustomersPage() {
     setError(null);
     try {
       console.log('📊 Attempting to fetch customers data...');
-      const response = await fetch('/api/customers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch customers');
+      
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setError('Authentication required');
+        return;
       }
+
+      const response = await fetch('/api/customers', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ API call failed:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch customers');
+      }
+      
       const data = await response.json();
       console.log('✅ Received customers data:', {
         count: data.length,
@@ -75,7 +92,7 @@ export default function CustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     console.log('🔍 Checking data source state:', {
@@ -143,7 +160,10 @@ export default function CustomersPage() {
 
         const response = await fetch('/api/invoices', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json' 
+          },
           body: JSON.stringify({
             supabaseUserId: session.user.id,
             invoices: allInvoices
@@ -257,11 +277,17 @@ export default function CustomersPage() {
       return { success: false, message: 'No customer selected' };
     }
 
+    // Check if user is authenticated
+    if (!session?.access_token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/customers/${selectedCustomer.id}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),

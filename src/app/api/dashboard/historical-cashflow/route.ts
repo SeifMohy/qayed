@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 import { isFacilityAccount } from '@/utils/bankStatementUtils';
 
-export async function GET() {
+export const GET = withAuth(async (request, authContext) => {
   try {
-    // Get the latest bank statement date (reference date)
+    // Get the latest bank statement date for the company
     const latestBankStatement = await prisma.bankStatement.findFirst({
+      where: {
+        bank: {
+          companyId: authContext.companyId
+        }
+      },
       orderBy: {
         statementPeriodEnd: 'desc'
       },
@@ -20,9 +26,12 @@ export async function GET() {
     const oneMonthAgo = new Date(referenceDate);
     oneMonthAgo.setMonth(referenceDate.getMonth() - 1);
 
-    // Calculate the correct Total Cash On Hand (same logic as dashboard stats)
+    // Calculate the correct Total Cash On Hand for the company
     const allBankStatements = await prisma.bankStatement.findMany({
       where: {
+        bank: {
+          companyId: authContext.companyId
+        },
         statementPeriodEnd: {
           lte: referenceDate
         }
@@ -62,12 +71,17 @@ export async function GET() {
       }
     }
 
-    // Get all transactions in the date range
+    // Get all transactions in the date range for the company
     const transactions = await prisma.transaction.findMany({
       where: {
         transactionDate: {
           gte: oneMonthAgo,
           lte: referenceDate
+        },
+        bankStatement: {
+          bank: {
+            companyId: authContext.companyId
+          }
         }
       },
       include: {
@@ -200,6 +214,12 @@ export async function GET() {
       summary.highestBalanceDate = highestPosition?.date || '';
     }
 
+    console.log(`📊 Historical Cashflow (company ${authContext.companyId}) calculated:`);
+    console.log(`   - Total transactions: ${regularTransactions.length}`);
+    console.log(`   - Starting balance: ${startingBalance.toLocaleString()}`);
+    console.log(`   - Ending balance: ${totalCashOnHand.toLocaleString()}`);
+    console.log(`   - Net cashflow: ${summary.netCashflow.toLocaleString()}`);
+
     return NextResponse.json({
       success: true,
       positions: formattedPositions,
@@ -211,6 +231,7 @@ export async function GET() {
         netCashflow: Math.round(summary.netCashflow * 100) / 100
       },
       metadata: {
+        companyId: authContext.companyId,
         referenceDate: referenceDate.toISOString(),
         referenceDateFormatted: referenceDate.toLocaleDateString('en-US', {
           year: 'numeric',
@@ -241,4 +262,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}); 

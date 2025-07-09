@@ -87,9 +87,34 @@ export default function BanksPage() {
       try {
         setIsLoading(true);
         
+        // Check if user is authenticated
+        if (!session?.access_token) {
+          console.log('❌ No session or access token available');
+          setBankAccounts([]);
+          setCreditFacilities([]);
+          setGroupedCreditFacilities([]);
+          setIsLoading(false);
+          return;
+        }
+        
         // Fetch banks with their statements and transactions
-        const response = await fetch('/api/banks');
+        const response = await fetch('/api/banks', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
         const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('❌ API call failed:', data.error);
+          setBankAccounts([]);
+          setCreditFacilities([]);
+          setGroupedCreditFacilities([]);
+          setIsLoading(false);
+          return;
+        }
         
         if (data.success && data.banks && data.banks.length > 0) {
           // Process the banks data (now async)
@@ -118,7 +143,7 @@ export default function BanksPage() {
     };
 
     fetchBankData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session]); // Add session as dependency
   
   // Helper function to format interest rate
   const formatInterestRate = (rate: string | null): string => {

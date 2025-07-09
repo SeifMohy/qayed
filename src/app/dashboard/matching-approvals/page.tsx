@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircleIcon, SparklesIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, DocumentTextIcon, CreditCardIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import PotentialMatchesViewer from '@/components/matching/PotentialMatchesViewer';
+import { useAuth } from '@/contexts/auth-context';
 
 interface MatchingStats {
   totalInvoices: number;
@@ -32,10 +33,34 @@ export default function MatchingApprovalsPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [matchingStatus, setMatchingStatus] = useState<MatchingStatus>({ status: 'idle' });
 
+  // Auth context
+  const { session } = useAuth();
+
+  // Helper function to prepare auth headers
+  const getAuthHeaders = () => {
+    if (!session?.access_token) {
+      throw new Error('Authentication required');
+    }
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    };
+  };
+
   const fetchMatchingStats = async () => {
     try {
       setLoadingStats(true);
-      const response = await fetch('/api/matching/stats');
+      
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setLoadingStats(false);
+        return;
+      }
+
+      const response = await fetch('/api/matching/stats', {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -60,9 +85,7 @@ export default function MatchingApprovalsPage() {
     try {
       const response = await fetch('/api/matching/ai-gemini', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       const data = await response.json();

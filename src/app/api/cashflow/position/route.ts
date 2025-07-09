@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
 import { prisma } from '@/lib/prisma';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get('date');
     const range = searchParams.get('range') || '30d';
@@ -17,9 +19,14 @@ export async function GET(request: NextRequest) {
     if (dateParam) {
       startDate = new Date(dateParam);
     } else {
-      // Get the latest bank statement date (same logic as dashboard)
+      // Get the latest bank statement date for the company
       try {
         const latestStatement = await prisma.bankStatement.findFirst({
+          where: {
+            bank: {
+              companyId: authContext.companyId
+            }
+          },
           orderBy: { statementPeriodEnd: 'desc' }
         });
         
@@ -28,11 +35,11 @@ export async function GET(request: NextRequest) {
           const latestDate = new Date(latestStatement.statementPeriodEnd);
           startDate = new Date(latestDate);
           startDate.setDate(latestDate.getDate() + 1);
-          console.log(`📅 Position API: Using latest bank statement date: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
+          console.log(`📅 Position API (company ${authContext.companyId}): Using latest bank statement date: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
         } else {
           // Fallback to today if no bank statements found
           startDate = new Date();
-          console.warn('⚠️ Position API: No bank statements found, using today as fallback starting date');
+          console.warn(`⚠️ Position API: No bank statements found for company ${authContext.companyId}, using today as fallback starting date`);
         }
       } catch (error) {
         console.error('❌ Position API: Error getting latest bank statement date:', error);
@@ -63,16 +70,20 @@ export async function GET(request: NextRequest) {
         endDate.setDate(endDate.getDate() + 30);
     }
 
-    console.log(`📊 Calculating cash position from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`📊 Calculating cash position for company ${authContext.companyId} from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
 
     const service = new CashflowProjectionService();
+    
+    // TODO: Update CashflowProjectionService to accept company ID for filtering
+    // For now, get company-scoped projections directly
+    const projections = await companyAccessService.getCashflowProjections();
     
     // Get daily cash positions
     const result = await service.calculateCashPosition(startDate, endDate);
     const positions = result.positions;
     const cashMetadata = result.metadata;
     
-    console.log(`💰 Cash position calculation completed:`);
+    console.log(`💰 Cash position calculation completed for company ${authContext.companyId}:`);
     console.log(`   - Starting balance: ${cashMetadata.startingBalance.toLocaleString()}`);
     console.log(`   - Latest balance date: ${cashMetadata.latestBalanceDate}`);
     console.log(`   - Effective start date: ${cashMetadata.effectiveStartDate}`);
@@ -171,6 +182,7 @@ export async function GET(request: NextRequest) {
       },
       alerts,
       metadata: {
+        companyId: authContext.companyId,
         dateRange: {
           start: startDate.toISOString(),
           end: endDate.toISOString()
@@ -191,4 +203,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}); 

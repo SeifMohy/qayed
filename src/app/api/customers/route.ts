@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withAuth } from '@/lib/middleware/auth';
 import type { Customer, Invoice } from '@prisma/client';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 
@@ -18,89 +18,185 @@ interface CustomerResponse {
   id: number;
   name: string;
   country: string | null;
-  paymentTerms: number | null;
+  etaId: string | null;
+  paymentTerms: string;
+  paymentDays: number;
   totalReceivables: number;
+  totalPaid: number;
+  outstandingBalance: number;
   overdueAmount: number;
-  paidAmount: number;
-  lastPayment: string | null;
-  nextPayment: string | null;
-  status: string;
+  invoiceCount: number;
+  averagePaymentDelay: number;
+  currency: string;
+  lastPaymentDate: Date | null;
+  nextPaymentDue: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Helper function to convert amount to EGP
-async function convertToEGP(amount: number, fromCurrency: string): Promise<number> {
-  if (fromCurrency === 'EGP' || amount === 0) {
+// Currency conversion function
+async function convertCurrency(amount: number, fromCurrency: string, toCurrency: string = 'EGP'): Promise<number> {
+  if (fromCurrency === toCurrency) {
     return amount;
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/currency/convert`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/currency/convert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: Math.abs(amount),
-        fromCurrency,
-        toCurrency: 'EGP'
-      }),
+      body: JSON.stringify({ amount, fromCurrency, toCurrency })
     });
 
-    const data = await response.json();
-    
-    if (data.success) {
-      return amount < 0 ? -data.conversion.convertedAmount : data.conversion.convertedAmount;
-    } else {
-      console.warn(`Currency conversion failed for ${fromCurrency} to EGP:`, data.error);
-      // Fallback to default exchange rates
-      const defaultRates: Record<string, number> = {
-        'USD': 50,
-        'EUR': 52.63,
-        'GBP': 62.5,
-        'CNY': 6.9
-      };
-      const rate = defaultRates[fromCurrency] || 1;
-      return amount * rate;
+    if (!response.ok) {
+      console.warn(`Currency conversion failed for ${fromCurrency} to ${toCurrency}, using 1:1 rate`);
+      return amount;
     }
+
+    const data = await response.json();
+    return data.success ? data.convertedAmount : amount;
   } catch (error) {
-    console.error('Currency conversion error:', error);
-    // Fallback to default exchange rates
-    const defaultRates: Record<string, number> = {
-      'USD': 50,
-      'EUR': 52.63,
-      'GBP': 62.5,
-      'CNY': 6.9
-    };
-    const rate = defaultRates[fromCurrency] || 1;
-    return amount * rate;
+    console.warn(`Currency conversion error for ${fromCurrency} to ${toCurrency}:`, error);
+    return amount;
   }
 }
 
-export async function GET() {
+// Function to get customers with currency conversion
+async function getCustomersWithConversion(customers: CustomerWithInvoicesAndMatches[], conversionCache: Map<string, number>): Promise<CustomerResponse[]> {
+  return Promise.all(customers.map(async (customer) => {
+    // Calculate payment terms from paymentTermsData or default to 30
+    const paymentDays = (() => {
+      const termsData = (customer as any).paymentTermsData as PaymentTermsData | null;
+      if (termsData?.paymentPeriod) {
+        if (termsData.paymentPeriod.includes('Net ')) {
+          return parseInt(termsData.paymentPeriod.replace('Net ', '')) || 30;
+        } else if (termsData.paymentPeriod === 'Due on receipt') {
+          return 0;
+        }
+      }
+      return 30; // Default fallback
+    })();
+
+    // Calculate total receivables and paid amounts
+    let totalReceivables = 0;
+    let totalPaid = 0;
+    let totalDelayDays = 0;
+    let paymentsWithDelay = 0;
+    let lastPaymentDate: Date | null = null;
+    let nextPaymentDue: Date | null = null;
+
+    for (const invoice of customer.Invoice) {
+      const invoiceCurrency = invoice.currency || 'EGP';
+      let conversionRate = 1;
+
+      // Get conversion rate (cached)
+      if (invoiceCurrency !== 'EGP') {
+        const cacheKey = `${invoiceCurrency}_EGP`;
+        if (conversionCache.has(cacheKey)) {
+          conversionRate = conversionCache.get(cacheKey)!;
+        } else {
+          conversionRate = await convertCurrency(1, invoiceCurrency, 'EGP');
+          conversionCache.set(cacheKey, conversionRate);
+        }
+      }
+
+      const totalInEGP = Number(invoice.total) * conversionRate;
+      totalReceivables += totalInEGP;
+
+      // Calculate payments and delays
+      for (const match of invoice.TransactionMatch) {
+        const paidAmount = Number(match.Transaction.creditAmount || 0) * conversionRate;
+        totalPaid += paidAmount;
+
+        const paymentDate = new Date(match.Transaction.transactionDate);
+        if (!lastPaymentDate || paymentDate > lastPaymentDate) {
+          lastPaymentDate = paymentDate;
+        }
+
+        // Calculate payment delay
+        const invoiceDate = new Date(invoice.invoiceDate);
+        const expectedPaymentDate = new Date(invoiceDate);
+        expectedPaymentDate.setDate(invoiceDate.getDate() + paymentDays);
+
+        if (paymentDate > expectedPaymentDate) {
+          const delayDays = Math.floor((paymentDate.getTime() - expectedPaymentDate.getTime()) / (1000 * 60 * 60 * 24));
+          totalDelayDays += delayDays;
+          paymentsWithDelay++;
+        }
+      }
+
+      // Calculate next payment due (for unpaid invoices)
+      const invoiceBalance = totalInEGP - (invoice.TransactionMatch.reduce((sum, match) => 
+        sum + Number(match.Transaction.creditAmount || 0) * conversionRate, 0
+      ));
+      
+      if (invoiceBalance > 0) {
+        const invoiceDate = new Date(invoice.invoiceDate);
+        const dueDate = new Date(invoiceDate);
+        dueDate.setDate(invoiceDate.getDate() + paymentDays);
+        
+        if (!nextPaymentDue || dueDate < nextPaymentDue) {
+          nextPaymentDue = dueDate;
+        }
+      }
+    }
+
+    const outstandingBalance = totalReceivables - totalPaid;
+    const averagePaymentDelay = paymentsWithDelay > 0 ? Math.round(totalDelayDays / paymentsWithDelay) : 0;
+
+    // Calculate overdue amount
+    const now = new Date();
+    let overdueAmount = 0;
+    for (const invoice of customer.Invoice) {
+      const invoiceCurrency = invoice.currency || 'EGP';
+      const conversionRate = conversionCache.get(`${invoiceCurrency}_EGP`) || 1;
+      
+      const invoiceDate = new Date(invoice.invoiceDate);
+      const dueDate = new Date(invoiceDate);
+      dueDate.setDate(invoiceDate.getDate() + paymentDays);
+      
+      if (dueDate < now) {
+        const invoiceTotal = Number(invoice.total) * conversionRate;
+        const paidAmount = invoice.TransactionMatch.reduce((sum, match) => 
+          sum + Number(match.Transaction.creditAmount || 0) * conversionRate, 0
+        );
+        const balance = invoiceTotal - paidAmount;
+        if (balance > 0) {
+          overdueAmount += balance;
+        }
+      }
+    }
+
+    return {
+      id: customer.id,
+      name: customer.name,
+      country: customer.country,
+      etaId: customer.etaId,
+      paymentTerms: `Net ${paymentDays}`,
+      paymentDays,
+      totalReceivables: Math.round(totalReceivables * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      outstandingBalance: Math.round(outstandingBalance * 100) / 100,
+      overdueAmount: Math.round(overdueAmount * 100) / 100,
+      invoiceCount: customer.Invoice.length,
+      averagePaymentDelay,
+      currency: 'EGP',
+      lastPaymentDate,
+      nextPaymentDue,
+      createdAt: customer.createdAt,
+      updatedAt: customer.updatedAt
+    };
+  }));
+}
+
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   console.log('🔍 Starting customers API request...');
   
   try {
+    const { companyAccessService } = authContext;
+    
     console.log('📊 Attempting to fetch customers from database...');
-    // Get all customers with their invoices and transaction matches
-    const customers = await prisma.customer.findMany({
-      include: {
-        Invoice: {
-          include: {
-            TransactionMatch: {
-              where: {
-                status: 'APPROVED'
-              },
-              include: {
-                Transaction: {
-                  select: {
-                    transactionDate: true,
-                    creditAmount: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-    });
+    // Get all customers with their invoices and transaction matches using company-scoped filtering
+    const customers = await companyAccessService.getCustomers();
     
     console.log(`✅ Successfully fetched ${customers.length} customers from database`);
 
@@ -108,138 +204,67 @@ export async function GET() {
     const conversionCache = new Map<string, number>();
 
     // Transform the data to include calculated metrics with currency conversion
-    const customersWithTotals: CustomerResponse[] = await Promise.all(customers.map(async (customer) => {
-      // Calculate payment terms from paymentTermsData or default to 30
-      const paymentDays = (() => {
-        const termsData = (customer as any).paymentTermsData as PaymentTermsData | null;
-        if (termsData?.paymentPeriod) {
-          if (termsData.paymentPeriod.includes('Net ')) {
-            return parseInt(termsData.paymentPeriod.replace('Net ', '')) || 30;
-          } else if (termsData.paymentPeriod === 'Due on receipt') {
-            return 0;
-          }
-        }
-        return 30; // Default fallback
-      })();
+    const customersWithTotals = await getCustomersWithConversion(customers as CustomerWithInvoicesAndMatches[], conversionCache);
 
-      // Calculate total receivables and paid amounts
-      let totalReceivables = 0;
-      let overdueAmount = 0;
-      let paidAmount = 0;
-
-      const now = new Date();
-
-      const paymentDates: Date[] = [];
-
-      for (const invoice of customer.Invoice) {
-        // Convert total paid amount to EGP
-        let totalPaidEGP = 0;
-        for (const match of invoice.TransactionMatch) {
-          const cacheKey = `${invoice.currency}-EGP`;
-          let conversionRate = conversionCache.get(cacheKey);
-          
-          if (conversionRate === undefined) {
-            const creditAmountEGP = await convertToEGP(Number(match.Transaction.creditAmount || 0), invoice.currency);
-            conversionRate = Number(match.Transaction.creditAmount || 0) === 0 ? 1 : creditAmountEGP / Number(match.Transaction.creditAmount || 0);
-            conversionCache.set(cacheKey, conversionRate);
-          }
-          
-          totalPaidEGP += Number(match.Transaction.creditAmount || 0) * conversionRate;
-        }
-        
-        // Convert invoice total to EGP
-        const cacheKey = `${invoice.currency}-EGP`;
-        let conversionRate = conversionCache.get(cacheKey);
-        
-        if (conversionRate === undefined) {
-          const invoiceTotalEGP = await convertToEGP(Number(invoice.total), invoice.currency);
-          conversionRate = Number(invoice.total) === 0 ? 1 : invoiceTotalEGP / Number(invoice.total);
-          conversionCache.set(cacheKey, conversionRate);
-        }
-        
-        const invoiceTotalEGP = Number(invoice.total) * conversionRate;
-        const remainingEGP = invoiceTotalEGP - totalPaidEGP;
-        
-        totalReceivables += Math.max(0, remainingEGP);
-        paidAmount += totalPaidEGP;
-
-        // Calculate due date for this invoice
-        const dueDate = new Date(invoice.invoiceDate);
-        dueDate.setDate(dueDate.getDate() + paymentDays);
-
-        // Check if overdue
-        if (remainingEGP > 0 && new Date() > dueDate) {
-          overdueAmount += remainingEGP;
-        }
-
-        // Collect payment dates
-        invoice.TransactionMatch.forEach(match => {
-          paymentDates.push(new Date(match.Transaction.transactionDate));
-        });
+    return NextResponse.json({
+      success: true,
+      data: customersWithTotals,
+      count: customersWithTotals.length,
+      currency: 'EGP',
+      metadata: {
+        totalReceivables: customersWithTotals.reduce((sum, c) => sum + c.totalReceivables, 0),
+        totalPaid: customersWithTotals.reduce((sum, c) => sum + c.totalPaid, 0),
+        totalOutstanding: customersWithTotals.reduce((sum, c) => sum + c.outstandingBalance, 0),
+        totalOverdue: customersWithTotals.reduce((sum, c) => sum + c.overdueAmount, 0),
+        averagePaymentDelay: customersWithTotals.length > 0 
+          ? Math.round(customersWithTotals.reduce((sum, c) => sum + c.averagePaymentDelay, 0) / customersWithTotals.length)
+          : 0,
+        conversionNote: 'All amounts converted to EGP using latest exchange rates'
       }
-
-      // Find the latest payment date
-      const latestPaymentDate = paymentDates.length > 0 
-        ? paymentDates.reduce((latest, current) => current > latest ? current : latest)
-        : null;
-
-      // Get the most recent invoice date for next payment estimation
-      let lastInvoiceDate: string | null = null;
-      if (customer.Invoice.length > 0) {
-        const sortedInvoices = [...customer.Invoice].sort(
-          (a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime()
-        );
-        lastInvoiceDate = new Date(sortedInvoices[0].invoiceDate).toISOString().split('T')[0];
-      }
-
-      // Determine status based on payment status
-      let status = 'On Time';
-      if (overdueAmount > 0) {
-        status = overdueAmount > 1000 ? 'Overdue' : 'Due Soon';
-      } else if (totalReceivables === 0 && paidAmount > 0) {
-        status = 'Paid';
-      }
-
-      const transformedCustomer = {
-        id: customer.id,
-        name: customer.name,
-        country: customer.country,
-        paymentTerms: paymentDays,
-        totalReceivables: Math.round(totalReceivables * 100) / 100, // Round to 2 decimal places
-        overdueAmount: Math.round(overdueAmount * 100) / 100,
-        paidAmount: Math.round(paidAmount * 100) / 100,
-        lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
-        nextPayment: lastInvoiceDate,
-        status
-      };
-
-      console.log(`📊 Transformed customer ${customer.id}:`, {
-        name: transformedCustomer.name,
-        totalReceivables: transformedCustomer.totalReceivables,
-        overdueAmount: transformedCustomer.overdueAmount,
-        paidAmount: transformedCustomer.paidAmount,
-        lastPayment: transformedCustomer.lastPayment
-      });
-
-      return transformedCustomer;
-    }));
-
-    console.log(`✅ Successfully transformed ${customersWithTotals.length} customers with EGP conversion`);
-    console.log('📊 Total receivables (EGP):', customersWithTotals.reduce((sum, c) => sum + c.totalReceivables, 0));
-    console.log('📊 Total overdue (EGP):', customersWithTotals.reduce((sum, c) => sum + c.overdueAmount, 0));
-    console.log('📊 Total paid amount (EGP):', customersWithTotals.reduce((sum, c) => sum + c.paidAmount, 0));
-
-    return NextResponse.json(customersWithTotals);
-  } catch (error: any) {
-    console.error('❌ Error in customers API:', {
-      message: error.message,
-      stack: error.stack,
-      prismaError: error?.code, // Capture Prisma-specific error codes
     });
-    
+  } catch (error) {
+    console.error('❌ Error fetching customers:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch customers' },
+      { success: false, error: 'Failed to fetch customers' },
       { status: 500 }
     );
   }
-} 
+});
+
+export const POST = withAuth(async (request: NextRequest, authContext) => {
+  try {
+    const { companyAccessService } = authContext;
+    const body = await request.json();
+    
+    const { name, country, etaId, paymentTermsData } = body;
+
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'Customer name is required' },
+        { status: 400 }
+      );
+    }
+
+    // Create customer using company-scoped service
+    const customer = await companyAccessService.createCustomer({
+      name: name.trim(),
+      country: country || null,
+      etaId: etaId || null,
+      paymentTermsData: paymentTermsData || null,
+      updatedAt: new Date()
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: customer,
+      message: 'Customer created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create customer' },
+      { status: 500 }
+    );
+  }
+}); 

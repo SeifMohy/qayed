@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export const GET = withAuth(async (request, authContext) => {
   try {
-    // Get the latest bank statement (remove strict validation filters)
+    const { companyAccessService } = authContext;
+    
+    // Get the latest bank statement for the company
     const latestBankStatement = await prisma.bankStatement.findFirst({
+      where: {
+        bank: {
+          companyId: authContext.companyId
+        }
+      },
       orderBy: {
         statementPeriodEnd: 'desc'
       },
@@ -24,6 +32,9 @@ export async function GET() {
         status: 'PROJECTED',
         projectionDate: {
           gte: referenceDate
+        },
+        Invoice: {
+          companyId: authContext.companyId
         }
       },
       include: {
@@ -46,6 +57,9 @@ export async function GET() {
         status: 'PROJECTED',
         projectionDate: {
           gte: referenceDate
+        },
+        Invoice: {
+          companyId: authContext.companyId
         }
       },
       include: {
@@ -70,6 +84,11 @@ export async function GET() {
         status: 'PROJECTED',
         projectionDate: {
           gte: referenceDate
+        },
+        BankStatement: {
+          bank: {
+            companyId: authContext.companyId
+          }
         }
       },
       include: {
@@ -118,6 +137,11 @@ export async function GET() {
       description: payment.description || `${payment.type.replace('_', ' ').toLowerCase()}`
     }));
 
+    console.log(`📊 Dashboard Timeline (company ${authContext.companyId}) generated:`);
+    console.log(`   - Supplier payments: ${formattedSupplierPayments.length}`);
+    console.log(`   - Customer payments: ${formattedCustomerPayments.length}`);
+    console.log(`   - Bank payments: ${formattedBankPayments.length}`);
+
     return NextResponse.json({
       success: true,
       timeline: {
@@ -126,6 +150,7 @@ export async function GET() {
         banks: formattedBankPayments
       },
       metadata: {
+        companyId: authContext.companyId,
         referenceDate: referenceDate.toISOString(),
         referenceDateFormatted: referenceDate.toLocaleDateString('en-US', {
           year: 'numeric',
@@ -151,4 +176,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}); 

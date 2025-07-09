@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withAuth } from '@/lib/middleware/auth';
 import { RecurrenceFrequency, CashflowType } from '@prisma/client';
 
 interface RouteParams {
@@ -8,8 +8,9 @@ interface RouteParams {
   };
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export const GET = withAuth(async (request: NextRequest, authContext, { params }: RouteParams) => {
   try {
+    const { companyAccessService } = authContext;
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -19,39 +20,33 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const recurringPayment = await prisma.recurringPayment.findUnique({
-      where: { id },
-      include: {
-        CashflowProjection: {
-          where: {
-            projectionDate: {
-              gte: new Date()
-            }
-          },
-          orderBy: {
-            projectionDate: 'asc'
-          },
-          take: 10
-        },
-        _count: {
-          select: {
-            CashflowProjection: true
-          }
+    try {
+      const recurringPayment = await companyAccessService.getRecurringPayment(id);
+      
+      // Get related projections for this recurring payment
+      const projections = await companyAccessService.getCashflowProjections();
+      const relatedProjections = projections
+        .filter(p => p.recurringPaymentId === id)
+        .filter(p => new Date(p.projectionDate) >= new Date())
+        .sort((a, b) => new Date(a.projectionDate).getTime() - new Date(b.projectionDate).getTime())
+        .slice(0, 10);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...recurringPayment,
+          CashflowProjection: relatedProjections
         }
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found or access denied')) {
+        return NextResponse.json(
+          { success: false, error: 'Recurring payment not found' },
+          { status: 404 }
+        );
       }
-    });
-
-    if (!recurringPayment) {
-      return NextResponse.json(
-        { success: false, error: 'Recurring payment not found' },
-        { status: 404 }
-      );
+      throw error;
     }
-
-    return NextResponse.json({
-      success: true,
-      data: recurringPayment
-    });
   } catch (error) {
     console.error('Error fetching recurring payment:', error);
     return NextResponse.json(
@@ -59,10 +54,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export const PUT = withAuth(async (request: NextRequest, authContext, { params }: RouteParams) => {
   try {
+    const { companyAccessService } = authContext;
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -89,67 +85,68 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       isActive
     } = body;
 
-    // Check if recurring payment exists
-    const existingPayment = await prisma.recurringPayment.findUnique({
-      where: { id }
-    });
+    try {
+      // Get existing payment to check for significant changes
+      const existingPayment = await companyAccessService.getRecurringPayment(id);
 
-    if (!existingPayment) {
-      return NextResponse.json(
-        { success: false, error: 'Recurring payment not found' },
-        { status: 404 }
-      );
-    }
-
-    // Calculate new next due date if frequency or timing changed
-    let nextDueDate = existingPayment.nextDueDate;
-    if (frequency !== existingPayment.frequency || 
-        dayOfMonth !== existingPayment.dayOfMonth || 
-        dayOfWeek !== existingPayment.dayOfWeek ||
-        startDate !== existingPayment.startDate.toISOString()) {
-      nextDueDate = calculateNextDueDate(
-        new Date(startDate || existingPayment.startDate),
-        frequency || existingPayment.frequency,
-        dayOfMonth,
-        dayOfWeek
-      );
-    }
-
-    const updatedPayment = await prisma.recurringPayment.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(amount !== undefined && { amount }),
-        ...(type !== undefined && { type }),
-        ...(frequency !== undefined && { frequency }),
-        ...(startDate !== undefined && { startDate: new Date(startDate) }),
-        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
-        ...(dayOfMonth !== undefined && { dayOfMonth }),
-        ...(dayOfWeek !== undefined && { dayOfWeek }),
-        ...(category !== undefined && { category }),
-        ...(currency !== undefined && { currency }),
-        ...(confidence !== undefined && { confidence }),
-        ...(isActive !== undefined && { isActive }),
-        nextDueDate
+      // Calculate new next due date if frequency or timing changed
+      let nextDueDate = existingPayment.nextDueDate;
+      if (frequency !== existingPayment.frequency || 
+          dayOfMonth !== existingPayment.dayOfMonth || 
+          dayOfWeek !== existingPayment.dayOfWeek ||
+          startDate !== existingPayment.startDate.toISOString()) {
+        nextDueDate = calculateNextDueDate(
+          new Date(startDate || existingPayment.startDate),
+          frequency || existingPayment.frequency,
+          dayOfMonth,
+          dayOfWeek
+        );
       }
-    });
 
-    // Regenerate projections if significant changes were made
-    const significantChange = amount !== existingPayment.amount ||
-                            type !== existingPayment.type ||
-                            frequency !== existingPayment.frequency ||
-                            isActive !== existingPayment.isActive;
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (amount !== undefined) updateData.amount = amount;
+      if (type !== undefined) updateData.type = type;
+      if (frequency !== undefined) updateData.frequency = frequency;
+      if (startDate !== undefined) updateData.startDate = new Date(startDate);
+      if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
+      if (dayOfMonth !== undefined) updateData.dayOfMonth = dayOfMonth;
+      if (dayOfWeek !== undefined) updateData.dayOfWeek = dayOfWeek;
+      if (category !== undefined) updateData.category = category;
+      if (currency !== undefined) updateData.currency = currency;
+      if (confidence !== undefined) updateData.confidence = confidence;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      
+      updateData.nextDueDate = nextDueDate;
 
-    if (significantChange) {
-      console.log(`ℹ️  Recurring payment "${updatedPayment.name}" updated with significant changes. Projections will be regenerated on next centralized refresh.`);
+      const updatedPayment = await companyAccessService.updateRecurringPayment(id, updateData);
+
+      // Regenerate projections if significant changes were made
+      const significantChange = amount !== existingPayment.amount ||
+                              type !== existingPayment.type ||
+                              frequency !== existingPayment.frequency ||
+                              isActive !== existingPayment.isActive;
+
+      if (significantChange) {
+        console.log(`ℹ️  Recurring payment "${updatedPayment.name}" updated with significant changes for company ${authContext.companyId}. Projections will be regenerated on next centralized refresh.`);
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: updatedPayment,
+        companyId: authContext.companyId,
+        message: significantChange ? 'Recurring payment updated. Projections will be refreshed automatically.' : 'Recurring payment updated successfully.'
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found or access denied')) {
+        return NextResponse.json(
+          { success: false, error: 'Recurring payment not found' },
+          { status: 404 }
+        );
+      }
+      throw error;
     }
-
-    return NextResponse.json({
-      success: true,
-      data: updatedPayment,
-      message: significantChange ? 'Recurring payment updated. Projections will be refreshed automatically.' : 'Recurring payment updated successfully.'
-    });
   } catch (error) {
     console.error('Error updating recurring payment:', error);
     return NextResponse.json(
@@ -157,10 +154,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = withAuth(async (request: NextRequest, authContext, { params }: RouteParams) => {
   try {
+    const { companyAccessService } = authContext;
     const id = parseInt(params.id);
     
     if (isNaN(id)) {
@@ -170,37 +168,36 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check if recurring payment exists
-    const existingPayment = await prisma.recurringPayment.findUnique({
-      where: { id }
-    });
+    try {
+      // Get existing payment to verify access
+      const existingPayment = await companyAccessService.getRecurringPayment(id);
 
-    if (!existingPayment) {
-      return NextResponse.json(
-        { success: false, error: 'Recurring payment not found' },
-        { status: 404 }
+      // Delete associated future projections first
+      const projections = await companyAccessService.getCashflowProjections();
+      const relatedProjections = projections.filter(p => 
+        p.recurringPaymentId === id && new Date(p.projectionDate) >= new Date()
       );
-    }
 
-    // Delete associated future projections first
-    await prisma.cashflowProjection.deleteMany({
-      where: {
-        recurringPaymentId: id,
-        projectionDate: {
-          gte: new Date()
-        }
+      // Delete the recurring payment using the service (projections cascade)
+      await companyAccessService.deleteRecurringPayment(id);
+
+      console.log(`✅ Deleted recurring payment "${existingPayment.name}" for company ${authContext.companyId}`);
+      console.log(`ℹ️  Deleted ${relatedProjections.length} associated future projections`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Recurring payment deleted successfully',
+        companyId: authContext.companyId
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('not found or access denied')) {
+        return NextResponse.json(
+          { success: false, error: 'Recurring payment not found' },
+          { status: 404 }
+        );
       }
-    });
-
-    // Delete the recurring payment
-    await prisma.recurringPayment.delete({
-      where: { id }
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Recurring payment deleted successfully'
-    });
+      throw error;
+    }
   } catch (error) {
     console.error('Error deleting recurring payment:', error);
     return NextResponse.json(
@@ -208,9 +205,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}
+});
 
-// Helper functions
+// Helper function to calculate next due date
 function calculateNextDueDate(
   startDate: Date,
   frequency: RecurrenceFrequency,
@@ -278,6 +275,7 @@ function calculateNextDueDate(
   return nextDate;
 }
 
+// Helper function to get last day of month
 function getLastDayOfMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 } 

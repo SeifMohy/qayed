@@ -16,6 +16,7 @@ import {
   CheckIcon,
   Square3Stack3DIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '@/contexts/auth-context';
 
 interface Transaction {
   id: number;
@@ -92,12 +93,35 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
   const [selectedMatches, setSelectedMatches] = useState<Set<number>>(new Set());
   const [isBulkMode, setIsBulkMode] = useState(false);
 
+  // Auth context
+  const { session } = useAuth();
+
+  // Helper function to prepare auth headers
+  const getAuthHeaders = () => {
+    if (!session?.access_token) {
+      throw new Error('Authentication required');
+    }
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    };
+  };
+
 
   const fetchMatches = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
-        `/api/matching/pending?page=${currentPage}&limit=10&status=${filter}&sortBy=${sortBy}&sortOrder=${sortOrder}`
+        `/api/matching/pending?page=${currentPage}&limit=10&status=${filter}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
+        { headers: getAuthHeaders() }
       );
       const data = await response.json();
 
@@ -115,7 +139,7 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
     } finally {
       setLoading(false);
     }
-  }, [currentPage, sortBy, sortOrder, filter]);
+  }, [currentPage, sortBy, sortOrder, filter, session]);
 
   useEffect(() => {
     fetchMatches();
@@ -140,9 +164,7 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
 
       const response = await fetch('/api/matching/pending', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
 

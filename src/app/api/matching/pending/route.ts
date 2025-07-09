@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 import { MatchStatus } from '@prisma/client';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -16,10 +17,32 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Get pending matches with full transaction and invoice details
+    // Get pending matches with full transaction and invoice details, filtered by company
     const matches = await prisma.transactionMatch.findMany({
       where: {
         status: status as MatchStatus,
+        AND: [
+          {
+            OR: [
+              // Filter by company through transaction's bank statement
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              // Filter by company through invoice
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
       },
       include: {
         Transaction: {
@@ -61,6 +84,28 @@ export async function GET(request: NextRequest) {
     const totalCount = await prisma.transactionMatch.count({
       where: {
         status: status as MatchStatus,
+        AND: [
+          {
+            OR: [
+              // Filter by company through transaction's bank statement
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              // Filter by company through invoice
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
       },
     });
 
@@ -102,6 +147,8 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit);
 
+    console.log(`📊 Matching pending (company ${authContext.companyId}) - ${formattedMatches.length} matches with status ${status}`);
+
     return NextResponse.json({
       success: true,
       matches: formattedMatches,
@@ -112,6 +159,12 @@ export async function GET(request: NextRequest) {
         hasNext: page < totalPages,
         hasPrev: page > 1,
       },
+      metadata: {
+        companyId: authContext.companyId,
+        status,
+        sortBy,
+        sortOrder
+      }
     });
 
   } catch (error: any) {
@@ -121,14 +174,14 @@ export async function GET(request: NextRequest) {
       error: 'Failed to fetch pending matches',
     }, { status: 500 });
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request: NextRequest, authContext) => {
   try {
     const body = await request.json();
     const { matchId, action, notes } = body;
 
-    console.log('Match update request:', { matchId, action, notes, body });
+    console.log(`Match update request for company ${authContext.companyId}:`, { matchId, action, notes });
 
     if (!matchId || !action) {
       console.error('Missing required fields:', { matchId, action });
@@ -147,9 +200,33 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // First check if the match exists
-    const existingMatch = await prisma.transactionMatch.findUnique({
-      where: { id: matchId },
+    // First check if the match exists and belongs to the company
+    const existingMatch = await prisma.transactionMatch.findFirst({
+      where: {
+        id: matchId,
+        AND: [
+          {
+            OR: [
+              // Filter by company through transaction's bank statement
+              {
+                Transaction: {
+                  bankStatement: {
+                    bank: {
+                      companyId: authContext.companyId
+                    }
+                  }
+                }
+              },
+              // Filter by company through invoice
+              {
+                Invoice: {
+                  companyId: authContext.companyId
+                }
+              }
+            ]
+          }
+        ]
+      },
       include: {
         Transaction: {
           select: {
@@ -167,14 +244,14 @@ export async function PUT(request: NextRequest) {
     });
 
     if (!existingMatch) {
-      console.error('Match not found:', matchId);
+      console.error(`Match not found or access denied for company ${authContext.companyId}:`, matchId);
       return NextResponse.json({
         success: false,
-        error: `Match with ID ${matchId} not found`,
+        error: `Match with ID ${matchId} not found or access denied`,
       }, { status: 404 });
     }
 
-    console.log('Existing match found:', existingMatch);
+    console.log(`Existing match found for company ${authContext.companyId}:`, existingMatch);
 
     // Map action to status
     const statusMap = {
@@ -184,7 +261,7 @@ export async function PUT(request: NextRequest) {
     } as const;
 
     const newStatus = statusMap[action as keyof typeof statusMap] as MatchStatus;
-    console.log('Updating match status to:', newStatus);
+    console.log(`Updating match status to: ${newStatus} for company ${authContext.companyId}`);
 
     const updatedMatch = await prisma.transactionMatch.update({
       where: { id: matchId },
@@ -211,12 +288,13 @@ export async function PUT(request: NextRequest) {
       },
     });
 
-    console.log('Match updated successfully:', updatedMatch);
+    console.log(`Match updated successfully for company ${authContext.companyId}:`, updatedMatch);
 
     return NextResponse.json({
       success: true,
       message: `Match ${action}d successfully`,
       match: updatedMatch,
+      companyId: authContext.companyId
     });
 
   } catch (error: any) {
@@ -243,4 +321,4 @@ export async function PUT(request: NextRequest) {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     }, { status: 500 });
   }
-} 
+}); 

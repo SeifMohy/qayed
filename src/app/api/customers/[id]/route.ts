@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withAuth } from '@/lib/middleware/auth';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 
 interface MatchedTransaction {
@@ -39,10 +39,11 @@ interface InvoiceWithMatches {
   }>;
 }
 
-export async function GET(
+export const GET = withAuth(async (
     request: NextRequest,
+    authContext,
     { params }: { params: { id: string } }
-) {
+) => {
     try {
         const customerId = parseInt(params.id);
 
@@ -53,39 +54,20 @@ export async function GET(
             );
         }
 
-        // Get customer with their invoices and related transaction matches
-        const customer = await prisma.customer.findUnique({
-            where: { id: customerId },
-            include: {
-                Invoice: {
-                    include: {
-                        TransactionMatch: {
-                            where: {
-                                status: 'APPROVED' // Only include approved matches
-                            },
-                            include: {
-                                Transaction: {
-                                    include: {
-                                        bankStatement: {
-                                            select: {
-                                                bankName: true
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    orderBy: { invoiceDate: 'desc' }
-                }
-            }
-        });
+        const { companyAccessService } = authContext;
 
-        if (!customer) {
-            return NextResponse.json(
-                { error: 'Customer not found' },
-                { status: 404 }
-            );
+        // Get customer with company-scoped filtering
+        let customer;
+        try {
+            customer = await companyAccessService.getCustomer(customerId);
+        } catch (error: any) {
+            if (error.message === 'Customer not found or access denied') {
+                return NextResponse.json(
+                    { error: 'Customer not found or access denied' },
+                    { status: 404 }
+                );
+            }
+            throw error;
         }
 
         // Calculate metrics for each invoice
@@ -199,43 +181,37 @@ export async function GET(
                 month: 'short',
                 year: 'numeric'
             }),
-            salesPastYear: customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0),
+            totalReceivables: totalReceivables,
             paymentTerms: legacyPaymentTerms,
-            paymentTermsData: (customer as any).paymentTermsData as PaymentTermsData | null,
-            paymentStatus: onTimePaymentPercentage !== null 
-                ? onTimePaymentPercentage >= 90 ? 'Excellent' 
-                  : onTimePaymentPercentage >= 70 ? 'Good'
-                  : onTimePaymentPercentage >= 50 ? 'Fair' : 'Poor'
-                : 'No Data',
-            creditScore: 'N/A',
-            averageInvoiceAmount: customer.Invoice.reduce((sum, inv) => sum + Number(inv.total), 0) / Math.max(1, customer.Invoice.length),
-            country: customer.country || 'N/A',
-            totalReceivables,
-            averagePaymentTime,
-            onTimePaymentPercentage,
-            recentPayments: matchedTransactions.length,
-            invoices: invoicesWithMatches,
-            matchedTransactions,
-            notes: ''
+            averagePaymentTime: averagePaymentTime,
+            onTimePaymentPercentage: onTimePaymentPercentage,
+            invoiceCount: customer.Invoice.length,
+            lastInvoiceDate: customer.Invoice.length > 0 
+                ? customer.Invoice.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())[0].invoiceDate.toISOString().split('T')[0]
+                : null
         };
 
-        return NextResponse.json(formattedCustomer);
-    } catch (error: any) {
-        console.error('Error fetching customer:', error.message);
+        return NextResponse.json({
+            customer: formattedCustomer,
+            invoices: invoicesWithMatches,
+            transactions: matchedTransactions
+        });
+    } catch (error) {
+        console.error('Error fetching customer:', error);
         return NextResponse.json(
             { error: 'Failed to fetch customer' },
             { status: 500 }
         );
     }
-}
+});
 
-export async function PUT(
+export const PUT = withAuth(async (
     request: NextRequest,
+    authContext,
     { params }: { params: { id: string } }
-) {
+) => {
     try {
         const customerId = parseInt(params.id);
-        const body = await request.json();
 
         if (isNaN(customerId)) {
             return NextResponse.json(
@@ -244,112 +220,55 @@ export async function PUT(
             );
         }
 
-        // Check if customer exists
-        const existingCustomer = await prisma.customer.findUnique({
-            where: { id: customerId },
-            include: { Invoice: true }
-        });
+        const { companyAccessService } = authContext;
+        const body = await request.json();
 
-        if (!existingCustomer) {
-            return NextResponse.json(
-                { error: 'Customer not found' },
-                { status: 404 }
-            );
-        }
-
-        // Handle both old paymentTerms and new paymentTermsData
+        // Validate and prepare update data
         const updateData: any = {};
-
-        if ('paymentTermsData' in body) {
-            // Validate payment terms data structure
-            const termsData = body.paymentTermsData as PaymentTermsData;
-            if (termsData && typeof termsData === 'object') {
-                updateData.paymentTermsData = termsData;
+        
+        if (body.name !== undefined) {
+            if (!body.name || body.name.trim() === '') {
+                return NextResponse.json(
+                    { error: 'Customer name cannot be empty' },
+                    { status: 400 }
+                );
             }
+            updateData.name = body.name.trim();
+        }
+        
+        if (body.country !== undefined) {
+            updateData.country = body.country || null;
+        }
+        
+        if (body.etaId !== undefined) {
+            updateData.etaId = body.etaId || null;
+        }
+        
+        if (body.paymentTermsData !== undefined) {
+            updateData.paymentTermsData = body.paymentTermsData || null;
         }
 
-        // Handle name changes with reconciliation
-        if ('name' in body && body.name !== existingCustomer.name) {
-            const newName = body.name.trim();
-            
-            // Check if another customer with this name already exists
-            const duplicateCustomer = await prisma.customer.findFirst({
-                where: {
-                    name: newName,
-                    id: { not: customerId } // Exclude the current customer
-                },
-                include: { Invoice: true }
-            });
-
-            if (duplicateCustomer) {
-                console.log(`🔄 Found duplicate customer with name "${newName}". Reconciling...`);
-                
-                // Use a transaction to ensure data consistency
-                await prisma.$transaction(async (tx) => {
-                    // Move all invoices from the duplicate customer to the current customer
-                    await tx.invoice.updateMany({
-                        where: { customerId: duplicateCustomer.id },
-                        data: { customerId: customerId }
-                    });
-
-                    // Delete the duplicate customer
-                    await tx.customer.delete({
-                        where: { id: duplicateCustomer.id }
-                    });
-
-                    // Update the current customer's name and other fields
-                    await tx.customer.update({
-                        where: { id: customerId },
-                        data: { 
-                            name: newName,
-                            ...updateData,
-                            updatedAt: new Date()
-                        }
-                    });
-                });
-
-                console.log(`✅ Successfully reconciled customer "${newName}" by merging ${duplicateCustomer.Invoice.length} invoices`);
-
-                return NextResponse.json({
-                    success: true,
-                    message: `Customer updated and reconciled with existing duplicate. Merged ${duplicateCustomer.Invoice.length} invoices.`,
-                    reconciledInvoices: duplicateCustomer.Invoice.length
-                });
-            } else {
-                // No duplicate found, just update the name
-                updateData.name = newName;
-            }
-        }
-
-        // Handle other field updates
-        if ('country' in body) {
-            updateData.country = body.country;
-        }
-
-        if (Object.keys(updateData).length === 0) {
-            return NextResponse.json(
-                { error: 'No valid fields to update' },
-                { status: 400 }
-            );
-        }
-
-        updateData.updatedAt = new Date();
-
-        const updatedCustomer = await prisma.customer.update({
-            where: { id: customerId },
-            data: updateData
-        });
+        // Update customer using company-scoped service
+        const updatedCustomer = await companyAccessService.updateCustomer(customerId, updateData);
 
         return NextResponse.json({
             success: true,
-            message: 'Customer updated successfully',
-            customer: updatedCustomer
+            data: updatedCustomer,
+            message: 'Customer updated successfully'
         });
     } catch (error: any) {
-        console.error('Error updating customer:', error.message);
+        console.error('Error updating customer:', error);
+        
+        if (error.message === 'Customer not found or access denied') {
+            return NextResponse.json(
+                { error: 'Customer not found or access denied' },
+                { status: 404 }
+            );
+        }
+        
         return NextResponse.json(
             { error: 'Failed to update customer' },
             { status: 500 }
         );
     }
-} 
+}); 

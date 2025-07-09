@@ -49,10 +49,27 @@ export default function SuppliersPage() {
     setError(null);
     try {
       console.log('📊 Attempting to fetch suppliers data...');
-      const response = await fetch('/api/suppliers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch suppliers');
+      
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setError('Authentication required');
+        return;
       }
+
+      const response = await fetch('/api/suppliers', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ API call failed:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch suppliers');
+      }
+      
       const data = await response.json();
       console.log('✅ Received suppliers data:', {
         count: data.length,
@@ -74,7 +91,7 @@ export default function SuppliersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session]);
   
   useEffect(() => {
     console.log('🔍 Checking data source state:', {
@@ -142,7 +159,10 @@ export default function SuppliersPage() {
 
         const response = await fetch('/api/invoices', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json' 
+          },
           body: JSON.stringify({
             supabaseUserId: session.user.id,
             invoices: allInvoices
@@ -400,11 +420,17 @@ export default function SuppliersPage() {
       return { success: false, message: 'No supplier selected' };
     }
 
+    // Check if user is authenticated
+    if (!session?.access_token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/suppliers/${selectedSupplier.id}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),

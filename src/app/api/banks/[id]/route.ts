@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from 'next/server'
+import { withAuth } from '@/lib/middleware/auth'
 
-export async function GET(
-    request: Request,
+export const GET = withAuth(async (
+    request: NextRequest,
+    authContext,
     { params }: { params: { id: string } }
-) {
+) => {
     try {
         const bankId = parseInt(params.id)
         
@@ -15,37 +16,25 @@ export async function GET(
             )
         }
 
-        const bank = await prisma.bank.findUnique({
-            where: {
-                id: bankId
-            },
-            include: {
-                bankStatements: {
-                    include: {
-                        transactions: {
-                            orderBy: {
-                                transactionDate: 'desc'
-                            }
-                        }
-                    },
-                    orderBy: {
-                        statementPeriodEnd: 'desc'
-                    }
-                }
+        const { companyAccessService } = authContext;
+
+        // Use CompanyAccessService to get bank with company-scoped filtering
+        try {
+            const bank = await companyAccessService.getBank(bankId);
+            
+            return NextResponse.json({
+                success: true,
+                bank
+            })
+        } catch (error: any) {
+            if (error.message === 'Bank not found or access denied') {
+                return NextResponse.json(
+                    { success: false, error: 'Bank not found or access denied' },
+                    { status: 404 }
+                )
             }
-        })
-
-        if (!bank) {
-            return NextResponse.json(
-                { success: false, error: 'Bank not found' },
-                { status: 404 }
-            )
+            throw error;
         }
-
-        return NextResponse.json({
-            success: true,
-            bank
-        })
     } catch (error) {
         console.error('Error fetching bank:', error)
         return NextResponse.json(
@@ -53,4 +42,4 @@ export async function GET(
             { status: 500 }
         )
     }
-} 
+}); 
