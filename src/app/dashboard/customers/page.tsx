@@ -73,18 +73,21 @@ export default function CustomersPage() {
       
       const data = await response.json();
       console.log('✅ Received customers data:', {
-        count: data.length,
-        sample: data.length > 0 ? {
+        isArray: Array.isArray(data),
+        count: Array.isArray(data) ? data.length : 'Not an array',
+        sample: Array.isArray(data) && data.length > 0 ? {
           id: data[0].id,
           name: data[0].name,
           totalReceivables: data[0].totalReceivables
         } : null
       });
 
-      setCustomers(data);
+      // Ensure data is an array
+      const customersArray = Array.isArray(data) ? data : [];
+      setCustomers(customersArray);
 
       // Calculate total receivables
-      const total = data.reduce((sum: number, customer: Customer) => sum + customer.totalReceivables, 0);
+      const total = customersArray.reduce((sum: number, customer: Customer) => sum + customer.totalReceivables, 0);
       setTotalReceivables(total);
     } catch (error) {
       console.error('❌ Error fetching customers:', error);
@@ -330,12 +333,12 @@ export default function CustomersPage() {
           icon={CurrencyDollarIcon}
           iconColor="bg-indigo-600"
           changeType="increase"
-          change={customers.length > 0 ? `${customers.length} customers` : "No customers"}
+          change={Array.isArray(customers) && customers.length > 0 ? `${customers.length} customers` : "No customers"}
         />
 
         <KeyFigureCard
           title="Total Paid"
-          value={formatCurrency(customers.reduce((sum, customer) => sum + customer.paidAmount, 0))}
+          value={formatCurrency(Array.isArray(customers) ? customers.reduce((sum, customer) => sum + customer.paidAmount, 0) : 0)}
           icon={CalendarIcon}
           iconColor="bg-green-600"
           changeType="increase"
@@ -383,7 +386,7 @@ export default function CustomersPage() {
       );
     }
 
-    if (customers.length === 0) {
+    if (!Array.isArray(customers) || customers.length === 0) {
       return (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -426,7 +429,7 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {customers.map((customer) => (
+            {Array.isArray(customers) && customers.map((customer) => (
               <tr key={customer.id}>
                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                   {customer.name}

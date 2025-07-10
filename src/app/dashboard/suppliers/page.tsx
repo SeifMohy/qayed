@@ -72,18 +72,21 @@ export default function SuppliersPage() {
       
       const data = await response.json();
       console.log('✅ Received suppliers data:', {
-        count: data.length,
-        sample: data.length > 0 ? {
+        isArray: Array.isArray(data),
+        count: Array.isArray(data) ? data.length : 'Not an array',
+        sample: Array.isArray(data) && data.length > 0 ? {
           id: data[0].id,
           name: data[0].name,
           totalPayables: data[0].totalPayables
         } : null
       });
 
-      setSuppliers(data);
+      // Ensure data is an array
+      const suppliersArray = Array.isArray(data) ? data : [];
+      setSuppliers(suppliersArray);
       
       // Calculate total payables
-      const total = data.reduce((sum: number, supplier: Supplier) => sum + supplier.totalPayables, 0);
+      const total = suppliersArray.reduce((sum: number, supplier: Supplier) => sum + supplier.totalPayables, 0);
       setTotalPayables(total);
     } catch (error) {
       console.error('❌ Error fetching suppliers:', error);
@@ -264,11 +267,11 @@ export default function SuppliersPage() {
           icon={CurrencyDollarIcon}
           iconColor="bg-purple-600"
           changeType="increase"
-          change={suppliers.length > 0 ? `${suppliers.length} suppliers` : "No suppliers"}
+          change={Array.isArray(suppliers) && suppliers.length > 0 ? `${suppliers.length} suppliers` : "No suppliers"}
         />
         <KeyFigureCard
           title="Total Paid"
-          value={formatCurrency(suppliers.reduce((sum, supplier) => sum + supplier.paidAmount, 0))}
+          value={formatCurrency(Array.isArray(suppliers) ? suppliers.reduce((sum, supplier) => sum + supplier.paidAmount, 0) : 0)}
           icon={CalendarIcon}
           iconColor="bg-green-600"
           changeType="increase"
@@ -316,7 +319,7 @@ export default function SuppliersPage() {
       );
     }
 
-    if (suppliers.length === 0) {
+    if (!Array.isArray(suppliers) || suppliers.length === 0) {
       return (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -359,7 +362,7 @@ export default function SuppliersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {suppliers.map((supplier) => (
+            {Array.isArray(suppliers) && suppliers.map((supplier) => (
               <tr key={supplier.id}>
                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                   {supplier.name}
