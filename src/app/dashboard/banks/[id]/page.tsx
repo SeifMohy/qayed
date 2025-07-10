@@ -9,6 +9,7 @@ import { isFacilityAccount, getFacilityDisplayType, isRegularAccount } from '@/u
 import { useSearchParams } from 'next/navigation'
 import { formatCurrencyByCode } from '@/lib/format'
 import { currencyCache } from '@/lib/services/currencyCache'
+import { useAuth } from '@/contexts/auth-context'
 
 // Define types based on Prisma schema
 type Transaction = {
@@ -90,6 +91,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const [activeTab, setActiveTab] = useState('overview')
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const { session } = useAuth()
     
     // Converted financial metrics in EGP
     const [financialMetricsEGP, setFinancialMetricsEGP] = useState({ 
@@ -127,7 +129,20 @@ export default function BankProfile({ params }: { params: { id: string } }) {
                 setIsLoading(true)
                 setError(null)
 
-                const response = await fetch(`/api/banks/${params.id}`)
+                // Check if user is authenticated
+                if (!session?.access_token) {
+                    console.log('❌ No session or access token available')
+                    setError('Authentication required')
+                    setIsLoading(false)
+                    return
+                }
+
+                const response = await fetch(`/api/banks/${params.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                })
                 console.log('Fetch response status:', response.status, response.ok)
                 
                 const data = await response.json()
@@ -150,7 +165,7 @@ export default function BankProfile({ params }: { params: { id: string } }) {
         }
 
         fetchBankData()
-    }, [params.id])
+    }, [params.id, session])
 
     // Helper function to convert amount to EGP
     const convertToEGP = useCallback(async (amount: number, fromCurrency: string): Promise<number> => {
@@ -498,11 +513,19 @@ export default function BankProfile({ params }: { params: { id: string } }) {
     const handleSaveFacility = async () => {
         if (!editingFacility) return;
         
+        // Check if user is authenticated
+        if (!session?.access_token) {
+            console.log('❌ No session or access token available')
+            alert('Authentication required')
+            return
+        }
+        
         setIsSaving(true);
         try {
             const response = await fetch(`/api/annotation/statements/${editingFacility}`, {
                 method: 'PUT',
                 headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
@@ -514,7 +537,12 @@ export default function BankProfile({ params }: { params: { id: string } }) {
             
             if (response.ok) {
                 // Refresh bank data
-                const bankResponse = await fetch(`/api/banks/${params.id}`);
+                const bankResponse = await fetch(`/api/banks/${params.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
                 const bankData = await bankResponse.json();
                 if (bankData.success) {
                     setBank(bankData.bank);
