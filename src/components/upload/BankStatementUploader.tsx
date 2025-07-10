@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadBankStatementFile } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
+import { parseBankStatementParseSSE, parseBankStatementStructureSSE } from '@/lib/sse-utils';
 
 type ParsedDocument = {
   fileName: string;
@@ -164,15 +165,11 @@ export default function BankStatementUploader({
         body: formData,
       });
       
-      // Parse response
-      const result: ParseResponse = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to process the bank statements.');
-      }
+      // Handle SSE stream with utility function
+      const result = await parseBankStatementParseSSE(response);
       
       // Merge file URLs with parsing results
-      const resultsWithUrls = result.results.map((parseResult, index) => ({
+      const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
         ...parseResult,
         fileUrl: uploadedFiles[index]?.fileUrl
       }));
@@ -183,7 +180,7 @@ export default function BankStatementUploader({
       console.log('Structuring and saving to database...');
       setIsProcessing(true);
       
-      const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
+      const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
       
       if (successful.length === 0) {
         throw new Error('No documents were successfully parsed.');
@@ -206,9 +203,10 @@ export default function BankStatementUploader({
             }),
           });
           
-          const structureResult = await structureResponse.json();
+          // Handle SSE stream with utility function
+          const structureResult = await parseBankStatementStructureSSE(structureResponse);
           
-          if (!structureResponse.ok || !structureResult.success) {
+          if (!structureResult.success) {
             console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
             results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
           } else {
@@ -453,21 +451,17 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
     body: formData,
   });
   
-  // Parse response
-  const result: ParseResponse = await response.json();
-  
-  if (!response.ok || !result.success) {
-    throw new Error(result.error || 'Failed to process the bank statements.');
-  }
+  // Handle SSE stream with utility function
+  const result = await parseBankStatementParseSSE(response);
   
   // Merge file URLs with parsing results
-  const resultsWithUrls = result.results.map((parseResult, index) => ({
+  const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
     ...parseResult,
     fileUrl: uploadedFiles[index]?.fileUrl
   }));
 
   // Step 3: Structure and save to database
-  const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
+  const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
   
   if (successful.length === 0) {
     throw new Error('No documents were successfully parsed.');
@@ -490,9 +484,10 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
         }),
       });
       
-      const structureResult = await structureResponse.json();
+      // Handle SSE stream with utility function
+      const structureResult = await parseBankStatementStructureSSE(structureResponse);
       
-      if (!structureResponse.ok || !structureResult.success) {
+      if (!structureResult.success) {
         console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
         results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
       } else {
