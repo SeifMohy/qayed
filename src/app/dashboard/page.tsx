@@ -17,6 +17,7 @@ import { ALL_DATA_SOURCES } from '@/lib/data-sources'
 import type { DataSource } from '@/lib/data-sources'
 import { useAuth } from '@/contexts/auth-context'
 import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
+import { processBankStatements } from '@/components/upload/BankStatementUploader'
 
 // Dynamically import Chart.js components
 const Line = dynamicImport(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -145,21 +146,9 @@ export default function Dashboard() {
   // Invoice upload hook
   const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
     onSuccess: () => {
-      console.log('✅ Invoice upload completed successfully');
-      // Update uploaded sources state
-      const newUploadedSources = { ...uploadedSources };
-      newUploadedSources['invoices'] = true;
-      setUploadedSources(newUploadedSources);
-      
-      // Clear the uploaded files
-      const newSourceFiles = { ...sourceFiles };
-      delete newSourceFiles['invoices'];
-      setSourceFiles(newSourceFiles);
-      
-      setTimeout(() => {
-        setIsUploadModalOpen(false);
-        fetchDashboardData(); // Refresh dashboard data
-      }, 1500);
+      console.log('✅ Invoice upload completed successfully via hook');
+      // Note: State management is now handled in handleInvoiceProcessing
+      // This callback is kept for backward compatibility but doesn't manage state
     },
     onError: (error) => {
       console.error('❌ Invoice upload failed:', error);
@@ -388,7 +377,7 @@ export default function Dashboard() {
     }));
   };
 
-  const handleBankStatementProcessing = async (files: File[]) => {
+  const handleBankStatementProcessing = async (files: File[], standalone: boolean = true) => {
     if (files.length === 0) return;
 
     if (!session?.user?.id) {
@@ -398,33 +387,44 @@ export default function Dashboard() {
     
     try {
       setIsUploading('processing');
+      console.log('🚀 Processing bank statements...');
       
-      // You can implement the actual bank statement processing here
-      // For now, simulate processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Use the actual bank statement processing function
+      const result = await processBankStatements(files, session.user.id);
       
+      console.log('✅ Bank statement processing completed successfully');
+      console.log('📊 Processing result:', result);
+      
+      // Update uploaded sources state
       const newUploadedSources = { ...uploadedSources };
       newUploadedSources['bankStatements'] = true;
       setUploadedSources(newUploadedSources);
       
+      // Clear the uploaded files
       const newSourceFiles = { ...sourceFiles };
       delete newSourceFiles['bankStatements'];
       setSourceFiles(newSourceFiles);
       
-      setTimeout(() => {
-        setIsUploadModalOpen(false);
-        fetchDashboardData(); // Refresh dashboard data
-      }, 1500);
+      // Only close modal and refresh if this is a standalone operation
+      if (standalone) {
+        setTimeout(() => {
+          setIsUploadModalOpen(false);
+          fetchDashboardData(); // Refresh dashboard data
+        }, 1500);
+      }
       
     } catch (error: any) {
-      console.error('Error processing bank statements:', error);
+      console.error('❌ Error processing bank statements:', error);
       alert(`Error processing bank statements: ${error.message}`);
+      throw error; // Re-throw for parent handling
     } finally {
-      setIsUploading(null);
+      if (standalone) {
+        setIsUploading(null);
+      }
     }
   };
 
-  const handleInvoiceProcessing = async (files: File[], sourceId: string) => {
+  const handleInvoiceProcessing = async (files: File[], sourceId: string, standalone: boolean = true) => {
     if (files.length === 0) return;
 
     if (!session?.user?.id) {
@@ -434,29 +434,81 @@ export default function Dashboard() {
     
     try {
       setIsUploading('processing');
+      console.log('🚀 Processing invoices...');
       await uploadInvoices(files, sourceId);
+      console.log('✅ Invoice processing completed successfully');
+      
+      // Update uploaded sources state (similar to bank statement processing)
+      const newUploadedSources = { ...uploadedSources };
+      newUploadedSources[sourceId] = true;
+      setUploadedSources(newUploadedSources);
+      
+      // Clear the uploaded files
+      const newSourceFiles = { ...sourceFiles };
+      delete newSourceFiles[sourceId];
+      setSourceFiles(newSourceFiles);
+      
+      // Only close modal and refresh if this is a standalone operation
+      if (standalone) {
+        setTimeout(() => {
+          setIsUploadModalOpen(false);
+          fetchDashboardData(); // Refresh dashboard data
+        }, 1500);
+      }
+      
     } catch (error: any) {
-      console.error('Error processing invoices:', error);
+      console.error('❌ Error processing invoices:', error);
       // Error handling is done in the hook's onError callback
+      throw error; // Re-throw so the parent function can handle it
     } finally {
-      setIsUploading(null);
+      if (standalone) {
+        setIsUploading(null);
+      }
     }
   };
 
-  const handleSubmitFiles = () => {
+  const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0);
     
     if (sourceIds.length === 0) return;
     
-    // Handle bank statements separately
-    if (sourceIds.includes('bankStatements')) {
-      handleBankStatementProcessing(sourceFiles['bankStatements']);
-      return;
-    }
+    const hasBankStatements = sourceIds.includes('bankStatements');
+    const hasInvoices = sourceIds.includes('invoices');
     
-    // Handle invoices
-    if (sourceIds.includes('invoices')) {
-      handleInvoiceProcessing(sourceFiles['invoices'], 'invoices');
+    try {
+      // If we have both types of files, process them sequentially
+      if (hasBankStatements && hasInvoices) {
+        console.log('🚀 Processing both bank statements and invoices...');
+        
+        // Process bank statements first (not standalone - don't close modal yet)
+        await handleBankStatementProcessing(sourceFiles['bankStatements'], false);
+        
+        // Then process invoices (not standalone - don't close modal yet)
+        await handleInvoiceProcessing(sourceFiles['invoices'], 'invoices', false);
+        
+        console.log('✅ All files processed successfully');
+        
+        // Close modal and refresh data after both are processed
+        setTimeout(() => {
+          setIsUploadModalOpen(false);
+          fetchDashboardData(); // Refresh dashboard data
+        }, 1500);
+        
+      } else if (hasBankStatements) {
+        // Only bank statements (standalone - will handle modal closing)
+        await handleBankStatementProcessing(sourceFiles['bankStatements'], true);
+      } else if (hasInvoices) {
+        // Only invoices (standalone - will handle modal closing)
+        await handleInvoiceProcessing(sourceFiles['invoices'], 'invoices', true);
+      }
+    } catch (error) {
+      console.error('❌ Error processing files:', error);
+      // Individual error handling is done in the specific processing functions
+    } finally {
+      // Always reset upload state when processing both types
+      if (hasBankStatements && hasInvoices) {
+        setIsUploading(null);
+      }
     }
   };
 
