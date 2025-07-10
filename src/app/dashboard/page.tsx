@@ -272,8 +272,17 @@ export default function Dashboard() {
         metadata = statsData.metadata;
       }
 
-      const totalPayables = Array.isArray(suppliersData) ? calculateTotalPayables(suppliersData) : 0;
-      const totalReceivables = Array.isArray(customersData) ? calculateTotalReceivables(customersData) : 0;
+      // Extract the actual data arrays from the API responses
+      const suppliersArray = (suppliersData.success && Array.isArray(suppliersData.data)) ? suppliersData.data : [];
+      const customersArray = (customersData.success && Array.isArray(customersData.data)) ? customersData.data : [];
+      
+      // Use metadata totals from the API responses if available, otherwise calculate
+      const totalPayables = suppliersData.success && suppliersData.metadata ? 
+        suppliersData.metadata.totalOutstanding : 
+        calculateTotalPayables(suppliersArray);
+      const totalReceivables = customersData.success && customersData.metadata ? 
+        customersData.metadata.totalOutstanding : 
+        calculateTotalReceivables(customersArray);
 
       // Create stats array with calculated values
       const calculatedStats: DashboardStat[] = [

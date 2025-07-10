@@ -19,7 +19,9 @@ interface Supplier {
   id: number;
   name: string;
   totalPayables: number;
-  paidAmount: number;
+  totalPaid: number;
+  outstandingBalance: number;
+  overdueAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -100,17 +102,18 @@ export default function SuppliersPage() {
       
       const data = await response.json();
       console.log('✅ Received suppliers data:', {
-        isArray: Array.isArray(data),
-        count: Array.isArray(data) ? data.length : 'Not an array',
-        sample: Array.isArray(data) && data.length > 0 ? {
-          id: data[0].id,
-          name: data[0].name,
-          totalPayables: data[0].totalPayables
+        success: data.success,
+        count: data.count,
+        dataLength: Array.isArray(data.data) ? data.data.length : 'Not an array',
+        sample: Array.isArray(data.data) && data.data.length > 0 ? {
+          id: data.data[0].id,
+          name: data.data[0].name,
+          totalPayables: data.data[0].totalPayables
         } : null
       });
 
-      // Ensure data is an array
-      const suppliersArray = Array.isArray(data) ? data : [];
+      // Extract the actual suppliers array from the response
+      const suppliersArray = (data.success && Array.isArray(data.data)) ? data.data : [];
       setSuppliers(suppliersArray);
       
       // Calculate total payables
@@ -218,7 +221,7 @@ export default function SuppliersPage() {
         />
         <KeyFigureCard
           title="Total Paid"
-          value={formatCurrency(Array.isArray(suppliers) ? suppliers.reduce((sum, supplier) => sum + supplier.paidAmount, 0) : 0)}
+          value={formatCurrency(Array.isArray(suppliers) ? suppliers.reduce((sum, supplier) => sum + supplier.totalPaid, 0) : 0)}
           icon={CalendarIcon}
           iconColor="bg-green-600"
           changeType="increase"
@@ -318,7 +321,7 @@ export default function SuppliersPage() {
                   {formatCurrency(supplier.totalPayables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(supplier.paidAmount)}
+                  {formatCurrency(supplier.totalPaid)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span

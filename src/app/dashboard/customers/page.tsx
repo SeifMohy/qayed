@@ -19,8 +19,9 @@ interface Customer {
   id: number;
   name: string;
   totalReceivables: number;
+  totalPaid: number;
+  outstandingBalance: number;
   overdueAmount: number;
-  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -101,17 +102,18 @@ export default function CustomersPage() {
       
       const data = await response.json();
       console.log('✅ Received customers data:', {
-        isArray: Array.isArray(data),
-        count: Array.isArray(data) ? data.length : 'Not an array',
-        sample: Array.isArray(data) && data.length > 0 ? {
-          id: data[0].id,
-          name: data[0].name,
-          totalReceivables: data[0].totalReceivables
+        success: data.success,
+        count: data.count,
+        dataLength: Array.isArray(data.data) ? data.data.length : 'Not an array',
+        sample: Array.isArray(data.data) && data.data.length > 0 ? {
+          id: data.data[0].id,
+          name: data.data[0].name,
+          totalReceivables: data.data[0].totalReceivables
         } : null
       });
 
-      // Ensure data is an array
-      const customersArray = Array.isArray(data) ? data : [];
+      // Extract the actual customers array from the response
+      const customersArray = (data.success && Array.isArray(data.data)) ? data.data : [];
       setCustomers(customersArray);
 
       // Calculate total receivables
@@ -285,7 +287,7 @@ export default function CustomersPage() {
 
         <KeyFigureCard
           title="Total Paid"
-          value={formatCurrency(Array.isArray(customers) ? customers.reduce((sum, customer) => sum + customer.paidAmount, 0) : 0)}
+          value={formatCurrency(Array.isArray(customers) ? customers.reduce((sum, customer) => sum + customer.totalPaid, 0) : 0)}
           icon={CalendarIcon}
           iconColor="bg-green-600"
           changeType="increase"
@@ -385,7 +387,7 @@ export default function CustomersPage() {
                   {formatCurrency(customer.totalReceivables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(customer.paidAmount)}
+                  {formatCurrency(customer.totalPaid)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span
