@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "typegen": "sanity schema extract --path=src/sanity/extract.json && sanity typegen generate && rm ./src/sanity/extract.json",
-    "sync-currencies": "node scripts/sync-transaction-currencies.js"
+    "sync-currencies": "node scripts/sync-transaction-currencies.js",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
