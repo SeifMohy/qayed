@@ -372,7 +372,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
               <h3 className="text-base font-semibold leading-6 text-gray-900">Matched Transactions</h3>
-              <p className="text-sm text-gray-500">{supplier?.matchedTransactions.length || 0} transactions</p>
+              <p className="text-sm text-gray-500">{supplier?.matchedTransactions?.length || 0} transactions</p>
             </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -386,7 +386,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {supplier?.matchedTransactions.map((transaction) => (
+                {supplier?.matchedTransactions?.map((transaction) => (
                   <tr key={transaction.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(transaction.transactionDate).toLocaleDateString()}
@@ -417,7 +417,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                 ))}
               </tbody>
             </table>
-            {supplier?.matchedTransactions.length === 0 && (
+            {(!supplier?.matchedTransactions || supplier.matchedTransactions.length === 0) && (
               <div className="px-6 py-12 text-center">
                 <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>

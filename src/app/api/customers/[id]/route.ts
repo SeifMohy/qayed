@@ -177,6 +177,7 @@ export const GET = withAuth(async (
             email: 'N/A',
             phone: 'N/A',
             industry: 'N/A',
+            country: customer.country || 'N/A',
             relationshipSince: customer.createdAt.toLocaleDateString('en-US', {
                 month: 'short',
                 year: 'numeric'
@@ -192,9 +193,9 @@ export const GET = withAuth(async (
         };
 
         return NextResponse.json({
-            customer: formattedCustomer,
+            ...formattedCustomer,
             invoices: invoicesWithMatches,
-            transactions: matchedTransactions
+            matchedTransactions: matchedTransactions
         });
     } catch (error) {
         console.error('Error fetching customer:', error);

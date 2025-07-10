@@ -177,6 +177,7 @@ export const GET = withAuth(async (
             email: 'N/A',
             phone: 'N/A',
             industry: 'N/A',
+            country: supplier.country || 'N/A',
             relationshipSince: supplier.createdAt.toLocaleDateString('en-US', {
                 month: 'short',
                 year: 'numeric'
@@ -192,9 +193,9 @@ export const GET = withAuth(async (
         };
 
         return NextResponse.json({
-            supplier: formattedSupplier,
+            ...formattedSupplier,
             invoices: invoicesWithMatches,
-            transactions: matchedTransactions
+            matchedTransactions: matchedTransactions
         });
     } catch (error) {
         console.error('Error fetching supplier:', error);

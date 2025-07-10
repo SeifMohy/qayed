@@ -121,7 +121,26 @@ export class CompanyAccessService {
         companyId 
       },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
 
@@ -167,7 +186,26 @@ export class CompanyAccessService {
         companyId 
       },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
 
@@ -506,6 +544,28 @@ export class CompanyAccessService {
     return prisma.customer.update({
       where: { id: customerId },
       data,
+      include: {
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
   }
 
@@ -516,6 +576,28 @@ export class CompanyAccessService {
     return prisma.supplier.update({
       where: { id: supplierId },
       data,
+      include: {
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
   }
 
