@@ -582,7 +582,8 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
             console.log(`Trying model: ${modelName}`);
             
             const response = await retryWithBackoff(async () => {
-                return await ai.models.generateContent({
+                // Use streaming instead of regular generateContent
+                const streamingResponse = await ai.models.generateContentStream({
                     model: modelName,
                     contents: prompt,
                     config: {
@@ -592,6 +593,21 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
                         maxOutputTokens: 48000,
                     }
                 });
+                
+                // Process the streaming response
+                let accumulatedText = '';
+                for await (const chunk of streamingResponse) {
+                    const chunkText = chunk.text || '';
+                    accumulatedText += chunkText;
+                    
+                    // Log progress for monitoring
+                    if (chunkText.trim()) {
+                        console.log(`Model ${modelName} streaming: received ${chunkText.length} characters, total: ${accumulatedText.length}`);
+                    }
+                }
+                
+                // Return the accumulated text as if it was a regular response
+                return { text: accumulatedText };
             });
             
             if (!response) {

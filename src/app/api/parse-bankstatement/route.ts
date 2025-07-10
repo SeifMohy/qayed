@@ -87,7 +87,7 @@ function isRetryableError(error: any): boolean {
   return retryablePatterns.some(pattern => errorMessage.includes(pattern));
 }
 
-// --- Helper Function to process a single chunk with retry logic ---
+// --- Helper Function to process a single chunk with retry logic using streaming ---
 async function processChunkWithRetry(
   ai: any,
   chunkData: Uint8Array,
@@ -128,8 +128,8 @@ async function processChunkWithRetry(
         ]
       };
 
-      // Make the API call with the new SDK format
-      const response = await ai.models.generateContent({
+      // Make the API call with streaming using the new SDK format
+      const streamingResponse = await ai.models.generateContentStream({
         model: MODEL_NAME,
         contents: fileContent,
         config: {
@@ -140,25 +140,31 @@ async function processChunkWithRetry(
         }
       });
 
-      // Check if the response exists
-      if (!response) {
-        throw new Error(`Received null response from GenAI API for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end})`);
+      // Process the streaming response
+      let accumulatedText = '';
+      for await (const chunk of streamingResponse) {
+        const chunkText = chunk.text || '';
+        accumulatedText += chunkText;
+        
+        // Log progress for monitoring
+        if (chunkText.trim()) {
+          console.log(`Chunk ${chunkIndex + 1} streaming: received ${chunkText.length} characters, total: ${accumulatedText.length}`);
+        }
       }
 
-      // Get the text from the response
-      const text = response.text;
-      if (!text || text.trim() === '') {
+      // Check if we got any text
+      if (!accumulatedText || accumulatedText.trim() === '') {
         console.warn(`GenAI returned empty text content for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) of ${fileName}`);
         return ''; // Return empty string for empty chunks
       } else {
-        console.log(`Successfully processed chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}), extracted ${text.length} characters`);
+        console.log(`Successfully processed chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}), extracted ${accumulatedText.length} characters`);
         
         // Add page markers to the extracted text
         const pageMarker = pageRange.start === pageRange.end 
           ? `=== PDF PAGE ${pageRange.start} ===` 
           : `=== PDF PAGES ${pageRange.start}-${pageRange.end} ===`;
         
-        return `${pageMarker}\n${text.trim()}\n=== END PAGES ${pageRange.start}-${pageRange.end} ===`;
+        return `${pageMarker}\n${accumulatedText.trim()}\n=== END PAGES ${pageRange.start}-${pageRange.end} ===`;
       }
 
     } catch (error: any) {
@@ -248,7 +254,7 @@ export async function POST(request: Request) {
         // Process each chunk
         for (let i = 0; i < pdfChunks.length; i++) {
           try {
-            // Process chunk with retry logic
+            // Process chunk with retry logic using streaming
             const text = await processChunkWithRetry(ai, pdfChunks[i].chunk, i, pdfChunks.length, file.name, pdfChunks[i].pageRange);
             chunkResults.push(text);
 
