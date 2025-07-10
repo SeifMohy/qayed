@@ -5,13 +5,14 @@ import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, Clock
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
-import { useUploadedSources } from '@/hooks/useUploadedSources'
+import { useUploadedSources } from '@/contexts/uploaded-sources-context'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { useAuth } from '@/contexts/auth-context'
+import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
 
 // Interface for customer data
 interface Customer {
@@ -43,6 +44,33 @@ export default function CustomersPage() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { session } = useAuth();
+
+  // Invoice upload hook
+  const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
+    onSuccess: () => {
+      console.log('✅ Customer invoice upload completed successfully');
+      // Update uploaded sources state
+      const newUploadedSources = { ...uploadedSources };
+      Object.keys(sourceFiles).forEach(id => {
+        if (sourceFiles[id]?.length > 0) {
+          newUploadedSources[id] = true;
+        }
+      });
+      setUploadedSources(newUploadedSources);
+      
+      // Clear the uploaded files
+      setSourceFiles({});
+      setIsUploadModalOpen(false);
+
+      // Fetch updated customers data
+      console.log('🔄 Fetching updated customer data...');
+      fetchCustomers();
+    },
+    onError: (error) => {
+      console.error('❌ Customer invoice upload failed:', error);
+      alert(`Error uploading file(s): ${error}`);
+    }
+  });
 
   // Fetch customers data
   const fetchCustomers = useCallback(async () => {
@@ -117,101 +145,20 @@ export default function CustomersPage() {
   const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
     if (sourceIds.length === 0) return;
+    
     setIsUploading('processing');
-
-    const allInvoices: any[] = []; // Array to hold all invoice objects
-
+    
     try {
-      console.log('📤 Starting file upload process...');
-      for (const id of sourceIds) {
-        const files = sourceFiles[id];
-        console.log(`📄 Processing ${files.length} files for source '${id}'`);
-
-        // Process all files directly (no more upload-json dependency)
-        for (const file of files) {
-          try {
-            if (!file.name.endsWith('.json')) {
-              console.warn(`⚠️ Skipping non-JSON file: ${file.name}`);
-              continue;
-            }
-
-            console.log(`🔍 Processing JSON file: ${file.name}`);
-            const text = await file.text();
-            const json = JSON.parse(text);
-            
-            if (Array.isArray(json)) {
-              console.log(`✅ Adding ${json.length} invoices from ${file.name}`);
-              allInvoices.push(...json);
-            } else {
-              console.log(`✅ Adding single invoice from ${file.name}`);
-              allInvoices.push(json);
-            }
-          } catch (parseError) {
-            console.error(`❌ Error parsing file ${file.name}:`, parseError);
-            alert(`Error parsing file ${file.name}. Please check its format.`);
-          }
+      // Process all uploaded files using the unified hook
+      for (const sourceId of sourceIds) {
+        const files = sourceFiles[sourceId];
+        if (files && files.length > 0) {
+          await uploadInvoices(files, sourceId);
         }
-      }
-
-      if (allInvoices.length > 0) {
-        console.log(`📤 Uploading ${allInvoices.length} invoices in bulk...`);
-        
-        // Check if user is authenticated
-        if (!session?.user?.id) {
-          throw new Error('User not authenticated. Please log in again.');
-        }
-
-        const response = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({
-            supabaseUserId: session.user.id,
-            invoices: allInvoices
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage;
-          
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || `Server responded with ${response.status}`;
-          } catch {
-            // If response is not JSON (e.g., HTML error page)
-            errorMessage = `Server error (${response.status}). Please check the console for details.`;
-            console.error('Server returned non-JSON response:', errorText);
-          }
-          
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        console.log('✅ Successfully uploaded invoices with LLM name normalization');
-        console.log('📊 Processing summary:', result);
-
-        // Update uploaded sources state
-        const newUploadedSources = { ...uploadedSources };
-        sourceIds.forEach(id => {
-          console.log(`✅ Marking source '${id}' as uploaded`);
-          newUploadedSources[id] = true;
-        });
-        setUploadedSources(newUploadedSources);
-
-        // Clear the uploaded files
-        setSourceFiles({});
-        setIsUploadModalOpen(false);
-
-        // Fetch updated customers data
-        console.log('🔄 Fetching updated customer data...');
-        await fetchCustomers();
       }
     } catch (error: any) {
       console.error('❌ Error during upload process:', error);
-      alert(`Error uploading file(s): ${error.message}`);
+      // Error handling is done in the hook's onError callback
     } finally {
       setIsUploading('idle');
     }

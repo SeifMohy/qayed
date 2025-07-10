@@ -16,6 +16,7 @@ import MultiFileUpload from '@/components/upload/multi-file-upload'
 import { ALL_DATA_SOURCES } from '@/lib/data-sources'
 import type { DataSource } from '@/lib/data-sources'
 import { useAuth } from '@/contexts/auth-context'
+import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
 
 // Dynamically import Chart.js components
 const Line = dynamicImport(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -140,6 +141,31 @@ export default function Dashboard() {
   
   // Auth context
   const { session } = useAuth();
+
+  // Invoice upload hook
+  const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
+    onSuccess: () => {
+      console.log('✅ Invoice upload completed successfully');
+      // Update uploaded sources state
+      const newUploadedSources = { ...uploadedSources };
+      newUploadedSources['invoices'] = true;
+      setUploadedSources(newUploadedSources);
+      
+      // Clear the uploaded files
+      const newSourceFiles = { ...sourceFiles };
+      delete newSourceFiles['invoices'];
+      setSourceFiles(newSourceFiles);
+      
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        fetchDashboardData(); // Refresh dashboard data
+      }, 1500);
+    },
+    onError: (error) => {
+      console.error('❌ Invoice upload failed:', error);
+      alert(`Error uploading invoices: ${error}`);
+    }
+  });
 
   // Load chart.js when component mounts
   useEffect(() => {
@@ -399,27 +425,10 @@ export default function Dashboard() {
     
     try {
       setIsUploading('processing');
-      
-      // You can implement the actual invoice processing here
-      // For now, simulate processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newUploadedSources = { ...uploadedSources };
-      newUploadedSources[sourceId] = true;
-      setUploadedSources(newUploadedSources);
-      
-      const newSourceFiles = { ...sourceFiles };
-      delete newSourceFiles[sourceId];
-      setSourceFiles(newSourceFiles);
-      
-      setTimeout(() => {
-        setIsUploadModalOpen(false);
-        fetchDashboardData(); // Refresh dashboard data
-      }, 1500);
-      
+      await uploadInvoices(files, sourceId);
     } catch (error: any) {
       console.error('Error processing invoices:', error);
-      alert(`Error processing invoices: ${error.message}`);
+      // Error handling is done in the hook's onError callback
     } finally {
       setIsUploading(null);
     }
@@ -450,7 +459,7 @@ export default function Dashboard() {
     const hasUploadedFiles = isDataSourceUploaded(source.id);
     const hasSelectedFiles = sourceFiles[source.id]?.length > 0;
     
-    const acceptTypes = source.id === 'bankStatements' ? '.pdf' : '.xlsx,.xls,.csv,.pdf';
+    const acceptTypes = source.id === 'bankStatements' ? '.pdf' : '.xlsx,.xls,.csv,.json,.pdf';
     const maxSize = source.id === 'bankStatements' ? 50 : 10;
     const maxFiles = source.id === 'bankStatements' ? 10 : (source.id === 'invoices' ? 200 : 5);
     
