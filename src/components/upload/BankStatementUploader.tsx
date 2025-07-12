@@ -178,11 +178,21 @@ export default function BankStatementUploader({
       });
       
       // Merge file URLs with parsing results
-      const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
-        ...parseResult,
-        fileUrl: uploadedFiles[index]?.fileUrl
-      }));
-      
+      let resultsWithUrls: any[] = [];
+      if ('results' in result && Array.isArray(result.results)) {
+        resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
+          ...parseResult,
+          fileUrl: uploadedFiles[index]?.fileUrl
+        }));
+      } else if (result instanceof Response) {
+        const json = await result.json();
+        if (json && Array.isArray(json.results)) {
+          resultsWithUrls = json.results.map((parseResult: any, index: number) => ({
+            ...parseResult,
+            fileUrl: uploadedFiles[index]?.fileUrl
+          }));
+        }
+      }
       setProcessedDocs(resultsWithUrls);
       
       // Step 3: Structure and save to database (now with file URLs and user ID)

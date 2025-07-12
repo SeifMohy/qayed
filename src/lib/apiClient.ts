@@ -122,7 +122,7 @@ class ApiClient {
 
       // For file uploads, don't set Accept header conflicts
       if (options?.body instanceof FormData) {
-        delete headers['Accept'];
+        delete (headers as any)['Accept'];
       }
 
       fetch(url, {
@@ -308,7 +308,7 @@ export const useApiClient = () => {
         const backendHealth = await backendClient.getJSON('/health');
         return { backend: backendHealth, status: 'ok' };
       } catch (error) {
-        return { backend: null, status: 'error', error: error.message };
+        return { backend: null, status: 'error', error: error instanceof Error ? error.message : String(error) };
       }
     },
 

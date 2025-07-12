@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { PDFDocument } from 'pdf-lib';
+import { Buffer } from 'buffer';
 
 // --- Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
@@ -284,9 +285,9 @@ export async function parseMultiplePDFs(files: Express.Multer.File[], sendSSE: S
         });
         
         // Convert file buffer to ArrayBuffer for PDF processing
-        const fileBuffer = file.buffer.buffer.slice(
-          file.buffer.byteOffset, 
-          file.buffer.byteOffset + file.buffer.byteLength
+        const fileBuffer = Buffer.from(file.buffer).buffer.slice(
+          Buffer.from(file.buffer).byteOffset,
+          Buffer.from(file.buffer).byteOffset + Buffer.from(file.buffer).byteLength
         );
         
         // Split PDF into manageable chunks
