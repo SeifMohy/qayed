@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { CentralizedCashflowProjectionService } from '@/lib/services/centralizedCashflowProjectionService';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
 import { prisma } from '@/lib/prisma';
 import { CashflowType, CashflowStatus } from '@prisma/client';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const searchParams = request.nextUrl.searchParams;
     
     // Parse query parameters
@@ -28,14 +30,20 @@ export async function GET(request: NextRequest) {
     const typeFilter = typeParam ? typeParam.split(',') as CashflowType[] : undefined;
     const statusFilter = statusParam ? statusParam.split(',') as CashflowStatus[] : undefined;
 
-    console.log('📊 Fetching projections using centralized service');
+    console.log('📊 Fetching projections using centralized service for company:', authContext.companyId);
     
-    // Use the centralized service
-    const centralizedService = new CentralizedCashflowProjectionService();
+    // Get company-scoped cashflow projections
+    const projections = await companyAccessService.getCashflowProjections();
     
-    const projections = await centralizedService.getProjections(startDate, endDate, {
-      types: typeFilter,
-      statuses: statusFilter
+    // Filter projections by date range and other criteria
+    const filteredProjections = projections.filter(p => {
+      const projectionDate = new Date(p.projectionDate);
+      const inDateRange = projectionDate >= startDate && projectionDate <= endDate;
+      
+      const typeMatch = !typeFilter || typeFilter.includes(p.type);
+      const statusMatch = !statusFilter || statusFilter.includes(p.status);
+      
+      return inDateRange && typeMatch && statusMatch;
     });
 
     // Generate summary using the old service for compatibility
@@ -43,7 +51,7 @@ export async function GET(request: NextRequest) {
     const summary = await oldService.generateSummary(startDate, endDate);
     
     // Format response
-    const formattedProjections = projections.map(p => ({
+    const formattedProjections = filteredProjections.map(p => ({
       id: p.id,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
@@ -83,7 +91,7 @@ export async function GET(request: NextRequest) {
       })
     }));
 
-    console.log(`📊 Cashflow projections summary (centralized service):`);
+    console.log(`📊 Cashflow projections summary (company ${authContext.companyId}):`);
     console.log(`   - Total projections: ${formattedProjections.length}`);
     console.log(`   - Customer receivables: ${formattedProjections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length}`);
     console.log(`   - Supplier payables: ${formattedProjections.filter(p => p.type === 'SUPPLIER_PAYABLE').length}`);
@@ -98,6 +106,7 @@ export async function GET(request: NextRequest) {
       summary,
       metadata: {
         count: formattedProjections.length,
+        companyId: authContext.companyId,
         dateRange: {
           start: startDate.toISOString(),
           end: endDate.toISOString()
@@ -129,9 +138,9 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, authContext) => {
   try {
     const body = await request.json();
     
@@ -150,12 +159,13 @@ export async function POST(request: NextRequest) {
       ? new Date(endDateParam) 
       : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
-    console.log(`🚀 Generating cashflow projections for ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
-    console.log(`🔄 Using centralized service`);
+    console.log(`🚀 Generating cashflow projections for company ${authContext.companyId} from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`🔄 Using centralized service with company-scoped data`);
 
-    // Use the centralized service
+    // Use the centralized service with company context
     const centralizedService = new CentralizedCashflowProjectionService();
     
+    // TODO: Pass company ID to centralized service when it supports it
     const summary = await centralizedService.refreshAllProjections({
       startDate,
       endDate,
@@ -164,8 +174,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Successfully generated cashflow projections using centralized service`,
+      message: `Successfully generated cashflow projections using centralized service for company ${authContext.companyId}`,
       generated: summary,
+      companyId: authContext.companyId,
       dateRange: {
         start: startDate.toISOString(),
         end: endDate.toISOString()
@@ -184,10 +195,11 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const body = await request.json();
     const { id, projectedAmount, projectionDate, confidence, description, status } = body;
 
@@ -198,21 +210,35 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update the projection
+    // Verify the projection belongs to the user's company before updating
+    const projections = await companyAccessService.getCashflowProjections();
+    const existingProjection = projections.find(p => p.id === id);
+    
+    if (!existingProjection) {
+      return NextResponse.json(
+        { success: false, error: 'Projection not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    // Update the projection (company access already verified)
+    const updateData: any = {};
+    if (projectedAmount !== undefined) updateData.projectedAmount = projectedAmount;
+    if (projectionDate !== undefined) updateData.projectionDate = new Date(projectionDate);
+    if (confidence !== undefined) updateData.confidence = confidence;
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    
+    updateData.updatedAt = new Date();
+
     const updatedProjection = await prisma.cashflowProjection.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(projectedAmount !== undefined && { projectedAmount }),
-        ...(projectionDate && { projectionDate: new Date(projectionDate) }),
-        ...(confidence !== undefined && { confidence }),
-        ...(description !== undefined && { description }),
-        ...(status && { status })
-      }
+      where: { id },
+      data: updateData
     });
 
     return NextResponse.json({
       success: true,
-      data: {
+      projection: {
         ...updatedProjection,
         projectedAmount: Number(updatedProjection.projectedAmount),
         actualAmount: updatedProjection.actualAmount ? Number(updatedProjection.actualAmount) : null
@@ -230,11 +256,12 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAuth(async (request: NextRequest, authContext) => {
   try {
-    const { searchParams } = new URL(request.url);
+    const { companyAccessService } = authContext;
+    const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
 
     if (!id) {
@@ -244,13 +271,33 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    const projectionId = parseInt(id);
+    if (isNaN(projectionId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid projection ID' },
+        { status: 400 }
+      );
+    }
+
+    // Verify the projection belongs to the user's company before deleting
+    const projections = await companyAccessService.getCashflowProjections();
+    const existingProjection = projections.find(p => p.id === projectionId);
+    
+    if (!existingProjection) {
+      return NextResponse.json(
+        { success: false, error: 'Projection not found or access denied' },
+        { status: 404 }
+      );
+    }
+
+    // Delete the projection (company access already verified)
     await prisma.cashflowProjection.delete({
-      where: { id: parseInt(id) }
+      where: { id: projectionId }
     });
 
     return NextResponse.json({
       success: true,
-      message: 'Projection deleted successfully'
+      message: 'Cashflow projection deleted successfully'
     });
 
   } catch (error) {
@@ -264,4 +311,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}); 

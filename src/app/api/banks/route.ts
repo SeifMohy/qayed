@@ -1,10 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/middleware/auth'
 
-export async function GET() {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
     try {
-        // Get the most recent bank statement date across all banks to use as reference
+        const { companyAccessService } = authContext;
+
+        // Get the most recent bank statement date across user's company banks to use as reference
         const latestBankStatement = await prisma.bankStatement.findFirst({
+            where: {
+                bank: {
+                    companyId: authContext.companyId
+                }
+            },
             orderBy: {
                 statementPeriodEnd: 'desc'
             },
@@ -17,27 +25,16 @@ export async function GET() {
 
         const referenceDate = latestBankStatement?.statementPeriodEnd || new Date();
 
-        const banks = await prisma.bank.findMany({
-            include: {
-                bankStatements: {
-                    include: {
-                        transactions: true
-                    },
-                    orderBy: {
-                        statementPeriodEnd: 'desc'
-                    }
-                }
-            },
-            orderBy: {
-                name: 'asc'
-            }
-        })
+        // Get banks using CompanyAccessService for company-scoped filtering
+        const banks = await companyAccessService.getBanks();
 
         // Process banks to determine their update status
         const banksWithStatus = banks.map(bank => {
             // Find the latest statement for this bank
             const latestStatement = bank.bankStatements.length > 0 
-                ? bank.bankStatements[0] 
+                ? bank.bankStatements.sort((a, b) => 
+                    new Date(b.statementPeriodEnd).getTime() - new Date(a.statementPeriodEnd).getTime()
+                  )[0] 
                 : null;
 
             let updateStatus = 'current';
@@ -90,4 +87,4 @@ export async function GET() {
             { status: 500 }
         )
     }
-} 
+}); 

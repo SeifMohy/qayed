@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import PaymentTermsEditor from '@/components/shared/PaymentTermsEditor'
 import type { PaymentTermsData } from '@/types/paymentTerms'
 import { formatCurrency } from '@/lib/format'
+import { useAuth } from '@/contexts/auth-context'
 
 interface InvoiceWithMatches {
   id: number;
@@ -70,15 +71,33 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
     installments: []
   })
 
+  const { session } = useAuth()
+
   // Fetch supplier data
   useEffect(() => {
     const fetchSupplierData = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`/api/suppliers/${supplierId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch supplier data')
+        // Check if user is authenticated
+        if (!session?.access_token) {
+          console.log('❌ No session or access token available')
+          setError('Authentication required')
+          return
         }
+
+        const response = await fetch(`/api/suppliers/${supplierId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error('❌ API call failed:', errorData)
+          throw new Error(errorData.error || 'Failed to fetch supplier data')
+        }
+        
         const data = await response.json()
         setSupplier(data)
         
@@ -103,20 +122,30 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
     }
 
     fetchSupplierData()
-  }, [supplierId])
+  }, [supplierId, session])
 
   const handlePaymentTermsUpdate = async () => {
     try {
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available')
+        setError('Authentication required')
+        return
+      }
+
       const response = await fetch(`/api/suppliers/${supplierId}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ paymentTermsData }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update payment terms')
+        const errorData = await response.json()
+        console.error('❌ API call failed:', errorData)
+        throw new Error(errorData.error || 'Failed to update payment terms')
       }
 
       if (supplier) {
@@ -343,7 +372,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg overflow-hidden">
             <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
               <h3 className="text-base font-semibold leading-6 text-gray-900">Matched Transactions</h3>
-              <p className="text-sm text-gray-500">{supplier?.matchedTransactions.length || 0} transactions</p>
+              <p className="text-sm text-gray-500">{supplier?.matchedTransactions?.length || 0} transactions</p>
             </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -357,7 +386,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {supplier?.matchedTransactions.map((transaction) => (
+                {supplier?.matchedTransactions?.map((transaction) => (
                   <tr key={transaction.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(transaction.transactionDate).toLocaleDateString()}
@@ -388,7 +417,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
                 ))}
               </tbody>
             </table>
-            {supplier?.matchedTransactions.length === 0 && (
+            {(!supplier?.matchedTransactions || supplier.matchedTransactions.length === 0) && (
               <div className="px-6 py-12 text-center">
                 <BanknotesIcon className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>

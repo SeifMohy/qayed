@@ -1,0 +1,19 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "always"
+restartPolicyMaxRetries = 10
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+[environments.production]
+variables = { NODE_ENV = "production" }
+
+# Optional: Custom environment for staging
+[environments.staging]
+variables = { NODE_ENV = "staging" } 

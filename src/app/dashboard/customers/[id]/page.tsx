@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import PaymentTermsEditor from '@/components/shared/PaymentTermsEditor'
 import type { PaymentTermsData } from '@/types/paymentTerms'
 import { formatCurrency } from '@/lib/format'
+import { useAuth } from '@/contexts/auth-context'
 
 interface InvoiceWithMatches {
   id: number;
@@ -69,15 +70,33 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
     installments: []
   })
 
+  const { session } = useAuth()
+
   // Fetch customer data
   useEffect(() => {
     const fetchCustomerData = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`/api/customers/${customerId}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch customer data')
+        // Check if user is authenticated
+        if (!session?.access_token) {
+          console.log('❌ No session or access token available')
+          setError('Authentication required')
+          return
         }
+
+        const response = await fetch(`/api/customers/${customerId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error('❌ API call failed:', errorData)
+          throw new Error(errorData.error || 'Failed to fetch customer data')
+        }
+        
         const data = await response.json()
         setCustomer(data)
         
@@ -102,20 +121,30 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
     }
 
     fetchCustomerData()
-  }, [customerId])
+  }, [customerId, session])
 
   const handlePaymentTermsUpdate = async () => {
     try {
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available')
+        setError('Authentication required')
+        return
+      }
+
       const response = await fetch(`/api/customers/${customerId}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ paymentTermsData }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update payment terms')
+        const errorData = await response.json()
+        console.error('❌ API call failed:', errorData)
+        throw new Error(errorData.error || 'Failed to update payment terms')
       }
 
       if (customer) {

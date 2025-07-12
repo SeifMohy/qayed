@@ -37,7 +37,21 @@ export class CompanyAccessService {
     return prisma.bank.findMany({
       where: { companyId },
       include: {
-        bankStatements: true,
+        bankStatements: {
+          include: {
+            transactions: {
+              orderBy: {
+                transactionDate: 'desc'
+              }
+            }
+          },
+          orderBy: {
+            statementPeriodEnd: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        name: 'asc'
       }
     });
   }
@@ -50,7 +64,18 @@ export class CompanyAccessService {
         companyId 
       },
       include: {
-        bankStatements: true,
+        bankStatements: {
+          include: {
+            transactions: {
+              orderBy: {
+                transactionDate: 'desc'
+              }
+            }
+          },
+          orderBy: {
+            statementPeriodEnd: 'desc'
+          }
+        }
       }
     });
 
@@ -67,7 +92,23 @@ export class CompanyAccessService {
     return prisma.customer.findMany({
       where: { companyId },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  select: {
+                    transactionDate: true,
+                    creditAmount: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
   }
@@ -80,7 +121,26 @@ export class CompanyAccessService {
         companyId 
       },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
 
@@ -97,7 +157,23 @@ export class CompanyAccessService {
     return prisma.supplier.findMany({
       where: { companyId },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  select: {
+                    transactionDate: true,
+                    debitAmount: true
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
   }
@@ -110,7 +186,26 @@ export class CompanyAccessService {
         companyId 
       },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     });
 
@@ -243,35 +338,150 @@ export class CompanyAccessService {
     return transaction;
   }
 
-  // Cashflow projection access methods
+  // Cashflow access methods
   async getCashflowProjections() {
     const companyId = await this.getCompanyId();
     return prisma.cashflowProjection.findMany({
       where: {
         OR: [
+          // Projections from invoices belong to the company
           {
             Invoice: {
-              companyId
+              companyId: companyId
             }
           },
+          // Projections from recurring payments belong to the company
+          {
+            RecurringPayment: {
+              companyId: companyId
+            }
+          },
+          // Projections from bank statements belong to the company
           {
             BankStatement: {
               bank: {
-                companyId
+                companyId: companyId
               }
             }
           }
         ]
       },
       include: {
-        Invoice: true,
+        Invoice: {
+          include: {
+            Customer: true,
+            Supplier: true
+          }
+        },
+        RecurringPayment: true,
         BankStatement: {
           include: {
             bank: true
           }
-        },
-        RecurringPayment: true,
+        }
+      },
+      orderBy: {
+        projectionDate: 'asc'
       }
+    });
+  }
+
+  // Recurring payment access methods
+  async getRecurringPayments(includeInactive: boolean = false) {
+    const companyId = await this.getCompanyId();
+    return prisma.recurringPayment.findMany({
+      where: {
+        companyId,
+        ...(includeInactive ? {} : { isActive: true })
+      },
+      include: {
+        _count: {
+          select: {
+            CashflowProjection: true
+          }
+        }
+      },
+      orderBy: [
+        { isActive: 'desc' },
+        { nextDueDate: 'asc' }
+      ]
+    });
+  }
+
+  async createRecurringPayment(data: any) {
+    const companyId = await this.getCompanyId();
+    return prisma.recurringPayment.create({
+      data: {
+        ...data,
+        companyId
+      }
+    });
+  }
+
+  async getRecurringPayment(id: number) {
+    const companyId = await this.getCompanyId();
+    const payment = await prisma.recurringPayment.findFirst({
+      where: {
+        id,
+        companyId
+      },
+      include: {
+        _count: {
+          select: {
+            CashflowProjection: true
+          }
+        }
+      }
+    });
+    
+    if (!payment) {
+      throw new Error(`Recurring payment with ID ${id} not found or access denied`);
+    }
+    
+    return payment;
+  }
+
+  async updateRecurringPayment(id: number, data: any) {
+    const companyId = await this.getCompanyId();
+    
+    // Verify the payment belongs to the company
+    const existingPayment = await prisma.recurringPayment.findFirst({
+      where: {
+        id,
+        companyId
+      }
+    });
+    
+    if (!existingPayment) {
+      throw new Error(`Recurring payment with ID ${id} not found or access denied`);
+    }
+    
+    return prisma.recurringPayment.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
+    });
+  }
+
+  async deleteRecurringPayment(id: number) {
+    const companyId = await this.getCompanyId();
+    
+    // Verify the payment belongs to the company
+    const existingPayment = await prisma.recurringPayment.findFirst({
+      where: {
+        id,
+        companyId
+      }
+    });
+    
+    if (!existingPayment) {
+      throw new Error(`Recurring payment with ID ${id} not found or access denied`);
+    }
+    
+    return prisma.recurringPayment.delete({
+      where: { id }
     });
   }
 
@@ -334,6 +544,28 @@ export class CompanyAccessService {
     return prisma.customer.update({
       where: { id: customerId },
       data,
+      include: {
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
   }
 
@@ -344,6 +576,28 @@ export class CompanyAccessService {
     return prisma.supplier.update({
       where: { id: supplierId },
       data,
+      include: {
+        Invoice: {
+          include: {
+            TransactionMatch: {
+              where: {
+                status: 'APPROVED'
+              },
+              include: {
+                Transaction: {
+                  include: {
+                    bankStatement: {
+                      select: {
+                        bankName: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     });
   }
 

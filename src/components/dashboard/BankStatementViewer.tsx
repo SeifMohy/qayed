@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatCurrency } from '@/lib/format';
+import { parseBankStatementStructureSSE } from '@/lib/sse-utils';
 
 type Transaction = {
   date: string;
@@ -114,17 +115,14 @@ export default function BankStatementViewer() {
         }),
       });
       
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to structure the bank statement.');
-      }
+      // Handle SSE stream with utility function
+      const finalResult = await parseBankStatementStructureSSE(response);
       
       // Store the structured data
-      setStructuredData(result.structuredData);
+      setStructuredData(finalResult.structuredData);
       sessionStorage.setItem(
         `bankstatement_structured_${selectedFile}`, 
-        JSON.stringify(result.structuredData)
+        JSON.stringify(finalResult.structuredData)
       );
       
       // Switch to structured view

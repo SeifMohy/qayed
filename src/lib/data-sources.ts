@@ -23,7 +23,7 @@ export const ALL_DATA_SOURCES: DataSource[] = [
   { 
     id: 'invoices', 
     name: 'Invoices', 
-    format: 'ERP / Electronic Invoices', 
+    format: 'ERP / Electronic Invoices / JSON', 
     description: 'Customer and supplier invoices for accounts receivable and payable'
   },
   { 
@@ -53,10 +53,10 @@ export const PAGE_DATA_SOURCES = {
     ['bankStatements'].includes(source.id)
   ),
   suppliers: ALL_DATA_SOURCES.filter(source => 
-    ['accountsPayable'].includes(source.id)
+    ['invoices'].includes(source.id)
   ),
   customers: ALL_DATA_SOURCES.filter(source => 
-    ['accountsReceivable'].includes(source.id)
+    ['invoices'].includes(source.id)
   ),
   expenses: ALL_DATA_SOURCES.filter(source => 
     ['expenses'].includes(source.id)

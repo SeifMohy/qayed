@@ -5,21 +5,23 @@ import { ArrowPathIcon, PlusIcon, DocumentArrowUpIcon, CurrencyDollarIcon, Clock
 import { clsx } from 'clsx'
 import Link from 'next/link'
 import KeyFigureCard from '@/components/visualization/key-figure-card'
-import { useUploadedSources } from '@/hooks/useUploadedSources'
+import { useUploadedSources } from '@/contexts/uploaded-sources-context'
 import UploadModal from '@/components/upload/upload-modal'
 import MultiFileUpload from '@/components/upload/multi-file-upload'
 import EditEntityDialog from '@/components/shared/edit-entity-dialog'
 import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/lib/data-sources'
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { useAuth } from '@/contexts/auth-context'
+import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
 
 // Interface for customer data
 interface Customer {
   id: number;
   name: string;
   totalReceivables: number;
+  totalPaid: number;
+  outstandingBalance: number;
   overdueAmount: number;
-  paidAmount: number;
   lastPayment: string | null;
   nextPayment: string | null;
   status: string;
@@ -44,30 +46,78 @@ export default function CustomersPage() {
 
   const { session } = useAuth();
 
+  // Invoice upload hook
+  const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
+    onSuccess: () => {
+      console.log('✅ Customer invoice upload completed successfully');
+      // Update uploaded sources state
+      const newUploadedSources = { ...uploadedSources };
+      Object.keys(sourceFiles).forEach(id => {
+        if (sourceFiles[id]?.length > 0) {
+          newUploadedSources[id] = true;
+        }
+      });
+      setUploadedSources(newUploadedSources);
+      
+      // Clear the uploaded files
+      setSourceFiles({});
+      setIsUploadModalOpen(false);
+
+      // Fetch updated customers data
+      console.log('🔄 Fetching updated customer data...');
+      fetchCustomers();
+    },
+    onError: (error) => {
+      console.error('❌ Customer invoice upload failed:', error);
+      alert(`Error uploading file(s): ${error}`);
+    }
+  });
+
   // Fetch customers data
   const fetchCustomers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       console.log('📊 Attempting to fetch customers data...');
-      const response = await fetch('/api/customers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch customers');
+      
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        console.log('❌ No session or access token available');
+        setError('Authentication required');
+        return;
       }
+
+      const response = await fetch('/api/customers', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ API call failed:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch customers');
+      }
+      
       const data = await response.json();
       console.log('✅ Received customers data:', {
-        count: data.length,
-        sample: data.length > 0 ? {
-          id: data[0].id,
-          name: data[0].name,
-          totalReceivables: data[0].totalReceivables
+        success: data.success,
+        count: data.count,
+        dataLength: Array.isArray(data.data) ? data.data.length : 'Not an array',
+        sample: Array.isArray(data.data) && data.data.length > 0 ? {
+          id: data.data[0].id,
+          name: data.data[0].name,
+          totalReceivables: data.data[0].totalReceivables
         } : null
       });
 
-      setCustomers(data);
+      // Extract the actual customers array from the response
+      const customersArray = (data.success && Array.isArray(data.data)) ? data.data : [];
+      setCustomers(customersArray);
 
       // Calculate total receivables
-      const total = data.reduce((sum: number, customer: Customer) => sum + customer.totalReceivables, 0);
+      const total = customersArray.reduce((sum: number, customer: Customer) => sum + customer.totalReceivables, 0);
       setTotalReceivables(total);
     } catch (error) {
       console.error('❌ Error fetching customers:', error);
@@ -75,7 +125,7 @@ export default function CustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     console.log('🔍 Checking data source state:', {
@@ -97,98 +147,20 @@ export default function CustomersPage() {
   const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
     if (sourceIds.length === 0) return;
+    
     setIsUploading('processing');
-
-    const allInvoices: any[] = []; // Array to hold all invoice objects
-
+    
     try {
-      console.log('📤 Starting file upload process...');
-      for (const id of sourceIds) {
-        const files = sourceFiles[id];
-        console.log(`📄 Processing ${files.length} files for source '${id}'`);
-
-        // Process all files directly (no more upload-json dependency)
-        for (const file of files) {
-          try {
-            if (!file.name.endsWith('.json')) {
-              console.warn(`⚠️ Skipping non-JSON file: ${file.name}`);
-              continue;
-            }
-
-            console.log(`🔍 Processing JSON file: ${file.name}`);
-            const text = await file.text();
-            const json = JSON.parse(text);
-            
-            if (Array.isArray(json)) {
-              console.log(`✅ Adding ${json.length} invoices from ${file.name}`);
-              allInvoices.push(...json);
-            } else {
-              console.log(`✅ Adding single invoice from ${file.name}`);
-              allInvoices.push(json);
-            }
-          } catch (parseError) {
-            console.error(`❌ Error parsing file ${file.name}:`, parseError);
-            alert(`Error parsing file ${file.name}. Please check its format.`);
-          }
+      // Process all uploaded files using the unified hook
+      for (const sourceId of sourceIds) {
+        const files = sourceFiles[sourceId];
+        if (files && files.length > 0) {
+          await uploadInvoices(files, sourceId);
         }
-      }
-
-      if (allInvoices.length > 0) {
-        console.log(`📤 Uploading ${allInvoices.length} invoices in bulk...`);
-        
-        // Check if user is authenticated
-        if (!session?.user?.id) {
-          throw new Error('User not authenticated. Please log in again.');
-        }
-
-        const response = await fetch('/api/invoices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            supabaseUserId: session.user.id,
-            invoices: allInvoices
-          }),
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          let errorMessage;
-          
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || `Server responded with ${response.status}`;
-          } catch {
-            // If response is not JSON (e.g., HTML error page)
-            errorMessage = `Server error (${response.status}). Please check the console for details.`;
-            console.error('Server returned non-JSON response:', errorText);
-          }
-          
-          throw new Error(errorMessage);
-        }
-
-        const result = await response.json();
-        console.log('✅ Successfully uploaded invoices with LLM name normalization');
-        console.log('📊 Processing summary:', result);
-
-        // Update uploaded sources state
-        const newUploadedSources = { ...uploadedSources };
-        sourceIds.forEach(id => {
-          console.log(`✅ Marking source '${id}' as uploaded`);
-          newUploadedSources[id] = true;
-        });
-        setUploadedSources(newUploadedSources);
-
-        // Clear the uploaded files
-        setSourceFiles({});
-        setIsUploadModalOpen(false);
-
-        // Fetch updated customers data
-        console.log('🔄 Fetching updated customer data...');
-        await fetchCustomers();
       }
     } catch (error: any) {
       console.error('❌ Error during upload process:', error);
-      alert(`Error uploading file(s): ${error.message}`);
+      // Error handling is done in the hook's onError callback
     } finally {
       setIsUploading('idle');
     }
@@ -257,11 +229,17 @@ export default function CustomersPage() {
       return { success: false, message: 'No customer selected' };
     }
 
+    // Check if user is authenticated
+    if (!session?.access_token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
     setIsUpdating(true);
     try {
       const response = await fetch(`/api/customers/${selectedCustomer.id}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
@@ -304,12 +282,12 @@ export default function CustomersPage() {
           icon={CurrencyDollarIcon}
           iconColor="bg-indigo-600"
           changeType="increase"
-          change={customers.length > 0 ? `${customers.length} customers` : "No customers"}
+          change={Array.isArray(customers) && customers.length > 0 ? `${customers.length} customers` : "No customers"}
         />
 
         <KeyFigureCard
           title="Total Paid"
-          value={formatCurrency(customers.reduce((sum, customer) => sum + customer.paidAmount, 0))}
+          value={formatCurrency(Array.isArray(customers) ? customers.reduce((sum, customer) => sum + customer.totalPaid, 0) : 0)}
           icon={CalendarIcon}
           iconColor="bg-green-600"
           changeType="increase"
@@ -357,7 +335,7 @@ export default function CustomersPage() {
       );
     }
 
-    if (customers.length === 0) {
+    if (!Array.isArray(customers) || customers.length === 0) {
       return (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -400,7 +378,7 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {customers.map((customer) => (
+            {Array.isArray(customers) && customers.map((customer) => (
               <tr key={customer.id}>
                 <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                   {customer.name}
@@ -409,7 +387,7 @@ export default function CustomersPage() {
                   {formatCurrency(customer.totalReceivables)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {formatCurrency(customer.paidAmount)}
+                  {formatCurrency(customer.totalPaid)}
                 </td>
                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   <span

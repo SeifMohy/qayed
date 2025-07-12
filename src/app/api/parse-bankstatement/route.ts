@@ -87,7 +87,7 @@ function isRetryableError(error: any): boolean {
   return retryablePatterns.some(pattern => errorMessage.includes(pattern));
 }
 
-// --- Helper Function to process a single chunk with retry logic ---
+// --- Helper Function to process a single chunk with retry logic using streaming ---
 async function processChunkWithRetry(
   ai: any,
   chunkData: Uint8Array,
@@ -128,8 +128,8 @@ async function processChunkWithRetry(
         ]
       };
 
-      // Make the API call with the new SDK format
-      const response = await ai.models.generateContent({
+      // Make the API call with streaming using the new SDK format
+      const streamingResponse = await ai.models.generateContentStream({
         model: MODEL_NAME,
         contents: fileContent,
         config: {
@@ -140,25 +140,31 @@ async function processChunkWithRetry(
         }
       });
 
-      // Check if the response exists
-      if (!response) {
-        throw new Error(`Received null response from GenAI API for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end})`);
+      // Process the streaming response
+      let accumulatedText = '';
+      for await (const chunk of streamingResponse) {
+        const chunkText = chunk.text || '';
+        accumulatedText += chunkText;
+        
+        // Log progress for monitoring
+        if (chunkText.trim()) {
+          console.log(`Chunk ${chunkIndex + 1} streaming: received ${chunkText.length} characters, total: ${accumulatedText.length}`);
+        }
       }
 
-      // Get the text from the response
-      const text = response.text;
-      if (!text || text.trim() === '') {
+      // Check if we got any text
+      if (!accumulatedText || accumulatedText.trim() === '') {
         console.warn(`GenAI returned empty text content for chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}) of ${fileName}`);
         return ''; // Return empty string for empty chunks
       } else {
-        console.log(`Successfully processed chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}), extracted ${text.length} characters`);
+        console.log(`Successfully processed chunk ${chunkIndex + 1} (pages ${pageRange.start}-${pageRange.end}), extracted ${accumulatedText.length} characters`);
         
         // Add page markers to the extracted text
         const pageMarker = pageRange.start === pageRange.end 
           ? `=== PDF PAGE ${pageRange.start} ===` 
           : `=== PDF PAGES ${pageRange.start}-${pageRange.end} ===`;
         
-        return `${pageMarker}\n${text.trim()}\n=== END PAGES ${pageRange.start}-${pageRange.end} ===`;
+        return `${pageMarker}\n${accumulatedText.trim()}\n=== END PAGES ${pageRange.start}-${pageRange.end} ===`;
       }
 
     } catch (error: any) {
@@ -200,7 +206,7 @@ Important notes:
 *CRITICAL: Only return the extracted text content as your final output. Do NOT include ANY introductory text, concluding remarks, explanations, or page number references in your response. The page markers will be added automatically.*
 `.trim();
 
-// --- API Route Handler ---
+// --- API Route Handler with SSE Streaming ---
 export async function POST(request: Request) {
   if (!API_KEY) {
     return NextResponse.json({ error: 'Server configuration error: API key not found.' }, { status: 500 });
@@ -214,97 +220,220 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No files provided for parsing.' }, { status: 400 });
     }
 
-    // Initialize GenAI
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
-    console.log('Initialized GenAI model for document parsing.');
+    // Create a ReadableStream for SSE
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        
+        // Helper function to send SSE data
+        const sendSSE = (data: any) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
 
-    const results = [];
-    
-    // Process each file
-    for (const file of files) {
-      try {
-        // Only process PDF files
-        if (!file.type.includes('pdf')) {
-          results.push({
-            fileName: file.name,
-            success: false,
-            error: 'Only PDF files are supported.'
+        try {
+          // Initialize GenAI
+          const ai = new GoogleGenAI({ apiKey: API_KEY });
+          console.log('Initialized GenAI model for document parsing.');
+
+          sendSSE({
+            type: 'status',
+            message: 'Initialized GenAI model for document parsing',
+            timestamp: new Date().toISOString()
           });
-          continue;
-        }
 
-        console.log(`Processing file: ${file.name}`);
-        
-        // Convert file to buffer for PDF processing
-        const fileBuffer = await file.arrayBuffer();
-        
-        // Split PDF into manageable chunks
-        const pdfChunks = await splitPdfIntoChunks(fileBuffer, MAX_PAGES_PER_CHUNK);
-        
-        console.log(`Split ${file.name} into ${pdfChunks.length} chunks`);
-        
-        const chunkResults: string[] = [];
-        
-        // Process each chunk
-        for (let i = 0; i < pdfChunks.length; i++) {
-          try {
-            // Process chunk with retry logic
-            const text = await processChunkWithRetry(ai, pdfChunks[i].chunk, i, pdfChunks.length, file.name, pdfChunks[i].pageRange);
-            chunkResults.push(text);
+          const results = [];
+          
+          // Process each file
+          for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+            const file = files[fileIndex];
+            
+            try {
+              // Only process PDF files
+              if (!file.type.includes('pdf')) {
+                const errorResult = {
+                  fileName: file.name,
+                  success: false,
+                  error: 'Only PDF files are supported.'
+                };
+                results.push(errorResult);
+                
+                sendSSE({
+                  type: 'file_error',
+                  fileName: file.name,
+                  error: 'Only PDF files are supported.',
+                  timestamp: new Date().toISOString()
+                });
+                continue;
+              }
 
-            // Add delay between chunks to avoid rate limiting
-            if (i < pdfChunks.length - 1) {
-              await delay(PROCESSING_DELAY);
+              console.log(`Processing file: ${file.name}`);
+              
+              sendSSE({
+                type: 'file_start',
+                fileName: file.name,
+                fileIndex: fileIndex + 1,
+                totalFiles: files.length,
+                timestamp: new Date().toISOString()
+              });
+              
+              // Convert file to buffer for PDF processing
+              const fileBuffer = await file.arrayBuffer();
+              
+              // Split PDF into manageable chunks
+              const pdfChunks = await splitPdfIntoChunks(fileBuffer, MAX_PAGES_PER_CHUNK);
+              
+              console.log(`Split ${file.name} into ${pdfChunks.length} chunks`);
+              
+              sendSSE({
+                type: 'chunks_prepared',
+                fileName: file.name,
+                totalChunks: pdfChunks.length,
+                timestamp: new Date().toISOString()
+              });
+              
+              const chunkResults: string[] = [];
+              
+              // Process each chunk
+              for (let i = 0; i < pdfChunks.length; i++) {
+                try {
+                  sendSSE({
+                    type: 'chunk_start',
+                    fileName: file.name,
+                    chunkIndex: i + 1,
+                    totalChunks: pdfChunks.length,
+                    pageRange: pdfChunks[i].pageRange,
+                    timestamp: new Date().toISOString()
+                  });
+
+                  // Process chunk with retry logic using streaming
+                  const text = await processChunkWithRetry(ai, pdfChunks[i].chunk, i, pdfChunks.length, file.name, pdfChunks[i].pageRange);
+                  chunkResults.push(text);
+
+                  sendSSE({
+                    type: 'chunk_complete',
+                    fileName: file.name,
+                    chunkIndex: i + 1,
+                    totalChunks: pdfChunks.length,
+                    pageRange: pdfChunks[i].pageRange,
+                    extractedLength: text.length,
+                    timestamp: new Date().toISOString()
+                  });
+
+                  // Add delay between chunks to avoid rate limiting
+                  if (i < pdfChunks.length - 1) {
+                    await delay(PROCESSING_DELAY);
+                  }
+
+                } catch (chunkError: any) {
+                  console.error(`Final error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}) of ${file.name}:`, chunkError);
+                  const errorText = `[Error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}): ${chunkError.message}]`;
+                  chunkResults.push(errorText);
+                  
+                  sendSSE({
+                    type: 'chunk_error',
+                    fileName: file.name,
+                    chunkIndex: i + 1,
+                    totalChunks: pdfChunks.length,
+                    pageRange: pdfChunks[i].pageRange,
+                    error: chunkError.message,
+                    timestamp: new Date().toISOString()
+                  });
+                }
+              }
+
+              // Combine all chunk results
+              const combinedText = chunkResults
+                .filter(text => text.length > 0 && !text.includes('[Error processing chunk'))
+                .join('\n\n');
+
+              if (combinedText.trim() === '') {
+                throw new Error("No text content could be extracted from any chunks of the document.");
+              }
+
+              // Calculate success metrics
+              const successfulChunks = chunkResults.filter(text => text.length > 0 && !text.includes('[Error processing chunk')).length;
+              const failedChunks = pdfChunks.length - successfulChunks;
+
+              // Add to results
+              const fileResult = {
+                fileName: file.name,
+                success: true,
+                extractedText: combinedText,
+                totalChunks: pdfChunks.length,
+                successfulChunks: successfulChunks,
+                failedChunks: failedChunks,
+                retryInfo: failedChunks > 0 ? `${failedChunks} chunks failed after retries` : 'All chunks processed successfully'
+              };
+              
+              results.push(fileResult);
+
+              sendSSE({
+                type: 'file_complete',
+                fileName: file.name,
+                success: true,
+                totalChunks: pdfChunks.length,
+                successfulChunks: successfulChunks,
+                failedChunks: failedChunks,
+                extractedLength: combinedText.length,
+                timestamp: new Date().toISOString()
+              });
+
+              console.log(`Successfully processed ${file.name}: ${successfulChunks}/${pdfChunks.length} chunks successful, total length: ${combinedText.length}`);
+              if (failedChunks > 0) {
+                console.warn(`Warning: ${failedChunks} chunks failed for ${file.name} even after retries`);
+              }
+
+            } catch (error: any) {
+              console.error(`Error processing file ${file.name}:`, error);
+              const fileResult = {
+                fileName: file.name,
+                success: false,
+                error: error.message || 'An unexpected error occurred during processing.'
+              };
+              results.push(fileResult);
+              
+              sendSSE({
+                type: 'file_error',
+                fileName: file.name,
+                error: error.message || 'An unexpected error occurred during processing.',
+                timestamp: new Date().toISOString()
+              });
             }
-
-          } catch (chunkError: any) {
-            console.error(`Final error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}) of ${file.name}:`, chunkError);
-            chunkResults.push(`[Error processing chunk ${i + 1} (pages ${pdfChunks[i].pageRange.start}-${pdfChunks[i].pageRange.end}): ${chunkError.message}]`);
           }
+
+          // Send final results
+          sendSSE({
+            type: 'complete',
+            success: true,
+            results,
+            timestamp: new Date().toISOString()
+          });
+
+          controller.close();
+
+        } catch (error: any) {
+          console.error('Error in parse route:', error);
+          sendSSE({
+            type: 'error',
+            success: false,
+            error: error.message || 'An unexpected error occurred during processing.',
+            timestamp: new Date().toISOString()
+          });
+          controller.close();
         }
-
-        // Combine all chunk results
-        const combinedText = chunkResults
-          .filter(text => text.length > 0 && !text.includes('[Error processing chunk'))
-          .join('\n\n');
-
-        if (combinedText.trim() === '') {
-          throw new Error("No text content could be extracted from any chunks of the document.");
-        }
-
-        // Calculate success metrics
-        const successfulChunks = chunkResults.filter(text => text.length > 0 && !text.includes('[Error processing chunk')).length;
-        const failedChunks = pdfChunks.length - successfulChunks;
-
-        // Add to results
-        results.push({
-          fileName: file.name,
-          success: true,
-          extractedText: combinedText,
-          totalChunks: pdfChunks.length,
-          successfulChunks: successfulChunks,
-          failedChunks: failedChunks,
-          retryInfo: failedChunks > 0 ? `${failedChunks} chunks failed after retries` : 'All chunks processed successfully'
-        });
-
-        console.log(`Successfully processed ${file.name}: ${successfulChunks}/${pdfChunks.length} chunks successful, total length: ${combinedText.length}`);
-        if (failedChunks > 0) {
-          console.warn(`Warning: ${failedChunks} chunks failed for ${file.name} even after retries`);
-        }
-
-      } catch (error: any) {
-        console.error(`Error processing file ${file.name}:`, error);
-        results.push({
-          fileName: file.name,
-          success: false,
-          error: error.message || 'An unexpected error occurred during processing.'
-        });
       }
-    }
+    });
 
-    return NextResponse.json({
-      success: true,
-      results
+    // Return SSE response
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
     });
 
   } catch (error: any) {

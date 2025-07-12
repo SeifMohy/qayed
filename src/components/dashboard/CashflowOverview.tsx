@@ -10,6 +10,7 @@ import RecurringPaymentForm from './RecurringPaymentForm';
 import RecurringPaymentsList from './RecurringPaymentsList';
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format';
 import { currencyCache } from '@/lib/services/currencyCache';
+import { useAuth } from '@/contexts/auth-context';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -151,6 +152,23 @@ export default function CashflowOverview() {
   // Daily positions view state
   const [showAllDays, setShowAllDays] = useState(false);
 
+  // Track if we've initialized to prevent infinite loops
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Auth context
+  const { session } = useAuth();
+
+  // Helper function to prepare auth headers
+  const getAuthHeaders = () => {
+    if (!session?.access_token) {
+      throw new Error('Authentication required');
+    }
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    };
+  };
+
   // Helper functions - moved to top to avoid hoisting issues
   const formatCurrency = (amount: number) => {
     return formatEGPForKeyCard(amount);
@@ -242,7 +260,9 @@ export default function CashflowOverview() {
   const getLatestBankStatementDate = async (): Promise<{ date: string; bankName: string }> => {
     try {
       // Use the same API that the dashboard uses to get the reference date
-      const response = await fetch('/api/dashboard/stats');
+      const response = await fetch('/api/dashboard/stats', {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       if (data.success && data.metadata && data.metadata.referenceDate) {
@@ -345,7 +365,8 @@ export default function CashflowOverview() {
       
       // Use the new unified API endpoint that handles multi-currency conversion
       const unifiedResponse = await fetch(
-        `/api/cashflow/unified?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&range=custom&customEndDate=${dateRange.endDate}`
+        `/api/cashflow/unified?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&range=custom&customEndDate=${dateRange.endDate}`,
+        { headers: getAuthHeaders() }
       );
       const unifiedData = await unifiedResponse.json();
       
@@ -394,7 +415,8 @@ export default function CashflowOverview() {
       
       // Fetch projections summary with current date range (using centralized service)
       const projectionsResponse = await fetch(
-        `/api/cashflow/projections?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&includeRelated=true&useCentralized=true`
+        `/api/cashflow/projections?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&includeRelated=true&useCentralized=true`,
+        { headers: getAuthHeaders() }
       );
       const projectionsData = await projectionsResponse.json();
       
@@ -405,7 +427,8 @@ export default function CashflowOverview() {
 
       // Fetch cash position with current date range
       const positionResponse = await fetch(
-        `/api/cashflow/position?date=${dateRange.startDate}&customEndDate=${dateRange.endDate}&range=custom`
+        `/api/cashflow/position?date=${dateRange.startDate}&customEndDate=${dateRange.endDate}&range=custom`,
+        { headers: getAuthHeaders() }
       );
       const positionData = await positionResponse.json();
       
@@ -429,7 +452,9 @@ export default function CashflowOverview() {
 
   const fetchRecurringPayments = useCallback(async () => {
     try {
-      const response = await fetch('/api/cashflow/recurring?includeInactive=true');
+      const response = await fetch('/api/cashflow/recurring?includeInactive=true', {
+        headers: getAuthHeaders()
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -451,7 +476,7 @@ export default function CashflowOverview() {
       // Use the centralized refresh endpoint
       const response = await fetch('/api/cashflow/projections/refresh', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
@@ -505,14 +530,14 @@ export default function CashflowOverview() {
         // Update existing payment
         response = await fetch(`/api/cashflow/recurring/${editingPayment.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(paymentData)
         });
       } else {
         // Create new payment
         response = await fetch('/api/cashflow/recurring', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify(paymentData)
         });
       }
@@ -561,7 +586,8 @@ export default function CashflowOverview() {
 
     try {
       const response = await fetch(`/api/cashflow/recurring/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
@@ -591,7 +617,7 @@ export default function CashflowOverview() {
     try {
       const response = await fetch(`/api/cashflow/recurring/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ isActive })
       });
 
@@ -622,9 +648,6 @@ export default function CashflowOverview() {
     setRecurringViewMode('list');
     setEditingPayment(null);
   };
-
-  // Track if we've initialized to prevent infinite loops
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (isInitialized) {

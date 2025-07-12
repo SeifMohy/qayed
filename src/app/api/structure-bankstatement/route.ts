@@ -582,7 +582,8 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
             console.log(`Trying model: ${modelName}`);
             
             const response = await retryWithBackoff(async () => {
-                return await ai.models.generateContent({
+                // Use streaming instead of regular generateContent
+                const streamingResponse = await ai.models.generateContentStream({
                     model: modelName,
                     contents: prompt,
                     config: {
@@ -592,6 +593,21 @@ async function callGeminiAPI(ai: any, prompt: string): Promise<string> {
                         maxOutputTokens: 48000,
                     }
                 });
+                
+                // Process the streaming response
+                let accumulatedText = '';
+                for await (const chunk of streamingResponse) {
+                    const chunkText = chunk.text || '';
+                    accumulatedText += chunkText;
+                    
+                    // Log progress for monitoring
+                    if (chunkText.trim()) {
+                        console.log(`Model ${modelName} streaming: received ${chunkText.length} characters, total: ${accumulatedText.length}`);
+                    }
+                }
+                
+                // Return the accumulated text as if it was a regular response
+                return { text: accumulatedText };
             });
             
             if (!response) {
@@ -773,275 +789,492 @@ export async function POST(request: Request) {
             }, { status: 401 });
         }
 
-        // Initialize the GenAI client
-        const ai = new GoogleGenAI({ apiKey: API_KEY });
-        console.log('Initialized GenAI model for statement structuring');
+        // Create a ReadableStream for SSE
+        const stream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                
+                // Helper function to send SSE data
+                const sendSSE = (data: any) => {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                };
 
-        try {
-            console.log("Starting chunked processing approach");
-            
-            // Step 1: Split the statement text into chunks
-            const chunks = splitIntoChunks(statementText);
-            
-            if (chunks.length === 0) {
-                throw new Error('No valid chunks found in the statement text');
-            }
-            
-            console.log(`Processing ${chunks.length} chunks`);
-            
-            // Step 2: Process each chunk separately
-            const chunkResults: ChunkData[] = [];
-            
-            for (const chunk of chunks) {
                 try {
-                    const chunkResult = await processChunk(ai, chunk);
-                    chunkResults.push(chunkResult);
-                    
-                    console.log(`Chunk ${chunk.chunkNumber} processed: ${chunkResult.account_statements.length} account statements found`);
-                    
-                    // Add a small delay between chunks to avoid rate limiting
-                    if (chunks.length > 1) {
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                    }
-                } catch (chunkError: any) {
-                    console.error(`Error processing chunk ${chunk.chunkNumber}:`, chunkError);
-                    
-                    // Continue processing other chunks even if one fails
-                    chunkResults.push({
-                        chunk_number: chunk.chunkNumber,
-                        pages: chunk.pages,
-                        account_statements: []
+                    sendSSE({
+                        type: 'status',
+                        message: 'Starting bank statement structuring process',
+                        timestamp: new Date().toISOString()
                     });
-                }
-            }
-            
-            // Step 3: Merge the results from all chunks
-            console.log("Merging results from all chunks");
-            const structuredData = mergeAccountStatements(chunkResults, fileName);
-            
-            if (structuredData.account_statements.length === 0) {
-                throw new Error('No account statements found in any of the processed chunks');
-            }
-            
-            console.log(`Final merged result: ${structuredData.account_statements.length} account statements`);
 
-            // Step 4: Save the structured data to the database with concurrency handling
-            const processingResults: ProcessingResult[] = [];
-            const savedStatementIds: number[] = [];
-            console.log('Processing merged data with concurrency handling');
+                    // Initialize the GenAI client
+                    const ai = new GoogleGenAI({ apiKey: API_KEY });
+                    console.log('Initialized GenAI model for statement structuring');
 
-            // Process each account statement with concurrency checks
-            for (let i = 0; i < structuredData.account_statements.length; i++) {
-                const statement = structuredData.account_statements[i];
-                console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
+                    sendSSE({
+                        type: 'status',
+                        message: 'Initialized GenAI model for statement structuring',
+                        timestamp: new Date().toISOString()
+                    });
 
-                try {
-                    // Validate that we have required fields - account_number is mandatory, bank_name should have fallback
-                    if (!statement.account_number || statement.account_number.trim() === "") {
-                        console.warn(`Skipping statement ${i + 1} with missing account_number`);
-                        continue;
-                    }
+                    try {
+                        console.log("Starting chunked processing approach");
+                        
+                        sendSSE({
+                            type: 'status',
+                            message: 'Starting chunked processing approach',
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        // Step 1: Split the statement text into chunks
+                        const chunks = splitIntoChunks(statementText);
+                        
+                        if (chunks.length === 0) {
+                            throw new Error('No valid chunks found in the statement text');
+                        }
+                        
+                        console.log(`Processing ${chunks.length} chunks`);
+                        
+                        sendSSE({
+                            type: 'chunks_prepared',
+                            totalChunks: chunks.length,
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        // Step 2: Process each chunk separately
+                        const chunkResults: ChunkData[] = [];
+                        
+                        for (const chunk of chunks) {
+                            try {
+                                sendSSE({
+                                    type: 'chunk_start',
+                                    chunkNumber: chunk.chunkNumber,
+                                    pages: chunk.pages,
+                                    totalChunks: chunks.length,
+                                    timestamp: new Date().toISOString()
+                                });
 
-                    // Ensure we have a bank name (should be handled by merging function, but double-check)
-                    const effectiveBankName = statement.bank_name && statement.bank_name.trim() !== "" 
-                        ? statement.bank_name 
-                        : (fileName || "Unknown Bank");
-
-                    console.log(`Processing statement with bank name: "${effectiveBankName}" and account: "${statement.account_number}"`);
-
-                    // Create a statement compatible with the concurrency service
-                    const concurrencyStatement: ConcurrencyAccountStatement = {
-                        bank_name: effectiveBankName,
-                        account_number: statement.account_number,
-                        statement_period: statement.statement_period,
-                        account_type: statement.account_type || '',
-                        account_currency: statement.account_currency || '',
-                        starting_balance: statement.starting_balance || '0',
-                        ending_balance: statement.ending_balance || '0',
-                        transactions: statement.transactions
-                    };
-
-                    // Process with concurrency handling - now with supabaseUserId
-                    const result = await processBankStatementWithConcurrency(
-                        concurrencyStatement,
-                        supabaseUserId, // Pass the user's supabase ID
-                        fileName,
-                        fileUrl,
-                        statementText
-                    );
-
-                    processingResults.push(result);
-                    if (result.action !== 'SKIP_DUPLICATE') {
-                        savedStatementIds.push(result.bankStatementId);
-                    }
-
-                    console.log(`Statement ${i + 1} processed: ${result.action} - ${result.message}`);
-                } catch (error) {
-                    console.error(`Error processing bank statement ${i + 1}:`, error);
-                    // Don't throw error - continue processing other statements
-                    console.warn(`Continuing with remaining statements after error with statement ${i + 1}`);
-                }
-            }
-
-            // Step 5: Perform automatic validation on all saved statements
-            for (const statementId of savedStatementIds) {
-                try {
-                    // Get the statement with transactions for validation
-                    const statementWithTransactions = await prisma.bankStatement.findUnique({
-                        where: { id: statementId },
-                        include: {
-                            transactions: {
-                                orderBy: {
-                                    transactionDate: 'asc'
+                                const chunkResult = await processChunk(ai, chunk);
+                                chunkResults.push(chunkResult);
+                                
+                                console.log(`Chunk ${chunk.chunkNumber} processed: ${chunkResult.account_statements.length} account statements found`);
+                                
+                                sendSSE({
+                                    type: 'chunk_complete',
+                                    chunkNumber: chunk.chunkNumber,
+                                    pages: chunk.pages,
+                                    totalChunks: chunks.length,
+                                    accountStatementsFound: chunkResult.account_statements.length,
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                // Add a small delay between chunks to avoid rate limiting
+                                if (chunks.length > 1) {
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
                                 }
+                            } catch (chunkError: any) {
+                                console.error(`Error processing chunk ${chunk.chunkNumber}:`, chunkError);
+                                
+                                sendSSE({
+                                    type: 'chunk_error',
+                                    chunkNumber: chunk.chunkNumber,
+                                    pages: chunk.pages,
+                                    error: chunkError.message,
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                // Continue processing other chunks even if one fails
+                                chunkResults.push({
+                                    chunk_number: chunk.chunkNumber,
+                                    pages: chunk.pages,
+                                    account_statements: []
+                                });
                             }
                         }
-                    });
+                        
+                        // Step 3: Merge the results from all chunks
+                        console.log("Merging results from all chunks");
+                        
+                        sendSSE({
+                            type: 'status',
+                            message: 'Merging results from all chunks',
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        const structuredData = mergeAccountStatements(chunkResults, fileName);
+                        
+                        if (structuredData.account_statements.length === 0) {
+                            throw new Error('No account statements found in any of the processed chunks');
+                        }
+                        
+                        console.log(`Final merged result: ${structuredData.account_statements.length} account statements`);
 
-                    if (statementWithTransactions) {
-                        // Perform balance validation
-                        const validationResult = performAutoValidation(statementWithTransactions);
-
-                        // Update statement with validation result
-                        await prisma.bankStatement.update({
-                            where: { id: statementId },
-                            data: {
-                                validated: validationResult.status === 'passed',
-                                validationStatus: validationResult.status,
-                                validationNotes: validationResult.notes,
-                                validatedAt: validationResult.status === 'passed' ? new Date() : null
-                            }
+                        sendSSE({
+                            type: 'merge_complete',
+                            totalAccountStatements: structuredData.account_statements.length,
+                            timestamp: new Date().toISOString()
                         });
 
-                        console.log(`Auto-validation for statement ${statementId}: ${validationResult.status}`);
+                        // Step 4: Save the structured data to the database with concurrency handling
+                        const processingResults: ProcessingResult[] = [];
+                        const savedStatementIds: number[] = [];
+                        console.log('Processing merged data with concurrency handling');
+
+                        sendSSE({
+                            type: 'status',
+                            message: 'Processing merged data with concurrency handling',
+                            timestamp: new Date().toISOString()
+                        });
+
+                        // Process each account statement with concurrency checks
+                        for (let i = 0; i < structuredData.account_statements.length; i++) {
+                            const statement = structuredData.account_statements[i];
+                            console.log(`Processing statement ${i + 1}: ${statement.bank_name} / ${statement.account_number}`);
+
+                            sendSSE({
+                                type: 'statement_start',
+                                statementIndex: i + 1,
+                                totalStatements: structuredData.account_statements.length,
+                                bankName: statement.bank_name,
+                                accountNumber: statement.account_number,
+                                timestamp: new Date().toISOString()
+                            });
+
+                            try {
+                                // Validate that we have required fields - account_number is mandatory, bank_name should have fallback
+                                if (!statement.account_number || statement.account_number.trim() === "") {
+                                    console.warn(`Skipping statement ${i + 1} with missing account_number`);
+                                    
+                                    sendSSE({
+                                        type: 'statement_skip',
+                                        statementIndex: i + 1,
+                                        reason: 'Missing account number',
+                                        timestamp: new Date().toISOString()
+                                    });
+                                    continue;
+                                }
+
+                                // Ensure we have a bank name (should be handled by merging function, but double-check)
+                                const effectiveBankName = statement.bank_name && statement.bank_name.trim() !== "" 
+                                    ? statement.bank_name 
+                                    : (fileName || "Unknown Bank");
+
+                                console.log(`Processing statement with bank name: "${effectiveBankName}" and account: "${statement.account_number}"`);
+
+                                // Create a statement compatible with the concurrency service
+                                const concurrencyStatement: ConcurrencyAccountStatement = {
+                                    bank_name: effectiveBankName,
+                                    account_number: statement.account_number,
+                                    statement_period: statement.statement_period,
+                                    account_type: statement.account_type || '',
+                                    account_currency: statement.account_currency || '',
+                                    starting_balance: statement.starting_balance || '0',
+                                    ending_balance: statement.ending_balance || '0',
+                                    transactions: statement.transactions
+                                };
+
+                                // Process with concurrency handling - now with supabaseUserId
+                                const result = await processBankStatementWithConcurrency(
+                                    concurrencyStatement,
+                                    supabaseUserId, // Pass the user's supabase ID
+                                    fileName,
+                                    fileUrl,
+                                    statementText
+                                );
+
+                                processingResults.push(result);
+                                if (result.action !== 'SKIP_DUPLICATE') {
+                                    savedStatementIds.push(result.bankStatementId);
+                                }
+
+                                console.log(`Statement ${i + 1} processed: ${result.action} - ${result.message}`);
+                                
+                                sendSSE({
+                                    type: 'statement_complete',
+                                    statementIndex: i + 1,
+                                    totalStatements: structuredData.account_statements.length,
+                                    bankName: effectiveBankName,
+                                    accountNumber: statement.account_number,
+                                    action: result.action,
+                                    message: result.message,
+                                    bankStatementId: result.bankStatementId,
+                                    transactionCount: result.transactionCount,
+                                    timestamp: new Date().toISOString()
+                                });
+                            } catch (error) {
+                                console.error(`Error processing bank statement ${i + 1}:`, error);
+                                
+                                sendSSE({
+                                    type: 'statement_error',
+                                    statementIndex: i + 1,
+                                    totalStatements: structuredData.account_statements.length,
+                                    bankName: statement.bank_name,
+                                    accountNumber: statement.account_number,
+                                    error: error instanceof Error ? error.message : 'Unknown error',
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                // Don't throw error - continue processing other statements
+                                console.warn(`Continuing with remaining statements after error with statement ${i + 1}`);
+                            }
+                        }
+
+                        // Step 5: Perform automatic validation on all saved statements
+                        sendSSE({
+                            type: 'status',
+                            message: 'Performing automatic validation on saved statements',
+                            timestamp: new Date().toISOString()
+                        });
+
+                        for (const statementId of savedStatementIds) {
+                            try {
+                                sendSSE({
+                                    type: 'validation_start',
+                                    bankStatementId: statementId,
+                                    timestamp: new Date().toISOString()
+                                });
+
+                                // Get the statement with transactions for validation
+                                const statementWithTransactions = await prisma.bankStatement.findUnique({
+                                    where: { id: statementId },
+                                    include: {
+                                        transactions: {
+                                            orderBy: {
+                                                transactionDate: 'asc'
+                                            }
+                                        }
+                                    }
+                                });
+
+                                if (statementWithTransactions) {
+                                    // Perform balance validation
+                                    const validationResult = performAutoValidation(statementWithTransactions);
+
+                                    // Update statement with validation result
+                                    await prisma.bankStatement.update({
+                                        where: { id: statementId },
+                                        data: {
+                                            validated: validationResult.status === 'passed',
+                                            validationStatus: validationResult.status,
+                                            validationNotes: validationResult.notes,
+                                            validatedAt: validationResult.status === 'passed' ? new Date() : null
+                                        }
+                                    });
+
+                                    console.log(`Auto-validation for statement ${statementId}: ${validationResult.status}`);
+                                    
+                                    sendSSE({
+                                        type: 'validation_complete',
+                                        bankStatementId: statementId,
+                                        status: validationResult.status,
+                                        notes: validationResult.notes,
+                                        timestamp: new Date().toISOString()
+                                    });
+                                }
+                            } catch (validationError) {
+                                console.error(`Error during auto-validation for statement ${statementId}:`, validationError);
+                                
+                                sendSSE({
+                                    type: 'validation_error',
+                                    bankStatementId: statementId,
+                                    error: validationError instanceof Error ? validationError.message : 'Unknown error',
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                // Don't fail the entire process if validation fails
+                            }
+                        }
+
+                        // Log processing summary
+                        const totalProcessed = processingResults.length;
+                        const duplicatesSkipped = processingResults.filter(r => r.action === 'SKIP_DUPLICATE').length;
+                        const merged = processingResults.filter(r => r.action === 'MERGE_DIFFERENT_PERIOD').length;
+                        const newStatements = processingResults.filter(r => r.action === 'CREATE_NEW' || r.action === 'ADD_TO_EXISTING_BANK').length;
+                        
+                        console.log(`Processing Summary: ${totalProcessed} statements processed, ${duplicatesSkipped} duplicates skipped, ${merged} merged, ${newStatements} new statements created from ${chunks.length} chunks`);
+
+                        sendSSE({
+                            type: 'processing_summary',
+                            totalProcessed,
+                            duplicatesSkipped,
+                            merged,
+                            newStatements,
+                            chunksProcessed: chunks.length,
+                            timestamp: new Date().toISOString()
+                        });
+
+                        // Get transaction counts for each saved statement
+                        const statementsWithCounts = await Promise.all(
+                            savedStatementIds.map(async (statementId) => {
+                                const count = await prisma.transaction.count({
+                                    where: { bankStatementId: statementId }
+                                });
+                                
+                                // Get the full statement details
+                                const statement = await prisma.bankStatement.findUnique({
+                                    where: { id: statementId },
+                                    select: {
+                                        id: true,
+                                        fileName: true,
+                                        bankName: true,
+                                        accountNumber: true
+                                    }
+                                });
+                                
+                                return {
+                                    id: statementId,
+                                    fileName: statement?.fileName || 'Unknown',
+                                    bankName: statement?.bankName || 'Unknown',
+                                    accountNumber: statement?.accountNumber || 'Unknown',
+                                    transactionCount: count
+                                };
+                            })
+                        );
+
+                        // Trigger automatic classification for each saved statement
+                        sendSSE({
+                            type: 'status',
+                            message: 'Triggering automatic classification for saved statements',
+                            timestamp: new Date().toISOString()
+                        });
+
+                        const classificationResults = [];
+                        for (const statementId of savedStatementIds) {
+                            try {
+                                console.log(`Triggering automatic classification for bank statement ${statementId}`);
+                                
+                                sendSSE({
+                                    type: 'classification_start',
+                                    bankStatementId: statementId,
+                                    timestamp: new Date().toISOString()
+                                });
+                                
+                                // Import the classification service
+                                const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
+                                
+                                // Trigger classification asynchronously (don't wait for it to complete)
+                                classifyBankStatementTransactions(statementId)
+                                    .then((result) => {
+                                        console.log(`Classification completed for statement ${statementId}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
+                                    })
+                                    .catch((error) => {
+                                        console.error(`Classification failed for statement ${statementId}:`, error);
+                                    });
+                                
+                                classificationResults.push({
+                                    statementId: statementId,
+                                    status: 'triggered'
+                                });
+                                
+                                sendSSE({
+                                    type: 'classification_triggered',
+                                    bankStatementId: statementId,
+                                    timestamp: new Date().toISOString()
+                                });
+                            } catch (error) {
+                                console.error(`Failed to trigger classification for statement ${statementId}:`, error);
+                                classificationResults.push({
+                                    statementId: statementId,
+                                    status: 'failed',
+                                    error: error instanceof Error ? error.message : 'Unknown error'
+                                });
+                                
+                                sendSSE({
+                                    type: 'classification_error',
+                                    bankStatementId: statementId,
+                                    error: error instanceof Error ? error.message : 'Unknown error',
+                                    timestamp: new Date().toISOString()
+                                });
+                            }
+                        }
+
+                        // Send final results
+                        sendSSE({
+                            type: 'complete',
+                            success: true,
+                            fileName: fileName || "statement",
+                            chunksProcessed: chunks.length,
+                            structuredData,
+                            savedStatements: statementsWithCounts,
+                            classificationResults,
+                            processingResults: processingResults.map(result => ({
+                                action: result.action,
+                                bankStatementId: result.bankStatementId,
+                                transactionCount: result.transactionCount,
+                                message: result.message
+                            })),
+                            summary: {
+                                totalProcessed,
+                                duplicatesSkipped,
+                                merged,
+                                newStatements,
+                                chunksProcessed: chunks.length
+                            },
+                            timestamp: new Date().toISOString()
+                        });
+
+                        controller.close();
+
+                    } catch (error: any) {
+                        console.error('Error in chunked statement structuring:', error);
+                        
+                        // Provide more specific error messages for different types of failures
+                        let errorMessage = 'An unexpected error occurred during chunked processing.';
+                        
+                        if (error.message?.includes('INTERNAL') || error.message?.includes('500')) {
+                            errorMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
+                        } else if (error.message?.includes('QUOTA_EXCEEDED') || error.message?.includes('429')) {
+                            errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
+                        } else if (error.message?.includes('INVALID_ARGUMENT') || error.message?.includes('400')) {
+                            errorMessage = 'The document format is not supported or the content is too complex to process.';
+                        } else if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('403')) {
+                            errorMessage = 'API access is denied. Please check the server configuration.';
+                        } else if (error.message?.includes('No valid chunks found')) {
+                            errorMessage = 'The document format is not supported. Please ensure the document has proper page markers.';
+                        } else if (error.message?.includes('No account statements found')) {
+                            errorMessage = 'No valid account statements could be extracted from the document.';
+                        }
+                        
+                        sendSSE({
+                            type: 'error',
+                            success: false,
+                            error: errorMessage,
+                            technicalError: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        controller.close();
                     }
-                } catch (validationError) {
-                    console.error(`Error during auto-validation for statement ${statementId}:`, validationError);
-                    // Don't fail the entire process if validation fails
+                } catch (error: any) {
+                    console.error('Error in SSE controller:', error);
+                    sendSSE({
+                        type: 'error',
+                        success: false,
+                        error: 'An unexpected error occurred during processing.',
+                        technicalError: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                        timestamp: new Date().toISOString()
+                    });
+                    controller.close();
                 }
             }
+        });
 
-            // Log processing summary
-            const totalProcessed = processingResults.length;
-            const duplicatesSkipped = processingResults.filter(r => r.action === 'SKIP_DUPLICATE').length;
-            const merged = processingResults.filter(r => r.action === 'MERGE_DIFFERENT_PERIOD').length;
-            const newStatements = processingResults.filter(r => r.action === 'CREATE_NEW' || r.action === 'ADD_TO_EXISTING_BANK').length;
-            
-            console.log(`Processing Summary: ${totalProcessed} statements processed, ${duplicatesSkipped} duplicates skipped, ${merged} merged, ${newStatements} new statements created from ${chunks.length} chunks`);
+        // Return SSE response
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST',
+                'Access-Control-Allow-Headers': 'Content-Type',
+            },
+        });
 
-            // Get transaction counts for each saved statement
-            const statementsWithCounts = await Promise.all(
-                savedStatementIds.map(async (statementId) => {
-                    const count = await prisma.transaction.count({
-                        where: { bankStatementId: statementId }
-                    });
-                    
-                    // Get the full statement details
-                    const statement = await prisma.bankStatement.findUnique({
-                        where: { id: statementId },
-                        select: {
-                            id: true,
-                            fileName: true,
-                            bankName: true,
-                            accountNumber: true
-                        }
-                    });
-                    
-                    return {
-                        id: statementId,
-                        fileName: statement?.fileName || 'Unknown',
-                        bankName: statement?.bankName || 'Unknown',
-                        accountNumber: statement?.accountNumber || 'Unknown',
-                        transactionCount: count
-                    };
-                })
-            );
-
-            // Trigger automatic classification for each saved statement
-            const classificationResults = [];
-            for (const statementId of savedStatementIds) {
-                try {
-                    console.log(`Triggering automatic classification for bank statement ${statementId}`);
-                    
-                    // Import the classification service
-                    const { classifyBankStatementTransactions } = await import('@/lib/services/classificationService');
-                    
-                    // Trigger classification asynchronously (don't wait for it to complete)
-                    classifyBankStatementTransactions(statementId)
-                        .then((result) => {
-                            console.log(`Classification completed for statement ${statementId}: ${result.classifiedCount}/${result.totalTransactions} transactions classified`);
-                        })
-                        .catch((error) => {
-                            console.error(`Classification failed for statement ${statementId}:`, error);
-                        });
-                    
-                    classificationResults.push({
-                        statementId: statementId,
-                        status: 'triggered'
-                    });
-                } catch (error) {
-                    console.error(`Failed to trigger classification for statement ${statementId}:`, error);
-                    classificationResults.push({
-                        statementId: statementId,
-                        status: 'failed',
-                        error: error instanceof Error ? error.message : 'Unknown error'
-                    });
-                }
-            }
-
-            return NextResponse.json({
-                success: true,
-                fileName: fileName || "statement",
-                chunksProcessed: chunks.length,
-                structuredData,
-                savedStatements: statementsWithCounts,
-                classificationResults,
-                processingResults: processingResults.map(result => ({
-                    action: result.action,
-                    bankStatementId: result.bankStatementId,
-                    transactionCount: result.transactionCount,
-                    message: result.message
-                })),
-                summary: {
-                    totalProcessed,
-                    duplicatesSkipped,
-                    merged,
-                    newStatements,
-                    chunksProcessed: chunks.length
-                }
-            });
-
-        } catch (error: any) {
-            console.error('Error in chunked statement structuring:', error);
-            
-            // Provide more specific error messages for different types of failures
-            let errorMessage = 'An unexpected error occurred during chunked processing.';
-            
-            if (error.message?.includes('INTERNAL') || error.message?.includes('500')) {
-                errorMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
-            } else if (error.message?.includes('QUOTA_EXCEEDED') || error.message?.includes('429')) {
-                errorMessage = 'API rate limit exceeded. Please wait a moment and try again.';
-            } else if (error.message?.includes('INVALID_ARGUMENT') || error.message?.includes('400')) {
-                errorMessage = 'The document format is not supported or the content is too complex to process.';
-            } else if (error.message?.includes('PERMISSION_DENIED') || error.message?.includes('403')) {
-                errorMessage = 'API access is denied. Please check the server configuration.';
-            } else if (error.message?.includes('No valid chunks found')) {
-                errorMessage = 'The document format is not supported. Please ensure the document has proper page markers.';
-            } else if (error.message?.includes('No account statements found')) {
-                errorMessage = 'No valid account statements could be extracted from the document.';
-            }
-            
-            return NextResponse.json({
-                success: false,
-                error: errorMessage,
-                technicalError: process.env.NODE_ENV === 'development' ? error.message : undefined
-            }, { status: 500 });
-        }
     } catch (error: any) {
-        console.error('Error in structure-bankstatement:', error);
+        console.error('Error in structure route:', error);
         return NextResponse.json({
             success: false,
-            error: error.message || 'An unexpected error occurred'
+            error: error.message || 'An unexpected error occurred during processing.'
         }, { status: 500 });
     }
 } 

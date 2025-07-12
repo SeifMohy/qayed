@@ -9,19 +9,20 @@ datasource db {
 }
 
 model Company {
-  id        Int        @id @default(autoincrement())
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  name      String
-  industry  String?
-  country   String?
-  currency  String     @default("USD")
-  isActive  Boolean    @default(true)
-  banks     Bank[]
-  customers Customer[]
-  invoices  Invoice[]
-  suppliers Supplier[]
-  users     User[]
+  id               Int                @id @default(autoincrement())
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  name             String
+  industry         String?
+  country          String?
+  currency         String             @default("USD")
+  isActive         Boolean            @default(true)
+  banks            Bank[]
+  customers        Customer[]
+  invoices         Invoice[]
+  suppliers        Supplier[]
+  users            User[]
+  recurringPayments RecurringPayment[]
 }
 
 model User {
@@ -260,10 +261,13 @@ model RecurringPayment {
   category           String?
   currency           String               @default("USD")
   confidence         Float                @default(1.0)
+  companyId          Int
+  company            Company              @relation(fields: [companyId], references: [id])
   CashflowProjection CashflowProjection[]
 
   @@index([isActive, nextDueDate])
   @@index([type, isActive])
+  @@index([companyId])
 }
 
 model Currency {

@@ -1,31 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withAuth } from '@/lib/middleware/auth';
 import { RecurrenceFrequency, CashflowType } from '@prisma/client';
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get('includeInactive') === 'true';
     
-    const recurringPayments = await prisma.recurringPayment.findMany({
-      where: includeInactive ? {} : { isActive: true },
-      include: {
-        _count: {
-          select: {
-            CashflowProjection: true
-          }
-        }
-      },
-      orderBy: [
-        { isActive: 'desc' },
-        { nextDueDate: 'asc' }
-      ]
-    });
+    const recurringPayments = await companyAccessService.getRecurringPayments(includeInactive);
 
     return NextResponse.json({
       success: true,
       data: recurringPayments,
-      count: recurringPayments.length
+      count: recurringPayments.length,
+      companyId: authContext.companyId
     });
   } catch (error) {
     console.error('Error fetching recurring payments:', error);
@@ -34,10 +23,11 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const body = await request.json();
     const {
       name,
@@ -70,30 +60,29 @@ export async function POST(request: NextRequest) {
       dayOfWeek
     );
 
-    const recurringPayment = await prisma.recurringPayment.create({
-      data: {
-        name,
-        description,
-        amount,
-        type,
-        frequency,
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
-        nextDueDate,
-        dayOfMonth,
-        dayOfWeek,
-        category,
-        currency,
-        confidence
-      }
+    const recurringPayment = await companyAccessService.createRecurringPayment({
+      name,
+      description,
+      amount,
+      type,
+      frequency,
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : null,
+      nextDueDate,
+      dayOfMonth,
+      dayOfWeek,
+      category,
+      currency,
+      confidence
     });
 
-    console.log(`✅ Created recurring payment: ${name}`);
+    console.log(`✅ Created recurring payment for company ${authContext.companyId}: ${name}`);
     console.log(`ℹ️  Note: Projections will be generated when the centralized system is refreshed`);
 
     return NextResponse.json({
       success: true,
       data: recurringPayment,
+      companyId: authContext.companyId,
       message: 'Recurring payment created successfully. Projections will be generated on next refresh.'
     });
   } catch (error) {
@@ -103,7 +92,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // Helper function to calculate next due date
 function calculateNextDueDate(

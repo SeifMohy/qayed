@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { CentralizedCashflowProjectionService } from '@/lib/services/centralizedCashflowProjectionService';
 
 /**
  * POST - Refresh all cashflow projections using centralized service
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const body = await request.json();
     
     const {
@@ -23,28 +25,31 @@ export async function POST(request: NextRequest) {
       ? new Date(endDateParam) 
       : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 12 months
 
-    console.log(`🚀 Refreshing all cashflow projections using centralized service`);
+    console.log(`🚀 Refreshing all cashflow projections using centralized service for company ${authContext.companyId}`);
     console.log(`📅 Date range: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
     console.log(`🔄 Force recalculate: ${forceRecalculate}`);
 
     const service = new CentralizedCashflowProjectionService();
     
-    // Refresh all projections
+    // TODO: Pass company ID to centralized service when it supports it
+    // For now, refresh all projections and let the service handle company filtering
     const summary = await service.refreshAllProjections({
       startDate,
       endDate,
       forceRecalculate
     });
 
-    // Get the actual projections for verification
-    const projections = await service.getProjections(startDate, endDate);
+    // Get the company-scoped projections for verification
+    const projections = await companyAccessService.getCashflowProjections();
+    const projectionCount = projections.length;
 
     return NextResponse.json({
       success: true,
-      message: `Successfully refreshed cashflow projections using centralized service`,
+      message: `Successfully refreshed cashflow projections using centralized service for company ${authContext.companyId}`,
       summary,
+      companyId: authContext.companyId,
       verification: {
-        actualProjectionCount: projections.length,
+        actualProjectionCount: projectionCount,
         typeCounts: {
           customerReceivables: projections.filter(p => p.type === 'CUSTOMER_RECEIVABLE').length,
           supplierPayables: projections.filter(p => p.type === 'SUPPLIER_PAYABLE').length,
@@ -67,13 +72,14 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * GET - Get status of projection refresh process
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const searchParams = request.nextUrl.searchParams;
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
@@ -87,8 +93,14 @@ export async function GET(request: NextRequest) {
       ? new Date(endDateParam) 
       : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-    const service = new CentralizedCashflowProjectionService();
-    const projections = await service.getProjections(startDate, endDate);
+    // Get company-scoped projections
+    const allProjections = await companyAccessService.getCashflowProjections();
+    
+    // Filter by date range
+    const projections = allProjections.filter(p => {
+      const projectionDate = new Date(p.projectionDate);
+      return projectionDate >= startDate && projectionDate <= endDate;
+    });
 
     // Count projections by source
     const sourceCounts = {
@@ -111,6 +123,7 @@ export async function GET(request: NextRequest) {
       success: true,
       currentStatus: {
         totalProjections: projections.length,
+        companyId: authContext.companyId,
         dateRange: {
           start: startDate.toISOString(),
           end: endDate.toISOString()
@@ -137,4 +150,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}); 

@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadBankStatementFile } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
+import { parseBankStatementParseSSE, parseBankStatementStructureSSE } from '@/lib/sse-utils';
+import { useApiClient } from '@/lib/apiClient';
 
 type ParsedDocument = {
   fileName: string;
@@ -49,6 +51,7 @@ export default function BankStatementUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { session } = useAuth();
+  const apiClient = useApiClient();
 
   // Use external files if provided, otherwise use internal files
   const files = externalFiles || internalFiles;
@@ -149,41 +152,54 @@ export default function BankStatementUploader({
         }
       }
       
-      // Step 2: Parse text from uploaded files (using original files)
+      // Step 2: Parse text from uploaded files using the new API client
       console.log('Extracting text from documents...');
       
-      // Create form data
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
+      // Use the smart API client that handles feature flags
+      const result = await apiClient.parseBankStatements(files, (data) => {
+        // Handle SSE progress updates
+        switch (data.type) {
+          case 'file_start':
+            console.log(`🔄 Starting ${data.fileName}...`);
+            break;
+          case 'chunks_prepared':
+            console.log(`📄 Split ${data.fileName} into ${data.totalChunks} chunks`);
+            break;
+          case 'chunk_complete':
+            console.log(`✅ Completed chunk ${data.chunkIndex}/${data.totalChunks} for ${data.fileName}`);
+            break;
+          case 'file_complete':
+            console.log(`🎉 Completed ${data.fileName}: ${data.successfulChunks}/${data.totalChunks} chunks successful`);
+            break;
+          case 'file_error':
+            console.error(`❌ Error with ${data.fileName}: ${data.error}`);
+            break;
+        }
       });
-      
-      // Send request to API to parse text
-      const response = await fetch('/api/parse-bankstatement', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      // Parse response
-      const result: ParseResponse = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to process the bank statements.');
-      }
       
       // Merge file URLs with parsing results
-      const resultsWithUrls = result.results.map((parseResult, index) => ({
-        ...parseResult,
-        fileUrl: uploadedFiles[index]?.fileUrl
-      }));
-      
+      let resultsWithUrls: any[] = [];
+      if ('results' in result && Array.isArray(result.results)) {
+        resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
+          ...parseResult,
+          fileUrl: uploadedFiles[index]?.fileUrl
+        }));
+      } else if (result instanceof Response) {
+        const json = await result.json();
+        if (json && Array.isArray(json.results)) {
+          resultsWithUrls = json.results.map((parseResult: any, index: number) => ({
+            ...parseResult,
+            fileUrl: uploadedFiles[index]?.fileUrl
+          }));
+        }
+      }
       setProcessedDocs(resultsWithUrls);
       
       // Step 3: Structure and save to database (now with file URLs and user ID)
       console.log('Structuring and saving to database...');
       setIsProcessing(true);
       
-      const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
+      const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
       
       if (successful.length === 0) {
         throw new Error('No documents were successfully parsed.');
@@ -206,9 +222,10 @@ export default function BankStatementUploader({
             }),
           });
           
-          const structureResult = await structureResponse.json();
+          // Handle SSE stream with utility function
+          const structureResult = await parseBankStatementStructureSSE(structureResponse);
           
-          if (!structureResponse.ok || !structureResult.success) {
+          if (!structureResult.success) {
             console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
             results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
           } else {
@@ -441,33 +458,70 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
     }
   }
   
-  // Step 2: Parse text from files
+  // Step 2: Parse text from files (Next.js API)
   const formData = new FormData();
   files.forEach(file => {
     formData.append('files', file);
   });
-  
-  // Send request to API to parse text
+
+  // --- ADDITION: Also call Express backend route in parallel ---
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (backendUrl) {
+    try {
+      const expressFormData = new FormData();
+      files.forEach(file => {
+        expressFormData.append('files', file);
+      });
+      // Fire-and-forget, but log result for debugging
+      fetch(`${backendUrl}/api/bank-statements/parse`, {
+        method: 'POST',
+        body: expressFormData,
+      })
+        .then(async (res) => {
+          // Try to read the SSE stream for status
+          if (res.ok && res.body) {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseText = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              sseText += decoder.decode(value);
+            }
+            console.log('[Express Backend SSE]', sseText);
+          } else {
+            const text = await res.text();
+            console.warn('[Express Backend Response]', text);
+          }
+        })
+        .catch((err) => {
+          console.error('[Express Backend Error]', err);
+        });
+    } catch (err) {
+      console.error('[Express Backend Call Failed]', err);
+    }
+  } else {
+    console.warn('NEXT_PUBLIC_BACKEND_URL is not set; skipping Express backend call.');
+  }
+  // --- END ADDITION ---
+
+  // Send request to API to parse text (Next.js API)
   const response = await fetch('/api/parse-bankstatement', {
     method: 'POST',
     body: formData,
   });
   
-  // Parse response
-  const result: ParseResponse = await response.json();
-  
-  if (!response.ok || !result.success) {
-    throw new Error(result.error || 'Failed to process the bank statements.');
-  }
+  // Handle SSE stream with utility function
+  const result = await parseBankStatementParseSSE(response);
   
   // Merge file URLs with parsing results
-  const resultsWithUrls = result.results.map((parseResult, index) => ({
+  const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
     ...parseResult,
     fileUrl: uploadedFiles[index]?.fileUrl
   }));
 
   // Step 3: Structure and save to database
-  const successful = resultsWithUrls.filter(doc => doc.success && doc.extractedText);
+  const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
   
   if (successful.length === 0) {
     throw new Error('No documents were successfully parsed.');
@@ -490,9 +544,10 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
         }),
       });
       
-      const structureResult = await structureResponse.json();
+      // Handle SSE stream with utility function
+      const structureResult = await parseBankStatementStructureSSE(structureResponse);
       
-      if (!structureResponse.ok || !structureResult.success) {
+      if (!structureResult.success) {
         console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
         results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
       } else {

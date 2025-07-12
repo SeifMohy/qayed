@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/middleware/auth';
 import { prisma } from '@/lib/prisma';
 import { CashflowProjectionService } from '@/lib/services/cashflowProjectionService';
 import { currencyCache } from '@/lib/services/currencyCache';
@@ -11,8 +12,9 @@ export const dynamic = 'force-dynamic';
  * GET /api/cashflow/unified - Get unified cashflow data with multi-currency support
  * Converts all amounts to EGP using the same logic as the banks page
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, authContext) => {
   try {
+    const { companyAccessService } = authContext;
     const { searchParams } = new URL(request.url);
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
@@ -24,9 +26,14 @@ export async function GET(request: NextRequest) {
     if (startDateParam) {
       startDate = new Date(startDateParam);
     } else {
-      // Get the latest bank statement date (same logic as dashboard)
+      // Get the latest bank statement date for the company
       try {
         const latestStatement = await prisma.bankStatement.findFirst({
+          where: {
+            bank: {
+              companyId: authContext.companyId
+            }
+          },
           orderBy: { statementPeriodEnd: 'desc' }
         });
         
@@ -35,11 +42,11 @@ export async function GET(request: NextRequest) {
           const latestDate = new Date(latestStatement.statementPeriodEnd);
           startDate = new Date(latestDate);
           startDate.setDate(latestDate.getDate() + 1);
-          console.log(`📅 Using latest bank statement date: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
+          console.log(`📅 Using latest bank statement date for company ${authContext.companyId}: ${latestDate.toISOString().split('T')[0]}, projections start from: ${startDate.toISOString().split('T')[0]}`);
         } else {
           // Fallback to today if no bank statements found
           startDate = new Date();
-          console.warn('⚠️ No bank statements found, using today as fallback starting date');
+          console.warn(`⚠️ No bank statements found for company ${authContext.companyId}, using today as fallback starting date`);
         }
       } catch (error) {
         console.error('❌ Error getting latest bank statement date:', error);
@@ -67,36 +74,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log(`💰 Getting unified cashflow data from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`💰 Getting unified cashflow data for company ${authContext.companyId} from ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
 
-    // 1. Calculate starting balance (cash on hand) - same logic as banks page
-    const startingBalance = await calculateCashOnHandInEGP();
+    // 1. Calculate starting balance (cash on hand) - company-scoped
+    const startingBalance = await calculateCashOnHandInEGP(authContext.companyId);
     
-    // 2. Get all projections in the date range
-    const projections = await prisma.cashflowProjection.findMany({
-      where: {
-        projectionDate: {
-          gte: startDate,
-          lte: endDate
-        }
-      },
-      include: {
-        Invoice: {
-          include: {
-            Customer: { select: { name: true } },
-            Supplier: { select: { name: true } }
-          }
-        },
-        RecurringPayment: true,
-        BankStatement: {
-          include: { bank: true }
-        }
-      },
-      orderBy: { projectionDate: 'asc' }
+    // 2. Get company-scoped projections in the date range
+    const projections = await companyAccessService.getCashflowProjections();
+    const filteredProjections = projections.filter(p => {
+      const projectionDate = new Date(p.projectionDate);
+      return projectionDate >= startDate && projectionDate <= endDate;
     });
 
     // 3. Convert all projection amounts to EGP
-    const projectionsInEGP = await convertProjectionsToEGP(projections);
+    const projectionsInEGP = await convertProjectionsToEGP(filteredProjections);
 
     // 4. Calculate cash position using converted amounts
     const positions = await calculateDailyCashPositions(startDate, endDate, startingBalance, projectionsInEGP);
@@ -133,6 +124,7 @@ export async function GET(request: NextRequest) {
       alerts,
       projections: projectionsInEGP,
       metadata: {
+        companyId: authContext.companyId,
         dateRange: {
           start: startDate.toISOString(),
           end: endDate.toISOString()
@@ -155,17 +147,22 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
- * Calculate total cash on hand in EGP - same logic as banks page
+ * Calculate total cash on hand in EGP - company-scoped
  */
-async function calculateCashOnHandInEGP(): Promise<number> {
+async function calculateCashOnHandInEGP(companyId: number): Promise<number> {
   try {
-    console.log('💰 Calculating cash on hand in EGP...');
+    console.log(`💰 Calculating cash on hand in EGP for company ${companyId}...`);
     
-    // Get all bank statements and process each account separately (same as banks page)
+    // Get all bank statements for the company
     const allBankStatements = await prisma.bankStatement.findMany({
+      where: {
+        bank: {
+          companyId: companyId
+        }
+      },
       orderBy: [
         { bankId: 'asc' },
         { accountNumber: 'asc' },
@@ -181,7 +178,7 @@ async function calculateCashOnHandInEGP(): Promise<number> {
     });
 
     if (allBankStatements.length === 0) {
-      console.log('⚠️ No bank statements found, using balance of 0');
+      console.log(`⚠️ No bank statements found for company ${companyId}, using balance of 0`);
       return 0;
     }
 
@@ -195,7 +192,7 @@ async function calculateCashOnHandInEGP(): Promise<number> {
     // Preload all currency rates in one API call
     const currencyList = Array.from(uniqueCurrencies).filter(currency => currency !== 'EGP');
     if (currencyList.length > 0) {
-      console.log('🔄 Cashflow - Preloading currency rates for:', currencyList);
+      console.log(`🔄 Cashflow - Preloading currency rates for company ${companyId}:`, currencyList);
       await currencyCache.preloadRates(currencyList);
     }
 

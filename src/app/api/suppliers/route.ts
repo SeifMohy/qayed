@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { withAuth } from '@/lib/middleware/auth';
 import type { Supplier, Invoice } from '@prisma/client';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 
@@ -18,184 +18,248 @@ interface SupplierResponse {
   id: number;
   name: string;
   country: string | null;
-  paymentTerms: number | null;
+  etaId: string | null;
+  paymentTerms: string;
+  paymentDays: number;
   totalPayables: number;
-  paidAmount: number;
-  lastPayment: string | null;
-  nextPayment: string | null;
-  status: string;
+  totalPaid: number;
+  outstandingBalance: number;
+  overdueAmount: number;
+  invoiceCount: number;
+  averagePaymentDelay: number;
+  currency: string;
+  lastPaymentDate: Date | null;
+  nextPaymentDue: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// Helper function to convert amount to EGP
-async function convertToEGP(amount: number, fromCurrency: string): Promise<number> {
-  if (fromCurrency === 'EGP' || amount === 0) {
+// Currency conversion function
+async function convertCurrency(amount: number, fromCurrency: string, toCurrency: string = 'EGP'): Promise<number> {
+  if (fromCurrency === toCurrency) {
     return amount;
   }
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL || 'http://localhost:3000'}/api/currency/convert`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/currency/convert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: Math.abs(amount),
-        fromCurrency,
-        toCurrency: 'EGP'
-      }),
+      body: JSON.stringify({ amount, fromCurrency, toCurrency })
     });
 
-    const data = await response.json();
-    
-    if (data.success) {
-      return amount < 0 ? -data.conversion.convertedAmount : data.conversion.convertedAmount;
-    } else {
-      console.warn(`Currency conversion failed for ${fromCurrency} to EGP:`, data.error);
-      // Fallback to default exchange rates
-      const defaultRates: Record<string, number> = {
-        'USD': 50,
-        'EUR': 52.63,
-        'GBP': 62.5,
-        'CNY': 6.9
-      };
-      const rate = defaultRates[fromCurrency] || 1;
-      return amount * rate;
+    if (!response.ok) {
+      console.warn(`Currency conversion failed for ${fromCurrency} to ${toCurrency}, using 1:1 rate`);
+      return amount;
     }
+
+    const data = await response.json();
+    return data.success ? data.convertedAmount : amount;
   } catch (error) {
-    console.error('Currency conversion error:', error);
-    // Fallback to default exchange rates
-    const defaultRates: Record<string, number> = {
-      'USD': 50,
-      'EUR': 52.63,
-      'GBP': 62.5,
-      'CNY': 6.9
-    };
-    const rate = defaultRates[fromCurrency] || 1;
-    return amount * rate;
+    console.warn(`Currency conversion error for ${fromCurrency} to ${toCurrency}:`, error);
+    return amount;
   }
 }
 
-export async function GET() {
-  try {
-    // Get all suppliers with their invoices and transaction matches
-    const suppliers = await prisma.supplier.findMany({
-      include: {
-        Invoice: {
-          include: {
-            TransactionMatch: {
-              where: {
-                status: 'APPROVED'
-              },
-              include: {
-                Transaction: {
-                  select: {
-                    transactionDate: true,
-                    debitAmount: true
-                  }
-                }
-              }
-            }
-          }
+// Function to get suppliers with currency conversion
+async function getSuppliersWithConversion(suppliers: SupplierWithInvoicesAndMatches[], conversionCache: Map<string, number>): Promise<SupplierResponse[]> {
+  return Promise.all(suppliers.map(async (supplier) => {
+    // Calculate payment terms from paymentTermsData or default to 30
+    const paymentDays = (() => {
+      const termsData = (supplier as any).paymentTermsData as PaymentTermsData | null;
+      if (termsData?.paymentPeriod) {
+        if (termsData.paymentPeriod.includes('Net ')) {
+          return parseInt(termsData.paymentPeriod.replace('Net ', '')) || 30;
+        } else if (termsData.paymentPeriod === 'Due on receipt') {
+          return 0;
         }
-      },
-    });
+      }
+      return 30; // Default fallback
+    })();
+
+    // Calculate total payables and paid amounts
+    let totalPayables = 0;
+    let totalPaid = 0;
+    let totalDelayDays = 0;
+    let paymentsWithDelay = 0;
+    let lastPaymentDate: Date | null = null;
+    let nextPaymentDue: Date | null = null;
+
+    for (const invoice of supplier.Invoice) {
+      const invoiceCurrency = invoice.currency || 'EGP';
+      let conversionRate = 1;
+
+      // Get conversion rate (cached)
+      if (invoiceCurrency !== 'EGP') {
+        const cacheKey = `${invoiceCurrency}_EGP`;
+        if (conversionCache.has(cacheKey)) {
+          conversionRate = conversionCache.get(cacheKey)!;
+        } else {
+          conversionRate = await convertCurrency(1, invoiceCurrency, 'EGP');
+          conversionCache.set(cacheKey, conversionRate);
+        }
+      }
+
+      const totalInEGP = Number(invoice.total) * conversionRate;
+      totalPayables += totalInEGP;
+
+      // Calculate payments and delays
+      for (const match of invoice.TransactionMatch) {
+        const paidAmount = Number(match.Transaction.debitAmount || 0) * conversionRate;
+        totalPaid += paidAmount;
+
+        const paymentDate = new Date(match.Transaction.transactionDate);
+        if (!lastPaymentDate || paymentDate > lastPaymentDate) {
+          lastPaymentDate = paymentDate;
+        }
+
+        // Calculate payment delay
+        const invoiceDate = new Date(invoice.invoiceDate);
+        const expectedPaymentDate = new Date(invoiceDate);
+        expectedPaymentDate.setDate(invoiceDate.getDate() + paymentDays);
+
+        if (paymentDate > expectedPaymentDate) {
+          const delayDays = Math.floor((paymentDate.getTime() - expectedPaymentDate.getTime()) / (1000 * 60 * 60 * 24));
+          totalDelayDays += delayDays;
+          paymentsWithDelay++;
+        }
+      }
+
+      // Calculate next payment due (for unpaid invoices)
+      const invoiceBalance = totalInEGP - (invoice.TransactionMatch.reduce((sum, match) => 
+        sum + Number(match.Transaction.debitAmount || 0) * conversionRate, 0
+      ));
+      
+      if (invoiceBalance > 0) {
+        const invoiceDate = new Date(invoice.invoiceDate);
+        const dueDate = new Date(invoiceDate);
+        dueDate.setDate(invoiceDate.getDate() + paymentDays);
+        
+        if (!nextPaymentDue || dueDate < nextPaymentDue) {
+          nextPaymentDue = dueDate;
+        }
+      }
+    }
+
+    const outstandingBalance = totalPayables - totalPaid;
+    const averagePaymentDelay = paymentsWithDelay > 0 ? Math.round(totalDelayDays / paymentsWithDelay) : 0;
+
+    // Calculate overdue amount
+    const now = new Date();
+    let overdueAmount = 0;
+    for (const invoice of supplier.Invoice) {
+      const invoiceCurrency = invoice.currency || 'EGP';
+      const conversionRate = conversionCache.get(`${invoiceCurrency}_EGP`) || 1;
+      
+      const invoiceDate = new Date(invoice.invoiceDate);
+      const dueDate = new Date(invoiceDate);
+      dueDate.setDate(invoiceDate.getDate() + paymentDays);
+      
+      if (dueDate < now) {
+        const invoiceTotal = Number(invoice.total) * conversionRate;
+        const paidAmount = invoice.TransactionMatch.reduce((sum, match) => 
+          sum + Number(match.Transaction.debitAmount || 0) * conversionRate, 0
+        );
+        const balance = invoiceTotal - paidAmount;
+        if (balance > 0) {
+          overdueAmount += balance;
+        }
+      }
+    }
+
+    return {
+      id: supplier.id,
+      name: supplier.name,
+      country: supplier.country,
+      etaId: supplier.etaId,
+      paymentTerms: `Net ${paymentDays}`,
+      paymentDays,
+      totalPayables: Math.round(totalPayables * 100) / 100,
+      totalPaid: Math.round(totalPaid * 100) / 100,
+      outstandingBalance: Math.round(outstandingBalance * 100) / 100,
+      overdueAmount: Math.round(overdueAmount * 100) / 100,
+      invoiceCount: supplier.Invoice.length,
+      averagePaymentDelay,
+      currency: 'EGP',
+      lastPaymentDate,
+      nextPaymentDue,
+      createdAt: supplier.createdAt,
+      updatedAt: supplier.updatedAt
+    };
+  }));
+}
+
+export const GET = withAuth(async (request: NextRequest, authContext) => {
+  try {
+    const { companyAccessService } = authContext;
+    
+    // Get all suppliers with their invoices and transaction matches using company-scoped filtering
+    const suppliers = await companyAccessService.getSuppliers();
 
     // Currency conversion cache to avoid duplicate API calls
     const conversionCache = new Map<string, number>();
 
     // Transform the data to include calculated metrics with currency conversion
-    const suppliersWithTotals: SupplierResponse[] = await Promise.all(suppliers.map(async (supplier) => {
-      // Calculate payment terms from paymentTermsData or default to 30
-      const paymentDays = (() => {
-        const termsData = (supplier as any).paymentTermsData as PaymentTermsData | null;
-        if (termsData?.paymentPeriod) {
-          if (termsData.paymentPeriod.includes('Net ')) {
-            return parseInt(termsData.paymentPeriod.replace('Net ', '')) || 30;
-          } else if (termsData.paymentPeriod === 'Due on receipt') {
-            return 0;
-          }
-        }
-        return 30; // Default fallback
-      })();
+    const suppliersWithTotals = await getSuppliersWithConversion(suppliers as SupplierWithInvoicesAndMatches[], conversionCache);
 
-      // Calculate total payables and paid amounts based on transaction matches
-      let totalPayables = 0;
-      let paidAmount = 0;
-
-      const paymentDates: Date[] = [];
-
-      for (const invoice of supplier.Invoice) {
-        // Convert total paid amount to EGP
-        let totalPaidEGP = 0;
-        for (const match of invoice.TransactionMatch) {
-          const cacheKey = `${invoice.currency}-EGP`;
-          let conversionRate = conversionCache.get(cacheKey);
-          
-          if (conversionRate === undefined) {
-            const debitAmountEGP = await convertToEGP(Number(match.Transaction.debitAmount || 0), invoice.currency);
-            conversionRate = Number(match.Transaction.debitAmount || 0) === 0 ? 1 : debitAmountEGP / Number(match.Transaction.debitAmount || 0);
-            conversionCache.set(cacheKey, conversionRate);
-          }
-          
-          totalPaidEGP += Number(match.Transaction.debitAmount || 0) * conversionRate;
-        }
-        
-        // Convert invoice total to EGP
-        const cacheKey = `${invoice.currency}-EGP`;
-        let conversionRate = conversionCache.get(cacheKey);
-        
-        if (conversionRate === undefined) {
-          const invoiceTotalEGP = await convertToEGP(Number(invoice.total), invoice.currency);
-          conversionRate = Number(invoice.total) === 0 ? 1 : invoiceTotalEGP / Number(invoice.total);
-          conversionCache.set(cacheKey, conversionRate);
-        }
-        
-        const invoiceTotalEGP = Number(invoice.total) * conversionRate;
-        const remainingEGP = invoiceTotalEGP - totalPaidEGP;
-        
-        totalPayables += Math.max(0, remainingEGP);
-        paidAmount += totalPaidEGP;
-
-        // Collect payment dates
-        invoice.TransactionMatch.forEach(match => {
-          paymentDates.push(new Date(match.Transaction.transactionDate));
-        });
+    return NextResponse.json({
+      success: true,
+      data: suppliersWithTotals,
+      count: suppliersWithTotals.length,
+      currency: 'EGP',
+      metadata: {
+        totalPayables: suppliersWithTotals.reduce((sum, s) => sum + s.totalPayables, 0),
+        totalPaid: suppliersWithTotals.reduce((sum, s) => sum + s.totalPaid, 0),
+        totalOutstanding: suppliersWithTotals.reduce((sum, s) => sum + s.outstandingBalance, 0),
+        totalOverdue: suppliersWithTotals.reduce((sum, s) => sum + s.overdueAmount, 0),
+        averagePaymentDelay: suppliersWithTotals.length > 0 
+          ? Math.round(suppliersWithTotals.reduce((sum, s) => sum + s.averagePaymentDelay, 0) / suppliersWithTotals.length)
+          : 0,
+        conversionNote: 'All amounts converted to EGP using latest exchange rates'
       }
-
-      // Find the latest payment date
-      const latestPaymentDate = paymentDates.length > 0 
-        ? paymentDates.reduce((latest, current) => current > latest ? current : latest)
-        : null;
-
-      // Determine status based on payment status
-      let status = 'On Time';
-      if (totalPayables > 0) {
-        status = totalPayables > 1000 ? 'Outstanding' : 'Current';
-      } else if (paidAmount > 0) {
-        status = 'Paid';
-      }
-
-      return {
-        id: supplier.id,
-        name: supplier.name,
-        country: supplier.country,
-        paymentTerms: paymentDays,
-        totalPayables: Math.round(totalPayables * 100) / 100, // Round to 2 decimal places
-        paidAmount: Math.round(paidAmount * 100) / 100,
-        lastPayment: latestPaymentDate ? latestPaymentDate.toISOString().split('T')[0] : null,
-        nextPayment: null, // Will be calculated based on invoice due dates
-        status
-      };
-    }));
-
-    console.log(`✅ Successfully transformed ${suppliersWithTotals.length} suppliers with EGP conversion`);
-    console.log('📊 Total payables (EGP):', suppliersWithTotals.reduce((sum, s) => sum + s.totalPayables, 0));
-    console.log('📊 Total paid amount (EGP):', suppliersWithTotals.reduce((sum, s) => sum + s.paidAmount, 0));
-
-    return NextResponse.json(suppliersWithTotals);
-  } catch (error: any) {
-    console.error('Error fetching suppliers:', error.message);
+    });
+  } catch (error) {
+    console.error('Error fetching suppliers:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch suppliers' },
+      { success: false, error: 'Failed to fetch suppliers' },
       { status: 500 }
     );
   }
-} 
+});
+
+export const POST = withAuth(async (request: NextRequest, authContext) => {
+  try {
+    const { companyAccessService } = authContext;
+    const body = await request.json();
+    
+    const { name, country, etaId, paymentTermsData } = body;
+
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      return NextResponse.json(
+        { success: false, error: 'Supplier name is required' },
+        { status: 400 }
+      );
+    }
+
+    // Create supplier using company-scoped service
+    const supplier = await companyAccessService.createSupplier({
+      name: name.trim(),
+      country: country || null,
+      etaId: etaId || null,
+      paymentTermsData: paymentTermsData || null,
+      updatedAt: new Date()
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: supplier,
+      message: 'Supplier created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating supplier:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to create supplier' },
+      { status: 500 }
+    );
+  }
+}); 
