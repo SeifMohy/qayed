@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { uploadBankStatementFile } from '@/lib/supabase';
 import { useAuth } from '@/contexts/auth-context';
 import { parseBankStatementParseSSE, parseBankStatementStructureSSE } from '@/lib/sse-utils';
+import { useApiClient } from '@/lib/apiClient';
 
 type ParsedDocument = {
   fileName: string;
@@ -50,6 +51,7 @@ export default function BankStatementUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { session } = useAuth();
+  const apiClient = useApiClient();
 
   // Use external files if provided, otherwise use internal files
   const files = externalFiles || internalFiles;
@@ -150,23 +152,30 @@ export default function BankStatementUploader({
         }
       }
       
-      // Step 2: Parse text from uploaded files (using original files)
+      // Step 2: Parse text from uploaded files using the new API client
       console.log('Extracting text from documents...');
       
-      // Create form data
-      const formData = new FormData();
-      files.forEach(file => {
-        formData.append('files', file);
+      // Use the smart API client that handles feature flags
+      const result = await apiClient.parseBankStatements(files, (data) => {
+        // Handle SSE progress updates
+        switch (data.type) {
+          case 'file_start':
+            console.log(`🔄 Starting ${data.fileName}...`);
+            break;
+          case 'chunks_prepared':
+            console.log(`📄 Split ${data.fileName} into ${data.totalChunks} chunks`);
+            break;
+          case 'chunk_complete':
+            console.log(`✅ Completed chunk ${data.chunkIndex}/${data.totalChunks} for ${data.fileName}`);
+            break;
+          case 'file_complete':
+            console.log(`🎉 Completed ${data.fileName}: ${data.successfulChunks}/${data.totalChunks} chunks successful`);
+            break;
+          case 'file_error':
+            console.error(`❌ Error with ${data.fileName}: ${data.error}`);
+            break;
+        }
       });
-      
-      // Send request to API to parse text
-      const response = await fetch('/api/parse-bankstatement', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      // Handle SSE stream with utility function
-      const result = await parseBankStatementParseSSE(response);
       
       // Merge file URLs with parsing results
       const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
