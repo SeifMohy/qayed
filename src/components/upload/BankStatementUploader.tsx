@@ -448,13 +448,54 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
     }
   }
   
-  // Step 2: Parse text from files
+  // Step 2: Parse text from files (Next.js API)
   const formData = new FormData();
   files.forEach(file => {
     formData.append('files', file);
   });
-  
-  // Send request to API to parse text
+
+  // --- ADDITION: Also call Express backend route in parallel ---
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (backendUrl) {
+    try {
+      const expressFormData = new FormData();
+      files.forEach(file => {
+        expressFormData.append('files', file);
+      });
+      // Fire-and-forget, but log result for debugging
+      fetch(`${backendUrl}/api/bank-statements/parse`, {
+        method: 'POST',
+        body: expressFormData,
+      })
+        .then(async (res) => {
+          // Try to read the SSE stream for status
+          if (res.ok && res.body) {
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let sseText = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              sseText += decoder.decode(value);
+            }
+            console.log('[Express Backend SSE]', sseText);
+          } else {
+            const text = await res.text();
+            console.warn('[Express Backend Response]', text);
+          }
+        })
+        .catch((err) => {
+          console.error('[Express Backend Error]', err);
+        });
+    } catch (err) {
+      console.error('[Express Backend Call Failed]', err);
+    }
+  } else {
+    console.warn('NEXT_PUBLIC_BACKEND_URL is not set; skipping Express backend call.');
+  }
+  // --- END ADDITION ---
+
+  // Send request to API to parse text (Next.js API)
   const response = await fetch('/api/parse-bankstatement', {
     method: 'POST',
     body: formData,
