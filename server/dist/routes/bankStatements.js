@@ -1,33 +1,17 @@
 import express from 'express';
-import multer from 'multer';
+import { uploadConfig } from '../middleware/upload.js';
+import { sendError, sendSSE } from '../utils/response.js';
+import { logger } from '../utils/logger.js';
+import { parseMultiplePDFs } from '../services/pdfParsingService.js';
 const router = express.Router();
-// Configure multer for file uploads with memory storage
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB limit per file
-        files: 10 // Maximum 10 files
-    },
-    fileFilter: (req, file, cb) => {
-        // Only allow PDF files
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        }
-        else {
-            cb(new Error('Only PDF files are allowed'));
-        }
-    }
-});
-// Parse bank statement PDFs endpoint (temporary implementation)
-router.post('/parse', upload.array('files'), async (req, res) => {
+// Parse bank statement PDFs endpoint
+router.post('/parse', uploadConfig.array('files'), async (req, res) => {
     try {
         const files = req.files;
         if (!files || files.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'No files provided for parsing.'
-            });
+            return sendError(res, 'No files provided for parsing.', 400);
         }
+        logger.info(`🎉 Received ${files.length} files for processing via Express backend!`);
         // Set up SSE headers for streaming response
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
@@ -39,54 +23,19 @@ router.post('/parse', upload.array('files'), async (req, res) => {
             'X-Accel-Buffering': 'no', // Disable nginx buffering
         });
         // Helper function to send SSE data
-        const sendSSE = (data) => {
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
+        const sendSSEMessage = (data) => {
+            sendSSE(res, data);
         };
         try {
-            // Send initial status
-            sendSSE({
-                type: 'status',
-                message: 'Express backend is working! PDF parsing will be implemented next.',
-                timestamp: new Date().toISOString()
-            });
-            // Simulate processing for testing
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                sendSSE({
-                    type: 'file_start',
-                    fileName: file.originalname,
-                    fileIndex: i + 1,
-                    totalFiles: files.length,
-                    timestamp: new Date().toISOString()
-                });
-                // Simulate processing delay
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                sendSSE({
-                    type: 'file_complete',
-                    fileName: file.originalname,
-                    success: true,
-                    extractedLength: 1000,
-                    timestamp: new Date().toISOString()
-                });
-            }
-            // Send completion
-            sendSSE({
-                type: 'complete',
-                success: true,
-                results: files.map(file => ({
-                    fileName: file.originalname,
-                    success: true,
-                    extractedText: `Mock extracted text from ${file.originalname}`,
-                    message: 'This is a test response from the Express backend. Real PDF parsing will be implemented next.'
-                })),
-                timestamp: new Date().toISOString()
-            });
+            // Use the PDF parsing service
+            await parseMultiplePDFs(files, sendSSEMessage);
+            logger.info(`✅ Successfully processed ${files.length} files`);
             // Close the SSE connection
             res.end();
         }
         catch (error) {
-            console.error('Error in PDF parsing:', error);
-            sendSSE({
+            logger.error('Error in PDF parsing:', error);
+            sendSSEMessage({
                 type: 'error',
                 success: false,
                 error: error.message || 'An unexpected error occurred during processing.',
@@ -96,13 +45,10 @@ router.post('/parse', upload.array('files'), async (req, res) => {
         }
     }
     catch (error) {
-        console.error('Error in parse route:', error);
+        logger.error('Error in parse route:', error);
         // If headers haven't been sent yet, send JSON error
         if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                error: error.message || 'An unexpected error occurred during processing.'
-            });
+            sendError(res, error.message || 'An unexpected error occurred during processing.', 500);
         }
     }
 });
