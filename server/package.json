@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "Always-on backend for Qayed financial platform",
   "type": "module",
-  "main": "dist/app.js",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/simple-app.js",
+    "dev": "nodemon --exec tsx src/server.ts",
     "build": "tsc",
-    "start": "node src/simple-app.js",
-    "start:typescript": "node dist/app.js",
-    "type-check": "tsc --noEmit"
+    "start": "node dist/server.js",
+    "start:dev": "tsx src/server.ts",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
@@ -34,9 +35,15 @@
     "@types/uuid": "^10.0.0",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   },
-  "keywords": ["express", "backend", "pdf-parsing", "financial"],
+  "keywords": [
+    "express",
+    "backend",
+    "pdf-parsing",
+    "financial"
+  ],
   "author": "Qayed Team",
   "license": "MIT"
-} 
+}
