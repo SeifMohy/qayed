@@ -26,7 +26,13 @@ class ApiClient {
   }
 
   private async request(endpoint: string, options: RequestInit = {}): Promise<Response> {
-    const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
+    // Normalize the base URL to ensure it has the correct protocol
+    let normalizedBaseUrl = this.baseUrl;
+    if (normalizedBaseUrl && !normalizedBaseUrl.startsWith('http')) {
+      normalizedBaseUrl = `https://${normalizedBaseUrl}`;
+    }
+    
+    const url = endpoint.startsWith('http') ? endpoint : `${normalizedBaseUrl}${endpoint}`;
     
     const config: RequestInit = {
       ...options,
