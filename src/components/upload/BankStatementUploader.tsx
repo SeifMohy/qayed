@@ -32,8 +32,8 @@ interface BankStatementUploaderProps {
   compact?: boolean;
 }
 
-export default function BankStatementUploader({ 
-  files: externalFiles, 
+export default function BankStatementUploader({
+  files: externalFiles,
   onFilesChange,
   onProcessingStart,
   onProcessingEnd,
@@ -67,7 +67,7 @@ export default function BankStatementUploader({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files);
-      
+
       // Validate if they're PDFs
       const invalidFiles = selectedFiles.filter(file => !file.type.includes('pdf'));
       if (invalidFiles.length > 0) {
@@ -76,24 +76,24 @@ export default function BankStatementUploader({
         onError?.(errorMsg);
         return;
       }
-      
+
       setFiles(selectedFiles);
       setUploadError(null);
     }
   };
-  
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
-  
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files);
-      
+
       // Validate if they're PDFs
       const invalidFiles = droppedFiles.filter(file => !file.type.includes('pdf'));
       if (invalidFiles.length > 0) {
@@ -102,12 +102,12 @@ export default function BankStatementUploader({
         onError?.(errorMsg);
         return;
       }
-      
+
       setFiles(droppedFiles);
       setUploadError(null);
     }
   };
-  
+
   const handleProcessing = async () => {
     if (files.length === 0) {
       setUploadError('Please select at least one PDF file to upload.');
@@ -126,22 +126,22 @@ export default function BankStatementUploader({
       setUploadError(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
       return;
     }
-    
+
     try {
       setIsUploading(true);
       setUploadError(null);
       setUploadSuccess(false);
       setProcessedDocs([]);
       onProcessingStart?.();
-      
+
       // Step 1: Upload files to Supabase Storage
       console.log('Uploading files to Supabase Storage...');
       const uploadedFiles: { file: File; fileUrl: string }[] = [];
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         console.log(`Uploading file ${i + 1} of ${files.length}: ${file.name}`);
-        
+
         try {
           const fileUrl = await uploadBankStatementFile(file, file.name);
           uploadedFiles.push({ file, fileUrl });
@@ -151,10 +151,10 @@ export default function BankStatementUploader({
           throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
         }
       }
-      
+
       // Step 2: Parse text from uploaded files using the new API client
       console.log('Extracting text from documents...');
-      
+
       // Use the smart API client that handles feature flags
       const result = await apiClient.parseBankStatements(files, (data) => {
         // Handle SSE progress updates
@@ -176,7 +176,7 @@ export default function BankStatementUploader({
             break;
         }
       });
-      
+
       // Merge file URLs with parsing results
       let resultsWithUrls: any[] = [];
       if ('results' in result && Array.isArray(result.results)) {
@@ -194,17 +194,17 @@ export default function BankStatementUploader({
         }
       }
       setProcessedDocs(resultsWithUrls);
-      
+
       // Step 3: Structure and save to database (now with file URLs and user ID)
       console.log('Structuring and saving to database...');
       setIsProcessing(true);
-      
+
       const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
-      
+
       if (successful.length === 0) {
         throw new Error('No documents were successfully parsed.');
       }
-      
+
       // Process each document sequentially to avoid overwhelming the server
       const results = [];
       for (const doc of successful) {
@@ -221,10 +221,10 @@ export default function BankStatementUploader({
               supabaseUserId: session.user.id // Include the user's ID for company scoping
             }),
           });
-          
+
           // Handle SSE stream with utility function
           const structureResult = await parseBankStatementStructureSSE(structureResponse);
-          
+
           if (!structureResult.success) {
             console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
             results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
@@ -232,33 +232,33 @@ export default function BankStatementUploader({
             console.log(`Structured and saved ${doc.fileName} successfully`);
             results.push({ fileName: doc.fileName, success: true });
           }
-          
+
           // Add a small delay between processing documents to avoid rate limits
           if (successful.indexOf(doc) < successful.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
           }
-          
+
         } catch (structureError: any) {
           console.error(`Error processing ${doc.fileName}:`, structureError);
           results.push({ fileName: doc.fileName, success: false, error: structureError.message });
         }
       }
-      
+
       // Show success message
       setUploadSuccess(true);
       onSuccess?.();
-      
+
       // Clear the file input and files
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       setFiles([]);
-      
+
       // Refresh the page after a short delay to show updated data
       setTimeout(() => {
         router.refresh();
       }, 1500);
-      
+
     } catch (error: any) {
       console.error('Error uploading files:', error);
       const errorMsg = error.message || 'An error occurred while processing the files.';
@@ -270,14 +270,14 @@ export default function BankStatementUploader({
       onProcessingEnd?.();
     }
   };
-  
+
   const clearFiles = () => {
     setFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
-  
+
   // If compact mode (used in modal), show simplified interface
   if (compact) {
     return (
@@ -287,7 +287,7 @@ export default function BankStatementUploader({
             {uploadError}
           </div>
         )}
-        
+
         {uploadSuccess && (
           <div className="p-3 bg-green-50 text-green-700 rounded-md text-sm">
             Bank statements processed and saved successfully!
@@ -313,22 +313,21 @@ export default function BankStatementUploader({
       </div>
     );
   }
-  
+
   return (
     <div className="p-6 bg-white rounded-lg">
       {/* Upload Interface */}
       <div className="mb-4">
-        <div 
-          className={`mb-4 border-2 border-dashed rounded-lg p-6 text-center ${
-            files.length > 0 ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-          }`}
+        <div
+          className={`mb-4 border-2 border-dashed rounded-lg p-6 text-center ${files.length > 0 ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+            }`}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Upload Bank Statements (PDF)
           </label>
-          
+
           <div className="flex items-center justify-center">
             <input
               type="file"
@@ -348,11 +347,11 @@ export default function BankStatementUploader({
               Select Files
             </button>
           </div>
-          
+
           <p className="mt-2 text-sm text-gray-500">
             or drag and drop PDF files here
           </p>
-          
+
           {files.length > 0 && (
             <div className="mt-4">
               <p className="font-medium text-gray-700">Selected Files:</p>
@@ -376,37 +375,36 @@ export default function BankStatementUploader({
             </div>
           )}
         </div>
-        
+
         {uploadError && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
             {uploadError}
           </div>
         )}
-        
+
         {uploadSuccess && (
           <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-md">
             Bank statements processed and saved successfully! The data is now available in the system.
           </div>
         )}
-        
+
         <button
           type="button"
           onClick={handleProcessing}
           disabled={files.length === 0 || isUploading || isProcessing}
-          className={`px-4 py-2 rounded-md text-white font-medium ${
-            files.length === 0 || isUploading || isProcessing
+          className={`px-4 py-2 rounded-md text-white font-medium ${files.length === 0 || isUploading || isProcessing
               ? 'bg-gray-300 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-700'
-          }`}
+            }`}
         >
-          {isUploading 
-            ? 'Extracting Text...' 
-            : isProcessing 
-              ? 'Saving to Database...' 
+          {isUploading
+            ? 'Extracting Text...'
+            : isProcessing
+              ? 'Saving to Database...'
               : 'Process Bank Statements'}
         </button>
       </div>
-      
+
       {processedDocs.length > 0 && (
         <div className="mt-6 border-t pt-4">
           <h3 className="text-sm font-medium text-gray-900">Processing Results:</h3>
@@ -439,16 +437,16 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
   if (!supabaseUserId) {
     throw new Error('User authentication required for processing bank statements.');
   }
-  
+
   // Validate if they're PDFs
   const invalidFiles = files.filter(file => !file.type.includes('pdf'));
   if (invalidFiles.length > 0) {
     throw new Error(`Some files are not PDFs: ${invalidFiles.map(f => f.name).join(', ')}`);
   }
-  
+
   // Step 1: Upload files to Supabase Storage
   const uploadedFiles: { file: File; fileUrl: string }[] = [];
-  
+
   for (const file of files) {
     try {
       const fileUrl = await uploadBankStatementFile(file, file.name);
@@ -457,7 +455,7 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
       throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
     }
   }
-  
+
   // Step 2: Parse text from files (Next.js API)
   const formData = new FormData();
   files.forEach(file => {
@@ -466,14 +464,19 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
 
   // --- ADDITION: Also call Express backend route in parallel ---
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  console.log('backendUrl', backendUrl);
   if (backendUrl) {
     try {
       const expressFormData = new FormData();
       files.forEach(file => {
         expressFormData.append('files', file);
       });
+      
+      // Ensure the backend URL has the correct protocol
+      const normalizedBackendUrl = backendUrl.startsWith('http') ? backendUrl : `https://${backendUrl}`;
+      
       // Fire-and-forget, but log result for debugging
-      fetch(`${backendUrl}/api/bank-statements/parse`, {
+      fetch(`${normalizedBackendUrl}/api/bank-statements/parse`, {
         method: 'POST',
         body: expressFormData,
       })
@@ -510,10 +513,10 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
     method: 'POST',
     body: formData,
   });
-  
+
   // Handle SSE stream with utility function
   const result = await parseBankStatementParseSSE(response);
-  
+
   // Merge file URLs with parsing results
   const resultsWithUrls = result.results.map((parseResult: any, index: number) => ({
     ...parseResult,
@@ -522,11 +525,11 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
 
   // Step 3: Structure and save to database
   const successful = resultsWithUrls.filter((doc: any) => doc.success && doc.extractedText);
-  
+
   if (successful.length === 0) {
     throw new Error('No documents were successfully parsed.');
   }
-  
+
   // Process each document sequentially to avoid overwhelming the server
   const results = [];
   for (const doc of successful) {
@@ -543,10 +546,10 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
           supabaseUserId: supabaseUserId // Include the user's ID for company scoping
         }),
       });
-      
+
       // Handle SSE stream with utility function
       const structureResult = await parseBankStatementStructureSSE(structureResponse);
-      
+
       if (!structureResult.success) {
         console.error(`Failed to structure document ${doc.fileName}:`, structureResult.error);
         results.push({ fileName: doc.fileName, success: false, error: structureResult.error });
@@ -554,18 +557,18 @@ export const processBankStatements = async (files: File[], supabaseUserId?: stri
         console.log(`Structured and saved ${doc.fileName} successfully`);
         results.push({ fileName: doc.fileName, success: true });
       }
-      
+
       // Add a small delay between processing documents to avoid rate limits
       if (successful.indexOf(doc) < successful.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
       }
-      
+
     } catch (structureError: any) {
       console.error(`Error processing ${doc.fileName}:`, structureError);
       results.push({ fileName: doc.fileName, success: false, error: structureError.message });
     }
   }
-  
+
   return {
     ...result,
     results: resultsWithUrls,
