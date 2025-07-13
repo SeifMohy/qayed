@@ -36,6 +36,7 @@ app.use(helmet({
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'https://qayed.vercel.app',
     'https://your-vercel-app.vercel.app',
     process.env.FRONTEND_URL
   ].filter((origin): origin is string => Boolean(origin)),
