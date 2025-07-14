@@ -1,4 +1,4 @@
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
 import { GoogleGenAI } from "@google/genai";
 import { Prisma } from '@prisma/client';
 

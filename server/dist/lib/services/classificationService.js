@@ -1,4 +1,4 @@
-import { prisma } from '../prisma';
+import { prisma } from '../prisma.js';
 import { GoogleGenAI } from "@google/genai";
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
