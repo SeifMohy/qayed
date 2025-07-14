@@ -1,11 +1,24 @@
 import { prisma } from '../prisma';
 import { GoogleGenAI } from "@google/genai";
-import { TransactionCategory } from '../../../../node_modules/@prisma/client';
+import { Prisma } from '@prisma/client';
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 // Access API_KEY at runtime instead of module level
 const getApiKey = () => process.env.GEMINI_API_KEY;
+
+// --- Define TransactionCategory as string literals ---
+const TransactionCategory = {
+  CUSTOMER_PAYMENT: 'CUSTOMER_PAYMENT',
+  SUPPLIER_PAYMENT: 'SUPPLIER_PAYMENT',
+  INTERNAL_TRANSFER: 'INTERNAL_TRANSFER',
+  BANK_CHARGES: 'BANK_CHARGES',
+  BANK_PAYMENTS: 'BANK_PAYMENTS',
+  UNKNOWN: 'UNKNOWN',
+  OTHER: 'OTHER'
+} as const;
+
+type TransactionCategoryType = typeof TransactionCategory[keyof typeof TransactionCategory];
 
 // --- Types for Classification ---
 type BatchClassificationResult = {
@@ -23,7 +36,7 @@ type BatchClassificationResponse = {
 };
 
 // --- Helper function to map string category to enum ---
-function mapCategoryToEnum(categoryString: string): TransactionCategory {
+function mapCategoryToEnum(categoryString: string): TransactionCategoryType {
   const normalizedCategory = categoryString.toUpperCase().trim();
   
   switch (normalizedCategory) {
@@ -282,7 +295,7 @@ export async function classifyBankStatementTransactions(bankStatementId: number)
       } catch (error: any) {
         console.error(`Error processing batch starting at index ${i}:`, error);
         // Add errors for all transactions in the failed batch
-        batch.forEach(transaction => {
+        batch.forEach((transaction: any) => {
           errors.push(`Transaction ${transaction.id}: Batch processing failed - ${error.message}`);
         });
       }

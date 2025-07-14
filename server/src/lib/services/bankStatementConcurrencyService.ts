@@ -1,6 +1,7 @@
 import { prisma } from '../prisma.js';
 import { Decimal } from '@prisma/client/runtime/library';
 import { getUserCompanyId } from './companyAccessService.js';
+import type { Prisma } from '@prisma/client';
 
 export interface StatementPeriod {
   start_date: string;
@@ -326,7 +327,7 @@ async function mergeTransactionsIntoExistingStatement(
   });
 
   // Create new transactions and update statement period
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Create new transactions
     await tx.transaction.createMany({
       data: transactionsToCreate
