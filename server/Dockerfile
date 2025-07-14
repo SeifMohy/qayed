@@ -14,18 +14,18 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev
 
-# Copy package files first for better caching (from server directory)
-COPY server/package*.json ./
+# Copy package files first for better caching
+COPY package*.json ./
 
 # Install all dependencies first (needed for build process)  
 RUN npm ci && npm cache clean --force
 
-# Copy prisma schema from root
-COPY prisma ./prisma
+# Copy prisma schema from parent directory (Railway build context)
+COPY ../prisma ./prisma
 
 # Copy server source code and config files
-COPY server/src ./src
-COPY server/tsconfig.json ./tsconfig.json
+COPY src ./src
+COPY tsconfig.json ./tsconfig.json
 
 # Build the TypeScript application with explicit schema path
 RUN npx prisma generate --schema=./prisma/schema.prisma && npx tsc

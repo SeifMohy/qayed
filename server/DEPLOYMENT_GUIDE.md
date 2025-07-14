@@ -37,11 +37,20 @@ railway up
 ## 🐳 Docker Deployment
 
 ### Building the Docker Image
-The Docker image should be built from the **root directory** of the project, not from the server directory:
 
+#### Option 1: Build from Server Directory (Recommended for Railway)
+```bash
+# Navigate to server directory
+cd server
+
+# Build the Docker image
+docker build -t qayed-backend .
+```
+
+#### Option 2: Build from Root Directory
 ```bash
 # From the root directory of the project
-docker build -f server/Dockerfile -t qayed-backend .
+docker build -f server/Dockerfile -t qayed-backend server
 ```
 
 ### Running the Docker Container
@@ -52,20 +61,43 @@ docker run -p 3001:3001 \
   qayed-backend
 ```
 
-### Docker Compose (Optional)
+### Docker Compose (Option 1: Server Context)
 ```yaml
 version: '3.8'
 services:
   backend:
     build:
-      context: .
-      dockerfile: server/Dockerfile
+      context: ./server
+      dockerfile: Dockerfile
     ports:
       - "3001:3001"
     environment:
       - NODE_ENV=production
       - GEMINI_API_KEY=your_api_key_here
 ```
+
+### Docker Compose (Option 2: Root Context)
+```yaml
+version: '3.8'
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=your_api_key_here
+```
+
+### 🚀 Railway Deployment Notes
+Railway automatically builds from the server directory context, so the Dockerfile is optimized for this approach. The build process will:
+1. Install all dependencies (including dev dependencies for the build)
+2. Copy the Prisma schema from the parent directory
+3. Generate the Prisma client
+4. Compile TypeScript
+5. Remove dev dependencies for a smaller production image
 
 ### Step 5: Configure Environment Variables
 Set these environment variables in your Railway project:
