@@ -1,4 +1,4 @@
-import type { SSEMessage } from "../types/api.js";
+import type { SSEMessage } from '../types/api.js';
 interface SSECallback {
     (data: SSEMessage): void;
 }

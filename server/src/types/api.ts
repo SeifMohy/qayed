@@ -28,7 +28,7 @@ export interface FileProcessingResult {
 }
 
 export interface SSEMessage {
-  type: 'status' | 'file_start' | 'file_progress' | 'file_complete' | 'complete' | 'error' | 'file_error' | 'chunks_prepared' | 'chunk_start' | 'chunk_complete' | 'chunk_error';
+  type: 'status' | 'file_start' | 'file_progress' | 'file_complete' | 'complete' | 'error';
   fileName?: string;
   fileIndex?: number;
   totalFiles?: number;
@@ -37,14 +37,6 @@ export interface SSEMessage {
   error?: string;
   results?: FileProcessingResult[];
   timestamp: string;
-  // Additional fields for PDF parsing
-  totalChunks?: number;
-  chunkIndex?: number;
-  successfulChunks?: number;
-  failedChunks?: number;
-  extractedLength?: number;
-  extractedText?: string;
-  pageRange?: { start: number; end: number };
 }
 
 export interface HealthCheckResponse extends BaseResponse {
