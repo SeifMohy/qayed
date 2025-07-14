@@ -14,17 +14,24 @@ RUN apk add --no-cache \
     pango-dev \
     giflib-dev
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy package files first for better caching (from server directory)
+COPY server/package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies first (needed for build process)  
+RUN npm ci && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Copy prisma schema from root
+COPY prisma ./prisma
 
-# Build the TypeScript application
-RUN npm run build
+# Copy server source code and config files
+COPY server/src ./src
+COPY server/tsconfig.json ./tsconfig.json
+
+# Build the TypeScript application with explicit schema path
+RUN npx prisma generate --schema=./prisma/schema.prisma && npx tsc
+
+# Remove devDependencies and reinstall only production dependencies
+RUN rm -rf node_modules && npm ci --only=production && npm cache clean --force
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \

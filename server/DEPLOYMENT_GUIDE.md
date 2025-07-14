@@ -34,6 +34,39 @@ railway init
 railway up
 ```
 
+## 🐳 Docker Deployment
+
+### Building the Docker Image
+The Docker image should be built from the **root directory** of the project, not from the server directory:
+
+```bash
+# From the root directory of the project
+docker build -f server/Dockerfile -t qayed-backend .
+```
+
+### Running the Docker Container
+```bash
+docker run -p 3001:3001 \
+  -e NODE_ENV=production \
+  -e GEMINI_API_KEY=your_api_key_here \
+  qayed-backend
+```
+
+### Docker Compose (Optional)
+```yaml
+version: '3.8'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=your_api_key_here
+```
+
 ### Step 5: Configure Environment Variables
 Set these environment variables in your Railway project:
 
