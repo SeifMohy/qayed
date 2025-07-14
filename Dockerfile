@@ -4,10 +4,12 @@ FROM node:18
 # Set working directory to /app
 WORKDIR /app
 
-# Copy root package files and server package files
+# Copy root package files
 COPY package*.json ./
-COPY server/package*.json ./server/
 COPY prisma ./prisma
+
+# Copy the entire server directory (including src, tsconfig.json, etc.)
+COPY server ./server
 
 # Install root dependencies (including Prisma)
 RUN npm install
