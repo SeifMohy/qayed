@@ -28,10 +28,17 @@ export interface FileProcessingResult {
 }
 
 export interface SSEMessage {
-  type: 'status' | 'file_start' | 'file_progress' | 'file_complete' | 'complete' | 'error';
+  type: 'status' | 'file_start' | 'file_progress' | 'file_complete' | 'complete' | 'error' | 
+        'file_error' | 'chunks_prepared' | 'chunk_start' | 'chunk_complete' | 'chunk_error';
   fileName?: string;
   fileIndex?: number;
   totalFiles?: number;
+  totalChunks?: number;
+  chunkIndex?: number;
+  pageRange?: {start: number, end: number};
+  extractedLength?: number;
+  successfulChunks?: number;
+  failedChunks?: number;
   success?: boolean;
   message?: string;
   error?: string;
