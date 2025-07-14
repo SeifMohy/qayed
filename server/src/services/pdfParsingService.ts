@@ -274,8 +274,11 @@ export async function parseMultiplePDFs(files: Express.Multer.File[], sendSSE: S
       // Convert file to buffer for PDF processing
       const fileBuffer = file.buffer;
       
+      // Convert Buffer to ArrayBuffer for PDF processing
+      const arrayBuffer = fileBuffer.buffer.slice(fileBuffer.byteOffset, fileBuffer.byteOffset + fileBuffer.byteLength) as ArrayBuffer;
+      
       // Split PDF into manageable chunks
-      const pdfChunks = await splitPdfIntoChunks(fileBuffer, MAX_PAGES_PER_CHUNK);
+      const pdfChunks = await splitPdfIntoChunks(arrayBuffer, MAX_PAGES_PER_CHUNK);
       
       logger.info(`Split ${fileName} into ${pdfChunks.length} chunks`);
       
