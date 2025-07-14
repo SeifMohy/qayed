@@ -6,7 +6,8 @@ import type { SSEMessage, FileProcessingResult } from '../types/api.js';
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
-const API_KEY = process.env.GEMINI_API_KEY;
+// Access API_KEY at runtime instead of module level
+const getApiKey = () => process.env.GEMINI_API_KEY;
 
 // Configuration for chunking and retries
 const MAX_PAGES_PER_CHUNK = PDF_CONFIG.MAX_PAGES_PER_CHUNK;
@@ -211,6 +212,7 @@ Important notes:
 
 // Main function to parse multiple PDFs
 export async function parseMultiplePDFs(files: Express.Multer.File[], sendSSE: SSECallback): Promise<void> {
+  const API_KEY = getApiKey();
   if (!API_KEY) {
     logger.error('Error: GEMINI_API_KEY environment variable is not set.');
     throw new Error('GEMINI_API_KEY environment variable is not set');

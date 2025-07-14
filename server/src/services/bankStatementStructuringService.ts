@@ -51,7 +51,8 @@ type ChunkData = {
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
 const FALLBACK_MODEL = "gemini-1.5-flash";
-const API_KEY = process.env.GEMINI_API_KEY;
+// Access API_KEY at runtime instead of module level
+const getApiKey = () => process.env.GEMINI_API_KEY;
 
 // --- SSE Callback Interface ---
 interface SSECallback {
@@ -592,6 +593,7 @@ export async function structureBankStatement(
     classificationResults?: any[];
     error?: string;
 }> {
+    const API_KEY = getApiKey();
     if (!API_KEY) {
         throw new Error('GEMINI_API_KEY environment variable is not set');
     }

@@ -1,10 +1,11 @@
-import { prisma } from '../prisma.js';
+import { prisma } from '../prisma';
 import { GoogleGenAI } from "@google/genai";
-import { TransactionCategory } from '@prisma/client';
+import { TransactionCategory } from '../../../../node_modules/@prisma/client';
 
 // --- Model and API Key Configuration ---
 const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
-const API_KEY = process.env.GEMINI_API_KEY;
+// Access API_KEY at runtime instead of module level
+const getApiKey = () => process.env.GEMINI_API_KEY;
 
 // --- Types for Classification ---
 type BatchClassificationResult = {
@@ -46,6 +47,7 @@ function mapCategoryToEnum(categoryString: string): TransactionCategory {
 
 // --- Helper Function for Batch Gemini API Call ---
 async function classifyTransactionsBatch(transactions: any[]): Promise<BatchClassificationResult[]> {
+  const API_KEY = getApiKey();
   if (!API_KEY) {
     throw new Error('Gemini API key not configured');
   }
@@ -196,6 +198,7 @@ export async function classifyBankStatementTransactions(bankStatementId: number)
   totalTransactions: number;
   errors: string[];
 }> {
+  const API_KEY = getApiKey();
   if (!API_KEY) {
     throw new Error('Gemini API key not configured');
   }

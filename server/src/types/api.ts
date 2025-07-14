@@ -36,6 +36,7 @@ export interface SSEMessage {
   totalChunks?: number;
   chunkIndex?: number;
   pageRange?: {start: number, end: number};
+  pages?: string;
   extractedLength?: number;
   successfulChunks?: number;
   failedChunks?: number;
