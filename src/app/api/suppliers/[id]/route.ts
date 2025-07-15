@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/middleware/auth';
 import type { PaymentTermsData } from '@/types/paymentTerms';
 
+// Add fetch for currency conversion
+async function convertToEGP(amount: number, fromCurrency: string): Promise<number> {
+  if (fromCurrency === 'EGP') return amount;
+  try {
+    // Use Vercel/Next.js runtime env or fallback to localhost
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const url = `${baseUrl}/api/currency/convert`;
+
+    console.log('Calling currency conversion API:', { amount, fromCurrency, toCurrency: 'EGP', url });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, fromCurrency, toCurrency: 'EGP' }),
+    });
+    const data = await res.json();
+    console.log('Currency conversion API response:', data);
+    if (data.success) return data.conversion.convertedAmount;
+    return amount; // fallback
+  } catch (e) {
+    console.error('Currency conversion error:', e);
+    return amount; // fallback
+  }
+}
+
 interface MatchedTransaction {
   id: number;
   transactionDate: string;
@@ -117,6 +143,13 @@ export const GET = withAuth(async (
         });
 
         // Calculate total payables (remaining amounts)
+        // Convert each invoice's remainingAmount to EGP if needed
+        invoicesWithMatches.forEach(inv => {
+          console.log('Invoice for conversion:', inv.invoiceNumber, inv.remainingAmount, inv.currency);
+        });
+        const egpPromises = invoicesWithMatches.map(inv => convertToEGP(inv.remainingAmount, inv.currency));
+        const egpAmounts = await Promise.all(egpPromises);
+        const totalPayablesEGP = egpAmounts.reduce((sum, amt) => sum + amt, 0);
         const totalPayables = invoicesWithMatches.reduce((sum, invoice) => sum + invoice.remainingAmount, 0);
 
         // Get all matched transactions for the transactions tab
@@ -182,7 +215,8 @@ export const GET = withAuth(async (
                 month: 'short',
                 year: 'numeric'
             }),
-            totalPayables: totalPayables,
+            totalPayables: totalPayables, // legacy, keep for table
+            totalPayablesEGP: totalPayablesEGP, // new, for key card
             paymentTerms: legacyPaymentTerms,
             averagePaymentTime: averagePaymentTime,
             onTimePaymentPercentage: onTimePaymentPercentage,

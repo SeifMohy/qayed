@@ -48,6 +48,7 @@ interface CustomerDetail {
   creditScore: string;
   country: string;
   totalReceivables: number;
+  totalReceivablesEGP: number;
   averagePaymentTime: number | null;
   onTimePaymentPercentage: number | null;
   recentPayments: number;
@@ -249,7 +250,7 @@ export default function CustomerProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Total Receivables</h3>
             <p className="text-2xl font-bold text-gray-900">
-              {formatCurrency(customer.totalReceivables)}
+              {formatCurrency(customer.totalReceivablesEGP, 'EGP')}
             </p>
             <p className="mt-1 text-sm text-gray-500">Outstanding amount</p>
           </div>

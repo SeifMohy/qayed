@@ -56,6 +56,7 @@ interface SupplierDetail {
   invoices: InvoiceWithMatches[];
   matchedTransactions: MatchedTransaction[];
   notes: string;
+  totalPayablesEGP: number; // Added for the new key card
 }
 
 export default function SupplierProfile({ params }: { params: { id: string } }) {
@@ -227,7 +228,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-6">
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Due Next 30 Days</h3>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(supplier.dueNext30Days || 0)}</p>
+            <p className="text-2xl font-bold text-gray-900">{formatCurrency(supplier.dueNext30Days || 0, 'EGP')}</p>
             <p className="mt-1 text-sm text-gray-500">Upcoming payments</p>
           </div>
           
@@ -244,7 +245,7 @@ export default function SupplierProfile({ params }: { params: { id: string } }) 
           <div className="bg-white shadow rounded-lg p-6">
             <h3 className="text-base font-semibold text-gray-900 mb-1">Total Outstanding</h3>
             <p className="text-2xl font-bold text-gray-900">
-              {formatCurrency(supplier.totalPayables)}
+              {formatCurrency(supplier.totalPayablesEGP, 'EGP')}
             </p>
             <p className="mt-1 text-sm text-gray-500">Amount owed</p>
           </div>
