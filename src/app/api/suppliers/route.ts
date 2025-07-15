@@ -48,14 +48,15 @@ async function convertCurrency(amount: number, fromCurrency: string, toCurrency:
     });
 
     if (!response.ok) {
-      console.warn(`Currency conversion failed for ${fromCurrency} to ${toCurrency}, using 1:1 rate`);
       return amount;
     }
 
     const data = await response.json();
-    return data.success ? data.convertedAmount : amount;
+    if (!data.success || typeof data.convertedAmount !== 'number' || isNaN(data.convertedAmount)) {
+      return amount;
+    }
+    return data.convertedAmount;
   } catch (error) {
-    console.warn(`Currency conversion error for ${fromCurrency} to ${toCurrency}:`, error);
     return amount;
   }
 }
@@ -92,20 +93,32 @@ async function getSuppliersWithConversion(suppliers: SupplierWithInvoicesAndMatc
       if (invoiceCurrency !== 'EGP') {
         const cacheKey = `${invoiceCurrency}_EGP`;
         if (conversionCache.has(cacheKey)) {
-          conversionRate = conversionCache.get(cacheKey)!;
+          conversionRate = conversionCache.get(cacheKey) ?? 1;
         } else {
           conversionRate = await convertCurrency(1, invoiceCurrency, 'EGP');
+          if (typeof conversionRate !== 'number' || isNaN(conversionRate)) {
+            console.warn('Conversion rate is not a valid number:', conversionRate, 'for currency', invoiceCurrency, 'for supplier', supplier.name);
+            conversionRate = 1;
+          }
           conversionCache.set(cacheKey, conversionRate);
         }
       }
 
-      const totalInEGP = Number(invoice.total) * conversionRate;
-      totalPayables += totalInEGP;
+      // Handle Prisma Decimal for invoice.total
+      let invoiceTotalRaw = invoice.total;
+      let invoiceTotalNum: number;
+      if (invoiceTotalRaw && typeof invoiceTotalRaw === 'object' && typeof invoiceTotalRaw.toNumber === 'function') {
+        invoiceTotalNum = invoiceTotalRaw.toNumber();
+      } else {
+        invoiceTotalNum = Number(invoiceTotalRaw ?? 0);
+      }
+      const totalInEGP = invoiceTotalNum * conversionRate;
+      totalPayables += isNaN(totalInEGP) ? 0 : totalInEGP;
 
       // Calculate payments and delays
       for (const match of invoice.TransactionMatch) {
-        const paidAmount = Number(match.Transaction.debitAmount || 0) * conversionRate;
-        totalPaid += paidAmount;
+        const paidAmount = Number(match.Transaction.debitAmount ?? 0) * conversionRate;
+        totalPaid += isNaN(paidAmount) ? 0 : paidAmount;
 
         const paymentDate = new Date(match.Transaction.transactionDate);
         if (!lastPaymentDate || paymentDate > lastPaymentDate) {
@@ -125,22 +138,21 @@ async function getSuppliersWithConversion(suppliers: SupplierWithInvoicesAndMatc
       }
 
       // Calculate next payment due (for unpaid invoices)
-      const invoiceBalance = totalInEGP - (invoice.TransactionMatch.reduce((sum, match) => 
-        sum + Number(match.Transaction.debitAmount || 0) * conversionRate, 0
-      ));
-      
+      const invoicePaid = invoice.TransactionMatch.reduce((sum, match) =>
+        sum + (isNaN(Number(match.Transaction.debitAmount ?? 0)) ? 0 : Number(match.Transaction.debitAmount ?? 0)) * conversionRate, 0
+      );
+      const invoiceBalance = (isNaN(totalInEGP) ? 0 : totalInEGP) - invoicePaid;
       if (invoiceBalance > 0) {
         const invoiceDate = new Date(invoice.invoiceDate);
         const dueDate = new Date(invoiceDate);
         dueDate.setDate(invoiceDate.getDate() + paymentDays);
-        
         if (!nextPaymentDue || dueDate < nextPaymentDue) {
           nextPaymentDue = dueDate;
         }
       }
     }
 
-    const outstandingBalance = totalPayables - totalPaid;
+    const outstandingBalance = (isNaN(totalPayables) ? 0 : totalPayables) - (isNaN(totalPaid) ? 0 : totalPaid);
     const averagePaymentDelay = paymentsWithDelay > 0 ? Math.round(totalDelayDays / paymentsWithDelay) : 0;
 
     // Calculate overdue amount
@@ -148,18 +160,17 @@ async function getSuppliersWithConversion(suppliers: SupplierWithInvoicesAndMatc
     let overdueAmount = 0;
     for (const invoice of supplier.Invoice) {
       const invoiceCurrency = invoice.currency || 'EGP';
-      const conversionRate = conversionCache.get(`${invoiceCurrency}_EGP`) || 1;
-      
+      const conversionRate = conversionCache.get(`${invoiceCurrency}_EGP`) ?? 1;
       const invoiceDate = new Date(invoice.invoiceDate);
       const dueDate = new Date(invoiceDate);
       dueDate.setDate(invoiceDate.getDate() + paymentDays);
-      
       if (dueDate < now) {
-        const invoiceTotal = Number(invoice.total) * conversionRate;
-        const paidAmount = invoice.TransactionMatch.reduce((sum, match) => 
-          sum + Number(match.Transaction.debitAmount || 0) * conversionRate, 0
+        const invoiceTotal = Number(invoice.total ?? 0);
+        const invoiceTotalInEGP = invoiceTotal * conversionRate;
+        const paidAmount = invoice.TransactionMatch.reduce((sum, match) =>
+          sum + (isNaN(Number(match.Transaction.debitAmount ?? 0)) ? 0 : Number(match.Transaction.debitAmount ?? 0)) * conversionRate, 0
         );
-        const balance = invoiceTotal - paidAmount;
+        const balance = (isNaN(invoiceTotalInEGP) ? 0 : invoiceTotalInEGP) - paidAmount;
         if (balance > 0) {
           overdueAmount += balance;
         }
@@ -173,10 +184,10 @@ async function getSuppliersWithConversion(suppliers: SupplierWithInvoicesAndMatc
       etaId: supplier.etaId,
       paymentTerms: `Net ${paymentDays}`,
       paymentDays,
-      totalPayables: Math.round(totalPayables * 100) / 100,
-      totalPaid: Math.round(totalPaid * 100) / 100,
-      outstandingBalance: Math.round(outstandingBalance * 100) / 100,
-      overdueAmount: Math.round(overdueAmount * 100) / 100,
+      totalPayables: Math.round((isNaN(totalPayables) ? 0 : totalPayables) * 100) / 100,
+      totalPaid: Math.round((isNaN(totalPaid) ? 0 : totalPaid) * 100) / 100,
+      outstandingBalance: Math.round((isNaN(outstandingBalance) ? 0 : outstandingBalance) * 100) / 100,
+      overdueAmount: Math.round((isNaN(overdueAmount) ? 0 : overdueAmount) * 100) / 100,
       invoiceCount: supplier.Invoice.length,
       averagePaymentDelay,
       currency: 'EGP',
