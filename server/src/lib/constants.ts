@@ -68,3 +68,15 @@ export const PDF_CONFIG = {
   MAX_RETRIES: 3,
   RETRY_BASE_DELAY: 2000, // 2 seconds base delay for retries
 }; 
+
+export const CURRENT_CUSTOMER_NAMES = [
+  'شركهكانلصناعهوتعبئهالعلب', 
+  'شركةكان', 
+  'شركةكانلصناعةوتعبئةالعلب', 
+  'كانلصناعةوتعبئةالعلب', 
+  'شركهكانلصناعهوتعبيئهالعلب',
+  'Can For Manufacturing and Filling Cans',
+  'Can Company For Manufacturing And Filling Cans'
+];
+
+export const CURRENT_CUSTOMER_ETAID = "204942527"; 

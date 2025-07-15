@@ -64,7 +64,13 @@ export const useInvoiceUpload = (options: UseInvoiceUploadOptions = {}) => {
       if (allInvoices.length > 0) {
         console.log(`📤 Uploading ${allInvoices.length} invoices in bulk...`)
         
-        const response = await fetch('/api/invoices', {
+        // Use Express backend URL if available
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+        if (!backendUrl) {
+          throw new Error('Backend URL not configured. Please set NEXT_PUBLIC_BACKEND_URL environment variable.');
+        }
+        const normalizedBackendUrl = backendUrl.startsWith('http') ? backendUrl : `https://${backendUrl}`;
+        const response = await fetch(`${normalizedBackendUrl}/api/invoices`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${session.access_token}`,
@@ -74,7 +80,7 @@ export const useInvoiceUpload = (options: UseInvoiceUploadOptions = {}) => {
             supabaseUserId: session.user.id,
             invoices: allInvoices
           }),
-        })
+        });
 
         if (!response.ok) {
           const errorText = await response.text()
