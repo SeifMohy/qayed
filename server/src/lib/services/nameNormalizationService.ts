@@ -159,5 +159,5 @@ Important:
  * Checks if name normalization is available (server-side only)
  */
 export function isNameNormalizationAvailable(): boolean {
-  return typeof window === 'undefined' && !!process.env.GEMINI_API_KEY;
+  return !!process.env.GEMINI_API_KEY;
 } 
