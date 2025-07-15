@@ -498,13 +498,8 @@ async function createNewBankAndStatement(
 export async function updateStatementBankAffiliation(
   statementId: number,
   newBankName: string,
-  supabaseUserId: string
+  companyId: number
 ): Promise<void> {
-  
-  // Get user's company ID using CompanyAccessService
-  const companyAccessService = new CompanyAccessService(supabaseUserId);
-  const companyId = await companyAccessService.getCompanyId();
-  
   // Find or create the new bank with company scope
   let bank = await prisma.bank.findFirst({
     where: {

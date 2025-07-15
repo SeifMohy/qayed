@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateStatementBankAffiliation } from '@/lib/services/bankStatementConcurrencyService';
+import { prisma } from '@/lib/prisma';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export async function PUT(
 ) {
   try {
     const statementId = parseInt(params.id);
-    const { bankName, supabaseUserId } = await request.json();
+    const { bankName } = await request.json();
 
     if (!bankName || typeof bankName !== 'string' || bankName.trim() === '') {
       return NextResponse.json(
@@ -19,14 +20,21 @@ export async function PUT(
       );
     }
 
-    if (!supabaseUserId) {
+    // Fetch the statement and its bank to get companyId
+    const statement = await prisma.bankStatement.findUnique({
+      where: { id: statementId },
+      include: { bank: true }
+    });
+    if (!statement) {
       return NextResponse.json(
-        { success: false, error: 'User authentication required' },
-        { status: 401 }
+        { success: false, error: 'Bank statement not found' },
+        { status: 404 }
       );
     }
+    const companyId = statement.bank.companyId;
 
-    await updateStatementBankAffiliation(statementId, bankName.trim(), supabaseUserId);
+    // Update the bank affiliation using only statementId, bankName, and companyId
+    await updateStatementBankAffiliation(statementId, bankName.trim(), companyId);
 
     return NextResponse.json({
       success: true,

@@ -156,24 +156,13 @@ export async function PUT(
       validatedBy,
       tenor,
       availableLimit,
-      interestRate,
-      supabaseUserId
+      interestRate
     } = body;
 
-    // Get user's company ID using CompanyAccessService
-    if (!supabaseUserId) {
-      return NextResponse.json({
-        success: false,
-        error: 'User authentication required'
-      }, { status: 401 });
-    }
-
-    const companyAccessService = new CompanyAccessService(supabaseUserId);
-    const companyId = await companyAccessService.getCompanyId();
-
-    // Check if statement exists and is not locked
+    // Fetch statement and its bank to get companyId
     const existingStatement = await prisma.bankStatement.findUnique({
-      where: { id }
+      where: { id },
+      include: { bank: true }
     });
 
     if (!existingStatement) {
@@ -189,6 +178,9 @@ export async function PUT(
         error: 'Statement is locked and cannot be modified'
       }, { status: 403 });
     }
+
+    // Get companyId from the bank
+    const companyId = existingStatement.bank.companyId;
 
     // Track if facility-related fields are being updated
     const isFacilityFieldsUpdate = (
