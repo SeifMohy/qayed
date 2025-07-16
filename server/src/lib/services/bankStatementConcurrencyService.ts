@@ -322,7 +322,8 @@ async function mergeTransactionsIntoExistingStatement(
       balance: convertToDecimal(transaction.balance) || null,
       pageNumber: String(transaction.page_number || ''),
       entityName: String(transaction.entity_name || ''),
-      bankStatementId: existingStatementId
+      bankStatementId: existingStatementId,
+      currency: existingStatement.accountCurrency || null
     };
   });
 
@@ -407,6 +408,7 @@ async function createNewStatementInExistingBank(
             balance: convertToDecimal(transaction.balance) || null,
             pageNumber: String(transaction.page_number || ''),
             entityName: String(transaction.entity_name || ''),
+            currency: statement.account_currency || null
           };
         })
       }
@@ -481,6 +483,7 @@ async function createNewBankAndStatement(
             balance: convertToDecimal(transaction.balance) || null,
             pageNumber: String(transaction.page_number || ''),
             entityName: String(transaction.entity_name || ''),
+            currency: statement.account_currency || null
           };
         })
       }
