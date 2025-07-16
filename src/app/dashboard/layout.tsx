@@ -43,8 +43,6 @@ export default function DashboardLayout({
   };
 
   const userNavigation = [
-    { name: 'Your Profile', href: '/dashboard/profile' },
-    { name: 'Settings', href: '/dashboard/settings' },
     { name: 'Sign out', action: handleLogout },
   ];
 
@@ -130,27 +128,15 @@ export default function DashboardLayout({
                             {userNavigation.map((item) => (
                               <Menu.Item key={item.name}>
                                 {({ active }) => (
-                                  item.action ? (
-                                    <button
-                                      onClick={item.action}
-                                      className={clsx(
-                                        active ? 'bg-gray-100' : '',
-                                        'block w-full text-left px-4 py-2 text-sm text-gray-700'
-                                      )}
-                                    >
-                                      {item.name}
-                                    </button>
-                                  ) : (
-                                    <Link
-                                      href={item.href}
-                                      className={clsx(
-                                        active ? 'bg-gray-100' : '',
-                                        'block px-4 py-2 text-sm text-gray-700'
-                                      )}
-                                    >
-                                      {item.name}
-                                    </Link>
-                                  )
+                                  <button
+                                    onClick={item.action}
+                                    className={clsx(
+                                      active ? 'bg-gray-100' : '',
+                                      'block w-full text-left px-4 py-2 text-sm text-gray-700'
+                                    )}
+                                  >
+                                    {item.name}
+                                  </button>
                                 )}
                               </Menu.Item>
                             ))}
@@ -209,24 +195,13 @@ export default function DashboardLayout({
                     </div>
                     <div className="mt-3 space-y-1">
                       {userNavigation.map((item) => (
-                        item.action ? (
-                          <button
-                            key={item.name}
-                            onClick={item.action}
-                            className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                          >
-                            {item.name}
-                          </button>
-                        ) : (
-                          <Disclosure.Button
-                            key={item.name}
-                            as="a"
-                            href={item.href}
-                            className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                          >
-                            {item.name}
-                          </Disclosure.Button>
-                        )
+                        <button
+                          key={item.name}
+                          onClick={item.action}
+                          className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                        >
+                          {item.name}
+                        </button>
                       ))}
                     </div>
                   </div>

@@ -97,8 +97,6 @@ export default function AnnotationLayout({
 
   const userNavigation = [
     { name: 'Back to Dashboard', href: '/dashboard' },
-    { name: 'Your Profile', href: '/dashboard/profile' },
-    { name: 'Settings', href: '/dashboard/settings' },
     { name: 'Sign out', action: handleLogout },
   ];
 
