@@ -13,6 +13,7 @@ import { PAGE_DATA_SOURCES, ALL_DATA_SOURCES, getSourcesForComponent } from '@/l
 import { formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { useAuth } from '@/contexts/auth-context'
 import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
+import { useProcessing } from '@/contexts/processing-context';
 
 // Interface for supplier data
 interface Supplier {
@@ -45,6 +46,7 @@ export default function SuppliersPage() {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { session } = useAuth();
+  const { setIsProcessing } = useProcessing();
 
   // Invoice upload hook
   const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
@@ -147,8 +149,9 @@ export default function SuppliersPage() {
   const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id] && sourceFiles[id].length > 0);
     if (sourceIds.length === 0) return;
-    
+    setIsUploadModalOpen(false); // Close modal immediately
     setIsUploading('processing');
+    setIsProcessing(true); // Show processing banner
     
     try {
       // Process all uploaded files using the unified hook
@@ -163,6 +166,7 @@ export default function SuppliersPage() {
       // Error handling is done in the hook's onError callback
     } finally {
       setIsUploading('idle');
+      setIsProcessing(false); // Hide processing banner
     }
   };
   

@@ -14,6 +14,7 @@ import { isFacilityAccount, getFacilityDisplayType } from '@/utils/bankStatement
 import { formatCurrencyByCode, formatEGP, formatEGPForKeyCard } from '@/lib/format'
 import { currencyCache } from '@/lib/services/currencyCache'
 import { useAuth } from '@/contexts/auth-context'
+import { useProcessing } from '@/contexts/processing-context';
 
 type Bank = {
   id: number;
@@ -66,6 +67,7 @@ interface BanksMetadata {
 export default function BanksPage() {
   const { uploadedSources, setUploadedSources, isDataSourceUploaded } = useUploadedSources();
   const { session } = useAuth(); // Get auth session
+  const { setIsProcessing } = useProcessing();
 
   const [bankAccounts, setBankAccounts] = useState<Bank[]>([]);
   const [creditFacilities, setCreditFacilities] = useState<CreditFacility[]>([]);
@@ -502,6 +504,8 @@ export default function BanksPage() {
     
     if (sourceIds.length === 0) return;
     
+    setIsUploadModalOpen(false); // Close modal immediately
+    
     // Check if bank statements are being uploaded
     const hasBankStatements = sourceIds.includes('bankStatements');
     
@@ -527,6 +531,7 @@ export default function BanksPage() {
     
     try {
       setIsUploading('processing');
+      setIsProcessing(true); // Show processing banner
       
       // Process bank statements with user ID
       await processBankStatements(files, session.user.id);
@@ -554,12 +559,14 @@ export default function BanksPage() {
       // Keep the modal open to show the error
     } finally {
       setIsUploading(null);
+      setIsProcessing(false); // Hide processing banner
     }
   };
   
   const handleRegularFileUploads = (sourceIds: string[]) => {
     // Start uploading process
     setIsUploading('processing');
+    setIsProcessing(true); // Show processing banner
     
     // Simulate processing delay
     setTimeout(() => {
@@ -576,6 +583,7 @@ export default function BanksPage() {
       setUploadedSources(newUploadedSources);
       setSourceFiles(newSourceFiles);
       setIsUploading(null);
+      setIsProcessing(false); // Hide processing banner
       // Keep modal open to allow for more uploads
       if (Object.keys(newSourceFiles).length === 0) {
         setIsUploadModalOpen(false);
