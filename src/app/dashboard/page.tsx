@@ -3,7 +3,7 @@
 // Force dynamic rendering to prevent static generation
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowPathIcon } from '@heroicons/react/20/solid'
 import { CurrencyDollarIcon, BanknotesIcon, CreditCardIcon, ArrowTrendingUpIcon, InformationCircleIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
@@ -18,6 +18,7 @@ import type { DataSource } from '@/lib/data-sources'
 import { useAuth } from '@/contexts/auth-context'
 import { useInvoiceUpload } from '@/hooks/useInvoiceUpload'
 import { processBankStatements } from '@/components/upload/BankStatementUploader'
+import { useProcessing } from '@/contexts/processing-context';
 
 // Dynamically import Chart.js components
 const Line = dynamicImport(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false })
@@ -142,6 +143,7 @@ export default function Dashboard() {
   
   // Auth context
   const { session } = useAuth();
+  const { setIsProcessing } = useProcessing();
 
   // Invoice upload hook
   const { uploadInvoices, isUploading: invoiceUploading } = useInvoiceUpload({
@@ -469,43 +471,27 @@ export default function Dashboard() {
 
   const handleSubmitFiles = async () => {
     const sourceIds = Object.keys(sourceFiles).filter(id => sourceFiles[id]?.length > 0);
-    
     if (sourceIds.length === 0) return;
-    
+    setIsUploadModalOpen(false);
+    setIsProcessing(true); // Show banner
     const hasBankStatements = sourceIds.includes('bankStatements');
     const hasInvoices = sourceIds.includes('invoices');
-    
     try {
-      // If we have both types of files, process them sequentially
       if (hasBankStatements && hasInvoices) {
-        console.log('🚀 Processing both bank statements and invoices...');
-        
-        // Process bank statements first (not standalone - don't close modal yet)
-        await handleBankStatementProcessing(sourceFiles['bankStatements'], false);
-        
-        // Then process invoices (not standalone - don't close modal yet)
-        await handleInvoiceProcessing(sourceFiles['invoices'], 'invoices', false);
-        
-        console.log('✅ All files processed successfully');
-        
-        // Close modal and refresh data after both are processed
-        setTimeout(() => {
-          setIsUploadModalOpen(false);
-          fetchDashboardData(); // Refresh dashboard data
-        }, 1500);
-        
+        await Promise.all([
+          handleBankStatementProcessing(sourceFiles['bankStatements'], false),
+          handleInvoiceProcessing(sourceFiles['invoices'], 'invoices', false)
+        ]);
       } else if (hasBankStatements) {
-        // Only bank statements (standalone - will handle modal closing)
         await handleBankStatementProcessing(sourceFiles['bankStatements'], true);
       } else if (hasInvoices) {
-        // Only invoices (standalone - will handle modal closing)
         await handleInvoiceProcessing(sourceFiles['invoices'], 'invoices', true);
       }
+      // Optionally refresh dashboard data here
     } catch (error) {
-      console.error('❌ Error processing files:', error);
-      // Individual error handling is done in the specific processing functions
+      // Handle error
     } finally {
-      // Always reset upload state when processing both types
+      setIsProcessing(false); // Hide banner when done
       if (hasBankStatements && hasInvoices) {
         setIsUploading(null);
       }
