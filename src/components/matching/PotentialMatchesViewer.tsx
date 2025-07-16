@@ -107,28 +107,30 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
     };
   };
 
+  // Helper function to get backend URL
+  const getBackendUrl = () => {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!backendUrl) throw new Error('Backend URL not configured. Please set NEXT_PUBLIC_BACKEND_URL environment variable.');
+    return backendUrl.startsWith('http') ? backendUrl : `https://${backendUrl}`;
+  };
+
 
   const fetchMatches = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Check if user is authenticated
-      if (!session?.access_token) {
-        console.log('❌ No session or access token available');
+      if (!session?.access_token || !session?.user?.id) {
         setLoading(false);
         return;
       }
-
+      const backendUrl = getBackendUrl();
       const response = await fetch(
-        `/api/matching/pending?page=${currentPage}&limit=10&status=${filter}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
+        `${backendUrl}/api/matching/pending?page=${currentPage}&limit=10&status=${filter}&sortBy=${sortBy}&sortOrder=${sortOrder}&supabaseUserId=${session.user.id}`,
         { headers: getAuthHeaders() }
       );
       const data = await response.json();
-
       if (data.success) {
         setMatches(data.matches);
         setPagination(data.pagination);
-        // Clear processed matches when switching pages/filters
         setProcessedMatches(new Map());
         setSelectedMatches(new Set());
       } else {
@@ -148,56 +150,50 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
 
 
   const handleMatchAction = async (matchId: number, action: 'approve' | 'reject' | 'dispute', notes?: string) => {
-    console.log('Attempting to update match:', { matchId, action, notes });
-    
-    // Optimistic update
     setProcessedMatches(prev => new Map(prev).set(matchId, {
       id: matchId,
       action,
       isProcessing: true,
       isCompleted: false
     }));
-
     try {
-      const requestBody = { matchId, action, notes };
-      console.log('Request body:', requestBody);
-
-      const response = await fetch('/api/matching/pending', {
+      if (!session?.access_token || !session?.user?.id) {
+        setProcessedMatches(prev => new Map(prev).set(matchId, {
+          id: matchId,
+          action,
+          isProcessing: false,
+          isCompleted: false,
+          error: 'Authentication required.'
+        }));
+        return;
+      }
+      const backendUrl = getBackendUrl();
+      const requestBody = { matchId, action, notes, supabaseUserId: session.user.id };
+      const response = await fetch(`${backendUrl}/api/matching/pending`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(requestBody),
       });
-
-      console.log('Response status:', response.status);
-      
       const data = await response.json();
-      console.log('Response data:', data);
-
       if (data.success) {
-        // Mark as completed
         setProcessedMatches(prev => new Map(prev).set(matchId, {
           id: matchId,
           action,
           isProcessing: false,
           isCompleted: true
         }));
-        
-        // Remove from selected if it was selected
         setSelectedMatches(prev => {
           const newSet = new Set(prev);
           newSet.delete(matchId);
           return newSet;
         });
-
-        // Refresh the data to show updated state
         setTimeout(() => {
           fetchMatches();
           if (onMatchUpdate) {
             onMatchUpdate();
           }
-        }, 500); // Small delay to ensure database is updated
+        }, 500);
       } else {
-        // Mark as error
         setProcessedMatches(prev => new Map(prev).set(matchId, {
           id: matchId,
           action,
@@ -205,21 +201,17 @@ export default function PotentialMatchesViewer({ onMatchUpdate }: PotentialMatch
           isCompleted: false,
           error: data.error
         }));
-        
         console.error('Match action failed:', data);
       }
-    } catch (error: any) {
-      console.error('Network error during match action:', error);
-      
+    } catch (error) {
       setProcessedMatches(prev => new Map(prev).set(matchId, {
         id: matchId,
         action,
         isProcessing: false,
         isCompleted: false,
-        error: 'Network error'
+        error: (error as Error).message || 'Unknown error'
       }));
-      
-      console.error('Network error while updating match:', error);
+      console.error('Error updating match:', error);
     }
   };
 

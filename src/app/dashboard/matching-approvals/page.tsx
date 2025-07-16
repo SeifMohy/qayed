@@ -47,27 +47,27 @@ export default function MatchingApprovalsPage() {
     };
   };
 
+  const getBackendUrl = () => {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!backendUrl) throw new Error('Backend URL not configured. Please set NEXT_PUBLIC_BACKEND_URL environment variable.');
+    return backendUrl.startsWith('http') ? backendUrl : `https://${backendUrl}`;
+  };
+
   const fetchMatchingStats = async () => {
+    setLoadingStats(true);
     try {
-      setLoadingStats(true);
-      
-      // Check if user is authenticated
-      if (!session?.access_token) {
-        console.log('❌ No session or access token available');
+      if (!session?.access_token || !session?.user?.id) {
         setLoadingStats(false);
         return;
       }
-
-      const response = await fetch('/api/matching/stats', {
-        headers: getAuthHeaders()
-      });
+      const backendUrl = getBackendUrl();
+      const response = await fetch(
+        `${backendUrl}/api/matching/stats?supabaseUserId=${session.user.id}`,
+        { headers: getAuthHeaders() }
+      );
       const data = await response.json();
-      
-      if (data.success) {
-        setMatchingStats(data.stats);
-      } else {
-        console.error('Failed to fetch matching stats:', data.error);
-      }
+      if (data.success) setMatchingStats(data.stats);
+      else console.error('Failed to fetch matching stats:', data.error);
     } catch (error) {
       console.error('Error fetching matching stats:', error);
     } finally {
@@ -81,27 +81,26 @@ export default function MatchingApprovalsPage() {
       message: 'Initializing AI matching with Gemini...',
       progress: 0
     });
-
     try {
-      const response = await fetch('/api/matching/ai-gemini', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-
+      if (!session?.access_token || !session?.user?.id) {
+        setMatchingStatus({ status: 'error', message: 'Authentication required.' });
+        return;
+      }
+      const backendUrl = getBackendUrl();
+      const response = await fetch(
+        `${backendUrl}/api/matching/ai-gemini`,
+        {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ supabaseUserId: session.user.id }),
+        }
+      );
       const data = await response.json();
-
       if (data.success) {
-        const message = data.details ? 
+        const message = data.details ?
           `AI matching completed! Found ${data.totalMatches} potential matches from ${data.details.invoicesProcessed} invoices and ${data.details.transactionsAnalyzed} transactions.` :
           `AI matching completed! Found ${data.totalMatches} potential matches.`;
-        
-        setMatchingStatus({
-          status: 'completed',
-          message,
-          matches: data.totalMatches
-        });
-        
-        // Show additional details in console for debugging
+        setMatchingStatus({ status: 'completed', message, matches: data.totalMatches });
         if (data.details) {
           console.log('🎯 Matching Results:', {
             invoicesProcessed: data.details.invoicesProcessed,
@@ -112,13 +111,9 @@ export default function MatchingApprovalsPage() {
             errors: data.errorMatches || 0
           });
         }
-        
-        // Refresh stats after matching
         fetchMatchingStats();
       } else {
         let errorMessage = data.error || 'AI matching failed';
-        
-        // Handle specific error cases
         if (data.error?.includes('No invoices found')) {
           errorMessage = 'No invoices found. Please add some invoices before running AI matching.';
         } else if (data.error?.includes('No transactions found')) {
@@ -126,18 +121,11 @@ export default function MatchingApprovalsPage() {
         } else if (data.error?.includes('API key')) {
           errorMessage = 'AI service configuration error. Please contact support.';
         }
-        
-        setMatchingStatus({
-          status: 'error',
-          message: errorMessage
-        });
+        setMatchingStatus({ status: 'error', message: errorMessage });
       }
     } catch (error) {
       console.error('Error during AI matching:', error);
-      setMatchingStatus({
-        status: 'error',
-        message: 'Network error occurred during AI matching. Please try again.'
-      });
+      setMatchingStatus({ status: 'error', message: 'Network error occurred during AI matching. Please try again.' });
     }
   };
 
