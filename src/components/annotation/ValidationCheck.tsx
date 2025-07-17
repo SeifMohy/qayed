@@ -101,13 +101,12 @@ export default function ValidationCheck({
 
       transactions.forEach((transaction) => {
         try {
+          // Include zero values, not just positive
           if (transaction.creditAmount !== null && transaction.creditAmount !== undefined) {
-            const credit = toNumber(transaction.creditAmount);
-            if (credit > 0) totalCredits += credit;
+            totalCredits += toNumber(transaction.creditAmount) || 0;
           }
           if (transaction.debitAmount !== null && transaction.debitAmount !== undefined) {
-            const debit = toNumber(transaction.debitAmount);
-            if (debit > 0) totalDebits += debit;
+            totalDebits += toNumber(transaction.debitAmount) || 0;
           }
         } catch (transactionError) {
           console.warn('Error processing transaction:', transaction.id, transactionError);
@@ -142,6 +141,7 @@ export default function ValidationCheck({
 
   const currentValidation = calculateValidation();
   const tolerance = 0.01; // 1 cent tolerance
+  // Use tolerance-based comparison for validation
   const isValid = toNumber(currentValidation.discrepancy) <= tolerance;
 
   const getStatusIcon = (status: string) => {
@@ -216,7 +216,6 @@ export default function ValidationCheck({
       {/* Validation Details */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
         <h4 className="text-sm font-medium text-gray-900 mb-3">Balance Calculation</h4>
-        
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-600">Starting Balance:</span>
@@ -240,12 +239,9 @@ export default function ValidationCheck({
           </div>
           <div>
             <span className="text-gray-600">Discrepancy:</span>
-            <span className={`ml-2 font-medium ${toNumber(currentValidation.discrepancy) > tolerance ? 'text-red-600' : 'text-green-600'}`}>
-              ${formatCurrency(currentValidation.discrepancy)}
-            </span>
+            <span className={`ml-2 font-medium ${toNumber(currentValidation.discrepancy) > tolerance ? 'text-red-600' : 'text-green-600'}`}>${formatCurrency(currentValidation.discrepancy)}</span>
           </div>
         </div>
-
         <div className="mt-4 pt-3 border-t border-gray-200">
           <div className="text-sm">
             <span className="text-gray-600">Formula:</span>
@@ -258,9 +254,8 @@ export default function ValidationCheck({
           </div>
         </div>
       </div>
-
       {/* Current Validation Preview */}
-      <div className={`rounded-lg p-4 mb-6 ${isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+      <div className={`rounded-lg p-4 mb-6 ${isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}> 
         <div className="flex items-center">
           {isValid ? (
             <>

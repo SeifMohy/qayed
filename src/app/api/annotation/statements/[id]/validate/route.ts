@@ -93,11 +93,12 @@ function performBalanceValidation(statement: any): ValidationResult {
   let totalDebits = 0;
 
   transactions.forEach((transaction: any) => {
-    if (transaction.creditAmount) {
-      totalCredits += Number(transaction.creditAmount);
+    // Fix: include zero values, not just truthy
+    if (transaction.creditAmount != null) {
+      totalCredits += Number(transaction.creditAmount) || 0;
     }
-    if (transaction.debitAmount) {
-      totalDebits += Number(transaction.debitAmount);
+    if (transaction.debitAmount != null) {
+      totalDebits += Number(transaction.debitAmount) || 0;
     }
   });
 
