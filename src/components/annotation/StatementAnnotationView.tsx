@@ -118,23 +118,18 @@ export default function StatementAnnotationView({ statementId }: StatementAnnota
         } else {
           setSuccessMessage('Statement updated successfully.');
         }
-        
         setTimeout(() => {
           setSuccessMessage(null);
         }, 5000);
 
-        // Automatically trigger validation after metadata updates that affect balance
-        if (updatedData.startingBalance !== undefined || updatedData.endingBalance !== undefined) {
-          // Small delay to ensure state is updated
-          setTimeout(async () => {
-            try {
-              await handleValidation();
-            } catch (error) {
-              console.error('Auto-validation after metadata update failed:', error);
-              // Don't show error to user for auto-validation
-            }
-          }, 300);
+        // Always trigger validation after metadata update
+        try {
+          await handleValidation();
+        } catch (error) {
+          console.error('Auto-validation after metadata update failed:', error);
         }
+        // Always refresh the statement after validation
+        await fetchStatement();
       } else {
         throw new Error(result.error || 'Failed to update statement');
       }
