@@ -132,7 +132,8 @@ export async function GET(request: Request) {
       updatedAt: statement.updatedAt,
       validatedAt: statement.validatedAt,
       validatedBy: statement.validatedBy,
-      fileName: statement.fileName
+      fileName: statement.fileName,
+      fileUrl: statement.fileUrl // Add this line
     }));
 
     return NextResponse.json({

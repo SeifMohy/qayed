@@ -45,6 +45,7 @@ export interface SSEMessage {
   error?: string;
   results?: FileProcessingResult[];
   timestamp: string;
+  fileUrl?: string;
 }
 
 export interface HealthCheckResponse extends BaseResponse {

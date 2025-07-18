@@ -6,6 +6,7 @@ import { logger } from '../utils/logger.js';
 import { parseMultiplePDFs } from '../services/pdfParsingService.js';
 import { structureBankStatement } from '../services/bankStatementStructuringService.js';
 import type { SSEMessage, FileProcessingResult } from '../types/api.js';
+import supabase from '../lib/supabase.js';
 
 const router = express.Router();
 
@@ -54,7 +55,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
       for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
         const file = files[fileIndex];
         const fileName = file.originalname;
-        
+        let fileUrl = undefined;
         try {
           // Only process PDF files
           if (!file.mimetype.includes('pdf')) {
@@ -76,7 +77,48 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
 
           sendSSEMessage({
             type: 'status',
-            message: `📄 Processing file ${fileIndex + 1}/${files.length}: ${fileName}`,
+            message: `☁️ Uploading ${fileName} to Supabase storage`,
+            timestamp: new Date().toISOString()
+          });
+
+          // Upload the original PDF to Supabase storage
+          const timestamp = Date.now();
+          const storagePath = `bank-statements/${supabaseUserId}/${timestamp}-${fileName}`;
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('bank-statements')
+            .upload(`${supabaseUserId}/${timestamp}-${fileName}`, file.buffer, {
+              contentType: file.mimetype,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            const errorResult = {
+              fileName: fileName,
+              success: false,
+              error: `Failed to upload to Supabase storage: ${uploadError.message}`,
+            };
+            allResults.push(errorResult);
+
+            sendSSEMessage({
+              type: 'file_error',
+              fileName: fileName,
+              error: errorResult.error,
+              timestamp: new Date().toISOString()
+            });
+            continue;
+          }
+
+          // Get the public URL
+          const { data: publicUrlData } = supabase.storage
+            .from('bank-statements')
+            .getPublicUrl(`${supabaseUserId}/${timestamp}-${fileName}`);
+
+          fileUrl = publicUrlData?.publicUrl;
+
+          sendSSEMessage({
+            type: 'status',
+            message: `✅ Uploaded ${fileName} to Supabase storage`,
+            fileUrl,
             timestamp: new Date().toISOString()
           });
 
@@ -127,7 +169,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
           const structureResult = await structureBankStatement(
             parseResult.extractedText,
             fileName,
-            undefined, // fileUrl - we don't have Supabase URLs in this workflow
+            fileUrl, // Pass the Supabase file URL here
             supabaseUserId,
             sendSSEMessage
           );
@@ -136,6 +178,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
             const fileResult = {
               fileName: fileName,
               success: true,
+              fileUrl, // Add this line
               extractedText: parseResult.extractedText,
               extractedLength: parseResult.extractedText.length,
               totalChunks: parseResult.totalChunks,
@@ -150,6 +193,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
             sendSSEMessage({
               type: 'file_complete',
               fileName: fileName,
+              fileUrl,
               success: true,
               message: `✅ Successfully processed ${fileName}: ${structureResult.savedStatements?.length || 0} statements saved`,
               timestamp: new Date().toISOString()
@@ -160,6 +204,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
             const errorResult = {
               fileName: fileName,
               success: false,
+              fileUrl,
               error: structureResult.error || 'Failed to structure and save bank statement'
             };
             allResults.push(errorResult);
@@ -167,6 +212,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
             sendSSEMessage({
               type: 'file_error',
               fileName: fileName,
+              fileUrl,
               error: errorResult.error,
               timestamp: new Date().toISOString()
             });
@@ -177,6 +223,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
           const errorResult = {
             fileName: fileName,
             success: false,
+            fileUrl,
             error: error.message || 'An unexpected error occurred during processing.'
           };
           allResults.push(errorResult);
@@ -184,6 +231,7 @@ router.post('/process-complete', uploadConfig.array('files'), async (req: Reques
           sendSSEMessage({
             type: 'file_error',
             fileName: fileName,
+            fileUrl,
             error: errorResult.error,
             timestamp: new Date().toISOString()
           });
